@@ -1,0 +1,47 @@
+[package]
+name = "bevy_jam_2_tba"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+# TODO
+#authors = ["Tim", "Gerri", "psi"]
+
+[lib]
+name = "bevy_jam_2_tba_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bevy_jam_2_tba"
+path = "src/main.rs"
+
+# use basic optimizations for development (set to zero if compile times are to long)
+[profile.dev]
+opt-level = 1
+
+# use full optimization on every dependent package during development 
+# (bevy and other dependencies are optimized in debug builds as a side-effect
+# this raises compile time when dependencies changes (full recompile takes ages)
+[profile.dev.package."*"]
+opt-level = 3
+
+[dependencies.bevy]
+version = "0.8"
+# See https://github.com/bevyengine/bevy/blob/main/docs/cargo_features.md for a list of features
+default-features = false
+features = ["render", "bevy_asset", "bevy_winit", "png"]
+
+# Dependencies for native only.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.bevy]
+version = "0.8"
+default-features = false
+features = ["x11"]
+
+[dependencies]
+bevy-inspector-egui = { version = "0.12.1", optional = true }
+leafwing-input-manager = "0.5.1"
+rand = "0.8.5"
+
+[features]
+default = []
+debug = ["bevy-inspector-egui"]
