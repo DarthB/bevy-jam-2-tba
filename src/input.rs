@@ -25,7 +25,10 @@ pub enum TetrisActionsWASD {
 
 impl Plugin for InputMappingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(InputManagerPlugin::<WASDActions>::default());
+        app
+            .add_plugin(InputManagerPlugin::<WASDActions>::default())
+            .add_plugin(InputManagerPlugin::<TetrisActionsWASD>::default())
+        ;
     }
 }
 

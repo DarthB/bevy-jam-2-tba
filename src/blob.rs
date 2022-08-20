@@ -1,6 +1,4 @@
-use std::sync::mpsc::TryRecvError;
-
-use bevy::{prelude::*, ecs::system::EntityCommands, log};
+use bevy::{prelude::*, ecs::system::EntityCommands};
 use leafwing_input_manager::prelude::*;
 
 use crate::{input::TetrisActionsWASD, turn::Turn};
@@ -65,13 +63,13 @@ impl Blob {
         }
     }
 
-    pub fn rotate_right(&mut self) {
-        let mut rot_vec = vec![0; Blob::width() as usize * Blob::height() as usize];
-                
-        for r in 0..Blob::height()-1 {
-            for c in 0..Blob::width()-1 {
+    pub fn rotate_left(&mut self) {
+        let mut rot_vec = vec![0; Blob::size().pow(2)];
+
+        for r in 0..Blob::size()-1 {
+            for c in 0..Blob::size()-1 {
                 let index = coords_to_idx(r,c);
-                let index_in_new = r + c*Blob::height();
+                let index_in_new = (Blob::size()-c) * Blob::size() - (Blob::size()-r);
                 rot_vec[index_in_new] = self.body[index];
             }
         }
@@ -79,13 +77,24 @@ impl Blob {
         self.body = rot_vec;
     }
 
-    pub fn width() -> usize {9}
-    pub fn height() -> usize {9}
+    pub fn rotate_right(&mut self) {
+        let mut rot_vec = vec![0; Blob::size().pow(2)];
+                
+        for r in 0..Blob::size()-1 {
+            for c in 0..Blob::size()-1 {
+                let index = coords_to_idx(r,c);
+                let index_in_new = Blob::size()-r-1 + c*Blob::size();
+                rot_vec[index_in_new] = self.body[index];
+            }
+        }
 
-    
+        self.body = rot_vec;
+    }
+
+    pub fn size() -> usize {9}
 }
 
-pub fn coords_to_idx(r: usize, c: usize) -> usize {r*Blob::height() + c}
+pub fn coords_to_idx(r: usize, c: usize) -> usize {r*Blob::size() + c}
 
 pub fn blob_sprite_color_and_zorder(num: i32) -> (Color, f32) {
     if num == 1 {
@@ -112,9 +121,9 @@ pub fn spawn_blob(
     });
     ec.insert(BlobGravity{ gravity: 1 })
         .with_children(|cb| {
-            for r in 0..Blob::height() {
-                for c in 0..Blob::width() {
-                    let (color, z) = blob_sprite_color_and_zorder(blob.body[r*Blob::height()+c]);
+            for r in 0..Blob::size() {
+                for c in 0..Blob::size() {
+                    let (color, z) = blob_sprite_color_and_zorder(blob.body[r*Blob::size()+c]);
 
                     cb.spawn_bundle(SpriteBundle {
                         sprite: Sprite { 
@@ -150,9 +159,7 @@ pub fn move_blob_by_player(
     // check if we are in a turn change...
     if turn.is_new_turn() { 
         query.for_each_mut(|(s, mut blob, mut t)| {
-            //log::info!("Test");
-
-            //blob.rotate_right();
+            
 
             // @todo for some reasons the inputs are not get also we use pressed instead just_pressed
             if s.pressed(TetrisActionsWASD::FastDown) {
@@ -168,12 +175,11 @@ pub fn move_blob_by_player(
             }
 
             if s.pressed(TetrisActionsWASD::LRotate) {
-                // @todo implement like rrote
+                blob.rotate_left();
             }
 
             if s.pressed(TetrisActionsWASD::RRotate) {
-                //blob.rotate_right();
-                //log::info!("Rotate!");
+                blob.rotate_right();
             }
         });
     }
@@ -195,5 +201,66 @@ pub fn blob_update_sprites(
             }
             
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Blob;
+
+    pub fn gen_3x3_body() -> Vec<i32> {
+        vec![
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,1,2,3,0,0,0,
+            0,0,0,4,5,6,0,0,0,
+            0,0,0,7,8,9,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            ]
+    }
+
+    pub fn gen_3x3l_body() -> Vec<i32> {
+        vec![
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,3,6,9,0,0,0,
+            0,0,0,2,5,8,0,0,0,
+            0,0,0,1,4,7,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            ]
+    }
+
+    pub fn gen_3x3r_body() -> Vec<i32> {
+        vec![
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,7,4,1,0,0,0,
+            0,0,0,8,5,2,0,0,0,
+            0,0,0,9,6,3,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,
+            ]
+    }
+
+    #[test]
+    fn test_rotation_left() {
+        let mut blob = Blob::new(gen_3x3_body());        
+        blob.rotate_left();
+        assert_eq!(blob.body, gen_3x3l_body());
+    }
+
+    #[test]
+    fn test_rotation_right() {
+        let mut blob = Blob::new(gen_3x3_body());
+        blob.rotate_right();
+        assert_eq!(blob.body, gen_3x3r_body());
     }
 }
