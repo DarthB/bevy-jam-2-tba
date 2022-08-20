@@ -13,10 +13,35 @@ pub enum WASDActions {
     Powerup,
 }
 
+/// This is the list of things the player can do in a normal Tetris game
+#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug)]
+pub enum TetrisActionsWASD {
+    Left,
+    Right,
+    FastDown,
+    LRotate,
+    RRotate,
+}
+
 impl Plugin for InputMappingPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(InputManagerPlugin::<WASDActions>::default());
     }
+}
+
+pub fn add_tetris_control (commands: &mut EntityCommands) {
+    commands.insert_bundle(InputManagerBundle::<TetrisActionsWASD> {
+        // Stores "which actions are currently pressed"
+        action_state: ActionState::default(),
+        // Describes how to convert from player inputs into those actions
+        input_map: InputMap::new([
+            (KeyCode::S, TetrisActionsWASD::FastDown),
+            (KeyCode::A, TetrisActionsWASD::Left),
+            (KeyCode::D, TetrisActionsWASD::Right),
+            (KeyCode::Q, TetrisActionsWASD::LRotate),
+            (KeyCode::E, TetrisActionsWASD::RRotate),
+        ])
+    });
 }
 
 pub fn add_wasd_control(commands: &mut EntityCommands) {

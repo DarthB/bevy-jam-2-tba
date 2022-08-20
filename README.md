@@ -17,7 +17,8 @@ Use the following to enable a egui based inspector
 
 ## WASM
 
-If not done yet install a wasm server runner by:
+If not done yet install a wasm target and a server runner by:
+* `rustup target add wasm32-unknown-unknown`
 * `cargo install wasm-server-runner`
 
 Than simply execute the runner a updated WASM build via:

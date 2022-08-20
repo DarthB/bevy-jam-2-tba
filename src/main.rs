@@ -1,5 +1,5 @@
 use bevy::{prelude::*, window::WindowMode};
-use bevy_jam_2_tba_lib::prelude::*;
+use bevy_jam_2_tba_lib::{prelude::*, blob::{Coordinate, move_blob_by_player, blob_update_sprites}};
 
 #[cfg(feature = "debug")]
 use {
@@ -25,7 +25,9 @@ fn main() {
             mode: WindowMode::Windowed, 
             transparent: false, 
             ..Default::default()
-    });
+    })
+        .insert_resource(Turn::new())
+    ;
 
     // Use default pluign and show own plugin for input mapping
     app.add_plugins(DefaultPlugins)
@@ -51,6 +53,11 @@ fn main() {
             SystemSet::on_update(GameState::Ingame)
                 .with_system(move_players_by_actions)
                 .with_system(apply_powerups_by_actions)
+                .with_system(move_blob_by_player)
+                .with_system(move_blobs_by_gravity)
+                .with_system(blob_update_sprites)
+                // @todo check turn status before
+                .with_system(progress_turn)
         )
     ;
 
@@ -59,6 +66,7 @@ fn main() {
     app
         .add_plugin(WorldInspectorPlugin::new())
         .register_inspectable::<UpgradeableMover>()
+        .register_inspectable::<Coordinate>()
     ;
 
     app.run();

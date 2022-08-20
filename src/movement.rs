@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
-use crate::prelude::*;
+use crate::{prelude::*, blob::BlobGravity};
 
 /// Example of system that maps actions to movements on a controlled entity:
 pub fn move_players_by_actions(
@@ -29,4 +29,15 @@ pub fn move_players_by_actions(
         let move_dt = dir * time.delta_seconds() * um.speed;
         t.translation += Vec3::new(move_dt.x, move_dt.y, 0.0);
     });
+}
+
+pub fn move_blobs_by_gravity(
+    mut query: Query<(&mut Transform, &BlobGravity)>,
+    turn: Res<Turn>
+) {
+    if turn.is_new_turn() {
+        query.for_each_mut(|(mut t, g)| {
+            t.translation.y -= g.gravity as f32 * 32.0; 
+        });
+    }
 }

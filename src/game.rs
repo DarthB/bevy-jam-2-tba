@@ -1,6 +1,6 @@
-use bevy::{prelude::*, ecs::system::EntityCommands};
+use bevy::{prelude::*, ecs::system::EntityCommands, transform::TransformSystem};
 use leafwing_input_manager::prelude::*;
-use crate::prelude::*;
+use crate::{prelude::*, blob::*};
 
 use rand::Rng;
 
@@ -12,6 +12,7 @@ pub enum GameState {
     /// The ingame state where the actual action happens!
     Ingame,
 }
+
 
 // an example component as plain struct that can be shown in the inspector gui
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
@@ -54,7 +55,7 @@ pub fn spawn_world(
 ) { 
     // wasd bird
     spawn_bird(
-        Vec3::new(-200.0, -100.0, 0.0),
+        Vec3::new(-200.0, -200.0, 0.0),
         &mut commands, &asset_server,
         &|ec| {
             add_wasd_control(ec);
@@ -65,13 +66,30 @@ pub fn spawn_world(
 
     // arrow bird
     spawn_bird(
-        Vec3::new(200.0, 100.0, 0.0),
+        Vec3::new(-200.0, 200.0, 0.0),
         &mut commands, &asset_server, 
         &|ec| {
             add_arrow_control(ec);
             ec.insert(Name::new("Bird 2"));
         }
     );
+
+    // generate two example blobs, one that is controlled
+    spawn_blob(
+        &mut commands,
+        gen_l_body(),
+        "L Stone",
+        Vec3::new(50.0, 300.0, 0.0),
+        &|ec| {add_tetris_control(ec);}
+    );
+    spawn_blob(
+        &mut commands,
+        gen_t_body(),
+        "T Stone",
+        Vec3::new(178.0, 300.0, 0.0),
+        &|_| {}
+    );
+    
 } 
 
 pub fn spawn_bird(
