@@ -24,6 +24,7 @@ opt-level = 1
 # this raises compile time when dependencies changes (full recompile takes ages)
 [profile.dev.package."*"]
 opt-level = 3
+debug = false
 
 [dependencies.bevy]
 version = "0.8"

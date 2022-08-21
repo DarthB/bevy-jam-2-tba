@@ -23,12 +23,12 @@ impl Field {
         Field {
             movable_area_color: Color::MIDNIGHT_BLUE,
             edge_color: Color::rgb(0.0, 0.2, 0.5),
-            movable_size: (28, 10),
+            movable_size: (10, 18),
             additional_grids: UiRect {
-                left: 0,
-                right: 1,
-                top: 4,
-                bottom: 4,
+                left: 4,
+                right: 4,
+                top: 0,
+                bottom: 0,
             },
             allow_overlap: UiRect {
                 left: 10,
@@ -36,7 +36,7 @@ impl Field {
                 top: 4,
                 bottom: 4,
             },
-            gravity: (1, 0),
+            gravity: (0, -1),
         }
     }
 

@@ -1,4 +1,4 @@
-use bevy::{prelude::*, window::WindowMode};
+use bevy::{prelude::*, window::WindowMode, render::camera::ScalingMode};
 use bevy_jam_2_tba_lib::{
     blob::{blob_update_sprites, move_blob_by_player},
     prelude::*,
@@ -26,8 +26,8 @@ enum MySystems {
 fn main() {
     let mut app = App::new();
     app.insert_resource(WindowDescriptor {
-        width: 1366.0,
-        height: 768.0,
+        width: 1600.0,
+        height: 1000.0,
         position: bevy::window::WindowPosition::Centered(MonitorSelection::Primary),
         title: "bevy_jam_2_tba".into(),
         resizable: true,
@@ -88,7 +88,13 @@ fn main() {
 
 fn setup(mut commands: Commands, mut app_state: ResMut<State<GameState>>) {
     // setup the camera
-    commands.spawn_bundle(Camera2dBundle::default());
+    commands.spawn_bundle(Camera2dBundle {
+        projection: OrthographicProjection {
+            scaling_mode: ScalingMode::FixedVertical(1000.0),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
 
     // @todo Preload assets
 

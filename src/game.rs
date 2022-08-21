@@ -79,7 +79,7 @@ pub fn spawn_world(
         &mut commands,
         Field::as_factory(),
         "Factory Field",
-        Vec3::new(-220.0, 0.0, 0.0),
+        Vec3::new(-350.0, 0.0, 0.0),
         &|_| {},
     );
     let l_stone = spawn_blob(&mut commands, gen_l_body(), "L Stone", Vec3::ZERO, &|ec| {
