@@ -13,7 +13,12 @@ pub struct Turn {
 
 impl Turn {
     pub fn new(time_per_turn: f32) -> Self {
-        Turn { cur: 0.0, time_per_turn, new_turn: false, num_turn: 0 }
+        Turn {
+            cur: 0.0,
+            time_per_turn,
+            new_turn: false,
+            num_turn: 0,
+        }
     }
 
     pub fn apply_time(&mut self, dt: f32) {
@@ -26,13 +31,14 @@ impl Turn {
         }
     }
 
-    pub fn is_new_turn(&self) -> bool {self.new_turn}
-    pub fn get_num_turn(&self) -> i32 {self.num_turn}
+    pub fn is_new_turn(&self) -> bool {
+        self.new_turn
+    }
+    pub fn get_num_turn(&self) -> i32 {
+        self.num_turn
+    }
 }
 
-pub fn progress_turn(
-    mut turn_info: ResMut<Turn>,
-    time: ResMut<Time>
-) {
+pub fn progress_turn(mut turn_info: ResMut<Turn>, time: ResMut<Time>) {
     turn_info.apply_time(time.delta_seconds());
 }

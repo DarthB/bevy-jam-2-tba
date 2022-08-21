@@ -1,4 +1,4 @@
-use bevy::{prelude::*, ecs::system::EntityCommands};
+use bevy::{ecs::system::EntityCommands, prelude::*};
 use leafwing_input_manager::prelude::*;
 
 pub struct InputMappingPlugin;
@@ -26,14 +26,12 @@ pub enum TetrisActionsWASD {
 
 impl Plugin for InputMappingPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugin(InputManagerPlugin::<WASDActions>::default())
-            .add_plugin(InputManagerPlugin::<TetrisActionsWASD>::default())
-        ;
+        app.add_plugin(InputManagerPlugin::<WASDActions>::default())
+            .add_plugin(InputManagerPlugin::<TetrisActionsWASD>::default());
     }
 }
 
-pub fn add_tetris_control (commands: &mut EntityCommands) {
+pub fn add_tetris_control(commands: &mut EntityCommands) {
     commands.insert_bundle(InputManagerBundle::<TetrisActionsWASD> {
         // Stores "which actions are currently pressed"
         action_state: ActionState::default(),
@@ -45,7 +43,7 @@ pub fn add_tetris_control (commands: &mut EntityCommands) {
             (KeyCode::D, TetrisActionsWASD::Right),
             (KeyCode::Q, TetrisActionsWASD::LRotate),
             (KeyCode::E, TetrisActionsWASD::RRotate),
-        ])
+        ]),
     });
 }
 
@@ -60,7 +58,7 @@ pub fn add_wasd_control(commands: &mut EntityCommands) {
             (KeyCode::A, WASDActions::Left),
             (KeyCode::D, WASDActions::Right),
             (KeyCode::F, WASDActions::Powerup),
-        ])
+        ]),
     });
 }
 
@@ -75,6 +73,6 @@ pub fn add_arrow_control(commands: &mut EntityCommands) {
             (KeyCode::Left, WASDActions::Left),
             (KeyCode::Right, WASDActions::Right),
             (KeyCode::RShift, WASDActions::Powerup),
-        ])
+        ]),
     });
 }

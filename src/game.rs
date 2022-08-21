@@ -1,18 +1,17 @@
-use bevy::{prelude::*, ecs::system::EntityCommands};
+use crate::{blob::*, field::spawn_field, prelude::*};
+use bevy::{ecs::system::EntityCommands, prelude::*};
 use leafwing_input_manager::prelude::*;
-use crate::{prelude::*, blob::*, field::spawn_field};
 
 use rand::Rng;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum GameState {
     /// The startup for loading stuff etc.
-    Starting, 
+    Starting,
 
     /// The ingame state where the actual action happens!
     Ingame,
 }
-
 
 // an example component as plain struct that can be shown in the inspector gui
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
@@ -49,10 +48,10 @@ impl UpgradeableMover {
     }
 }
 
-pub fn spawn_world( 
+pub fn spawn_world(
     mut commands: Commands, // stores commands for entity/component creation / deletion
-    _asset_server: Res<AssetServer> // used to access files stored in the assets folder.
-) { 
+    _asset_server: Res<AssetServer>, // used to access files stored in the assets folder.
+) {
     /*
     // wasd bird
     spawn_bird(
@@ -68,7 +67,7 @@ pub fn spawn_world(
     // arrow bird
     spawn_bird(
         Vec3::new(-200.0, 200.0, 0.0),
-        &mut commands, &asset_server, 
+        &mut commands, &asset_server,
         &|ec| {
             add_arrow_control(ec);
             ec.insert(Name::new("Bird 2"));
@@ -80,47 +79,36 @@ pub fn spawn_world(
         &mut commands,
         Field::as_factory(),
         "Factory Field",
-        Vec3::new(-220.0, 0.0, 0.0), 
-        &|_| {}
+        Vec3::new(-220.0, 0.0, 0.0),
+        &|_| {},
     );
-    let l_stone = spawn_blob(
-        &mut commands,
-        gen_l_body(),
-        "L Stone",
-        Vec3::ZERO,
-        &|ec| {add_tetris_control(ec);}
-    );
+    let l_stone = spawn_blob(&mut commands, gen_l_body(), "L Stone", Vec3::ZERO, &|ec| {
+        add_tetris_control(ec);
+    });
     commands.entity(fac_field).push_children(&[l_stone]);
 
     let pr_field = spawn_field(
-        &mut commands, 
-        Field::as_production_field(), 
-        "Production Field", 
-        Vec3::new(480.0, 0.0, 0.0), 
-        &|_| {}
+        &mut commands,
+        Field::as_production_field(),
+        "Production Field",
+        Vec3::new(480.0, 0.0, 0.0),
+        &|_| {},
     );
 
-    let t_stone = spawn_blob(
-        &mut commands,
-        gen_t_body(),
-        "T Stone",
-        Vec3::ZERO,
-        &|_| {}
-    );
+    let t_stone = spawn_blob(&mut commands, gen_t_body(), "T Stone", Vec3::ZERO, &|_| {});
     commands.entity(pr_field).push_children(&[t_stone]);
-    
-} 
+}
 
 pub fn spawn_bird(
     translation: Vec3,
-    commands: &mut Commands, 
+    commands: &mut Commands,
     asset_server: &AssetServer,
     adapter: &dyn Fn(&mut EntityCommands),
 ) {
     let mut ec = commands.spawn_bundle(SpriteBundle {
-        transform: Transform { 
-            translation, 
-            ..Default::default() 
+        transform: Transform {
+            translation,
+            ..Default::default()
         },
         texture: asset_server.load("icon.png"),
         ..Default::default()
@@ -130,7 +118,7 @@ pub fn spawn_bird(
 }
 
 pub fn apply_powerups_by_actions(
-    mut query: Query<(&ActionState<WASDActions>, &mut UpgradeableMover)>
+    mut query: Query<(&ActionState<WASDActions>, &mut UpgradeableMover)>,
 ) {
     for (a, mut um) in query.iter_mut() {
         if a.just_released(WASDActions::Powerup) {
