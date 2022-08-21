@@ -1,7 +1,7 @@
 use bevy::{prelude::*, ecs::system::EntityCommands};
 use leafwing_input_manager::prelude::*;
 
-use crate::{input::TetrisActionsWASD, turn::Turn};
+use crate::{input::TetrisActionsWASD, turn::Turn, PX_PER_TILE};
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Clone, Reflect)]
@@ -94,7 +94,22 @@ impl Blob {
     pub fn size() -> usize {9}
 }
 
+pub fn pivot_idx() -> usize {
+    Blob::size().pow(2) / 2
+}
+
+pub fn pivot_coord() -> (usize, usize) {
+    (4,4)
+}
+
 pub fn coords_to_idx(r: usize, c: usize) -> usize {r*Blob::size() + c}
+
+pub fn coords_to_px(r: usize, c: usize) -> (f32, f32) {
+    (
+        ((Blob::size() as f32 / -2.0) + c as f32) * PX_PER_TILE,
+        ((Blob::size() as f32 / 2.0) - r as f32) * PX_PER_TILE,
+    )
+}
 
 pub fn blob_sprite_color_and_zorder(num: i32) -> (Color, f32) {
     if num == 1 {
@@ -111,8 +126,6 @@ pub fn spawn_blob(
     trans: Vec3, // @todo later work with coordinates and parent tetris-field
     adapter: &dyn Fn(&mut EntityCommands),
 ) -> Entity {
-    // @todo discuss size of tiles
-    let box_size = 32.0;
     let blob = Blob::new(body);
 
     let mut ec = commands.spawn_bundle(SpatialBundle{
@@ -124,15 +137,16 @@ pub fn spawn_blob(
             for r in 0..Blob::size() {
                 for c in 0..Blob::size() {
                     let (color, z) = blob_sprite_color_and_zorder(blob.body[r*Blob::size()+c]);
+                    let (x,y) = coords_to_px(r, c);
 
                     cb.spawn_bundle(SpriteBundle {
                         sprite: Sprite { 
-                            color: color,
-                            custom_size: Some(Vec2::new(32.0,32.0)),
+                            color,
+                            custom_size: Some(Vec2::ONE * PX_PER_TILE),
                             ..Default::default()
                         },
                         transform: Transform {
-                            translation: Vec3::new(r as f32, c as f32, z) * box_size, 
+                            translation: Vec3::new(x, y, z) , 
                             ..Default::default() 
                         },
                         ..Default::default()
@@ -167,11 +181,11 @@ pub fn move_blob_by_player(
             }
 
             if s.pressed(TetrisActionsWASD::Left) {
-                t.translation.x -= 32.0;
+                t.translation.x -= PX_PER_TILE;
             }
 
             if s.pressed(TetrisActionsWASD::Right) {
-                t.translation.x += 32.0;
+                t.translation.x += PX_PER_TILE;
             }
 
             if s.pressed(TetrisActionsWASD::LRotate) {
@@ -206,9 +220,11 @@ pub fn blob_update_sprites(
 
 #[cfg(test)]
 mod test {
-    use super::Blob;
+    use crate::blob::{coords_to_idx, pivot_coord};
 
-    pub fn gen_3x3_body() -> Vec<i32> {
+    use super::{Blob, pivot_idx};
+
+    pub fn gen_3x3_test_body() -> Vec<i32> {
         vec![
             0,0,0,0,0,0,0,0,0,
             0,0,0,0,0,0,0,0,0,
@@ -222,7 +238,7 @@ mod test {
             ]
     }
 
-    pub fn gen_3x3l_body() -> Vec<i32> {
+    pub fn gen_3x3_lr_test_body() -> Vec<i32> {
         vec![
             0,0,0,0,0,0,0,0,0,
             0,0,0,0,0,0,0,0,0,
@@ -236,7 +252,7 @@ mod test {
             ]
     }
 
-    pub fn gen_3x3r_body() -> Vec<i32> {
+    pub fn gen_3x3_rr_test_body() -> Vec<i32> {
         vec![
             0,0,0,0,0,0,0,0,0,
             0,0,0,0,0,0,0,0,0,
@@ -252,15 +268,24 @@ mod test {
 
     #[test]
     fn test_rotation_left() {
-        let mut blob = Blob::new(gen_3x3_body());        
+        let mut blob = Blob::new(gen_3x3_test_body());        
         blob.rotate_left();
-        assert_eq!(blob.body, gen_3x3l_body());
+        assert_eq!(blob.body, gen_3x3_lr_test_body());
     }
 
     #[test]
     fn test_rotation_right() {
-        let mut blob = Blob::new(gen_3x3_body());
+        let mut blob = Blob::new(gen_3x3_test_body());
         blob.rotate_right();
-        assert_eq!(blob.body, gen_3x3r_body());
+        assert_eq!(blob.body, gen_3x3_rr_test_body());
+    }
+
+    #[test]
+    fn test_pivot() {
+        let blob = Blob::new(gen_3x3_test_body());
+        assert_eq!(blob.body[pivot_idx()], 5);
+        
+        let (r,c) = pivot_coord();
+        assert_eq!(blob.body[coords_to_idx(r,c)], 5);
     }
 }

@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+#[derive(Default)]
 pub struct Turn {
     cur: f32,
 
@@ -11,8 +12,8 @@ pub struct Turn {
 }
 
 impl Turn {
-    pub fn new() -> Self {
-        Turn { cur: 0.0, time_per_turn: 1.0, new_turn: false, num_turn: 0 }
+    pub fn new(time_per_turn: f32) -> Self {
+        Turn { cur: 0.0, time_per_turn, new_turn: false, num_turn: 0 }
     }
 
     pub fn apply_time(&mut self, dt: f32) {

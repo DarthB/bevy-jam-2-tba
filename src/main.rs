@@ -1,5 +1,5 @@
 use bevy::{prelude::*, window::WindowMode};
-use bevy_jam_2_tba_lib::{prelude::*, blob::{Coordinate, move_blob_by_player, blob_update_sprites}};
+use bevy_jam_2_tba_lib::{prelude::*, blob::{move_blob_by_player, blob_update_sprites}, SECONDS_PER_ROUND};
 
 #[cfg(feature = "debug")]
 use {
@@ -8,6 +8,8 @@ use {
         WorldInspectorPlugin,
         RegisterInspectable
     },
+
+    bevy_jam_2_tba_lib::blob::{Coordinate, BlobGravity},
 };
 
 fn main() {
@@ -26,7 +28,7 @@ fn main() {
             transparent: false, 
             ..Default::default()
     })
-        .insert_resource(Turn::new())
+        .insert_resource(Turn::new(SECONDS_PER_ROUND))
     ;
 
     // Use default pluign and show own plugin for input mapping
@@ -67,6 +69,7 @@ fn main() {
         .add_plugin(WorldInspectorPlugin::new())
         .register_inspectable::<UpgradeableMover>()
         .register_inspectable::<Coordinate>()
+        .register_inspectable::<BlobGravity>()
     ;
 
     app.run();
