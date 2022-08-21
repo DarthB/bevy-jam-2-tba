@@ -1,7 +1,7 @@
 use bevy::{prelude::*, ecs::system::EntityCommands};
 use leafwing_input_manager::prelude::*;
 
-use crate::{input::TetrisActionsWASD, turn::Turn, PX_PER_TILE};
+use crate::prelude::*;
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
@@ -63,12 +63,20 @@ impl Blob {
         }
     }
 
+    pub fn coords_to_px(r:usize, c:usize) -> (f32, f32) {
+        coords_to_px(r, c, Blob::size(), Blob::size())
+    }
+
+    pub fn coords_to_idx(r:usize, c:usize) -> usize {
+        coords_to_idx(r, c, Blob::size())
+    }
+
     pub fn rotate_left(&mut self) {
         let mut rot_vec = vec![0; Blob::size().pow(2)];
 
         for r in 0..Blob::size()-1 {
             for c in 0..Blob::size()-1 {
-                let index = coords_to_idx(r,c);
+                let index = Blob::coords_to_idx(r,c);
                 let index_in_new = (Blob::size()-c) * Blob::size() - (Blob::size()-r);
                 rot_vec[index_in_new] = self.body[index];
             }
@@ -82,7 +90,7 @@ impl Blob {
                 
         for r in 0..Blob::size()-1 {
             for c in 0..Blob::size()-1 {
-                let index = coords_to_idx(r,c);
+                let index = Blob::coords_to_idx(r,c);
                 let index_in_new = Blob::size()-r-1 + c*Blob::size();
                 rot_vec[index_in_new] = self.body[index];
             }
@@ -102,20 +110,20 @@ pub fn pivot_coord() -> (usize, usize) {
     (4,4)
 }
 
-pub fn coords_to_idx(r: usize, c: usize) -> usize {r*Blob::size() + c}
+pub fn coords_to_idx(r: usize, c: usize, cs: usize) -> usize {r*cs + c}
 
-pub fn coords_to_px(r: usize, c: usize) -> (f32, f32) {
+pub fn coords_to_px(r: usize, c: usize, rs: usize, cs: usize) -> (f32, f32) {
     (
-        ((Blob::size() as f32 / -2.0) + c as f32) * PX_PER_TILE,
-        ((Blob::size() as f32 / 2.0) - r as f32) * PX_PER_TILE,
+        ((cs as f32 / -2.0) + c as f32) * PX_PER_TILE + PX_PER_TILE/2.0,
+        ((rs as f32 / 2.0) - r as f32) * PX_PER_TILE - PX_PER_TILE/2.0,
     )
 }
 
 pub fn blob_sprite_color_and_zorder(num: i32) -> (Color, f32) {
     if num == 1 {
-        (Color::BLACK, 10.0)
+        (Color::BLACK, Z_SOLID)
     } else {
-        (Color::rgba(0.5, 0.5, 0.5, 0.25), 0.0)
+        (Color::rgba(0.5, 0.5, 0.5, 0.25), Z_TRANS)
     }
 }
 
@@ -132,17 +140,52 @@ pub fn spawn_blob(
         transform: Transform { translation: trans, ..Default::default() },
         ..Default::default()
     });
-    ec.insert(BlobGravity{ gravity: 1 })
+    ec.insert(BlobGravity{ gravity: 0 })
         .with_children(|cb| {
+            #[cfg(feature = "debug")]
+            cb.spawn_bundle(SpriteBundle {
+                sprite: Sprite {
+                    color: Color::YELLOW,
+                    custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
+                    ..Default::default()
+                },
+                transform: Transform {
+                    translation: Vec3::new(0.0, 0.0, Z_OVERLAY),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+                .insert(Name::new("Pivot Sprite"))
+                ;
+
+            #[cfg(feature = "debug")]
+            {
+                let (x, y) = Blob::coords_to_px(0, 0);
+                cb.spawn_bundle(SpriteBundle {
+                    sprite: Sprite {
+                        color: Color::GREEN,
+                        custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
+                        ..Default::default()
+                    },
+                    transform: Transform {
+                        translation: Vec3::new(x, y, Z_OVERLAY),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                    .insert(Name::new("ZERO Sprite"))
+                    ;
+            }
+
             for r in 0..Blob::size() {
                 for c in 0..Blob::size() {
                     let (color, z) = blob_sprite_color_and_zorder(blob.body[r*Blob::size()+c]);
-                    let (x,y) = coords_to_px(r, c);
+                    let (x,y) = Blob::coords_to_px(r, c);
 
                     cb.spawn_bundle(SpriteBundle {
                         sprite: Sprite { 
                             color,
-                            custom_size: Some(Vec2::ONE * PX_PER_TILE),
+                            custom_size: Some(Vec2::ONE * PX_PER_TILE - 2.0),
                             ..Default::default()
                         },
                         transform: Transform {
@@ -175,9 +218,12 @@ pub fn move_blob_by_player(
         query.for_each_mut(|(s, mut blob, mut t)| {
             
 
-            // @todo for some reasons the inputs are not get also we use pressed instead just_pressed
-            if s.pressed(TetrisActionsWASD::FastDown) {
-                // @todo use BlobGravity
+            if s.pressed(TetrisActionsWASD::Up) {
+                t.translation.y += PX_PER_TILE;
+            }
+            
+            if s.pressed(TetrisActionsWASD::Down) {
+                t.translation.y -= PX_PER_TILE;
             }
 
             if s.pressed(TetrisActionsWASD::Left) {
@@ -208,7 +254,7 @@ pub fn blob_update_sprites(
            
             if let Ok((mut sprite, mut t, coord)) = q_children.get_mut(child) {
                 let (color, z) = blob_sprite_color_and_zorder(
-                    blob.body[coords_to_idx(coord.r, coord.c)]
+                    blob.body[coords_to_idx(coord.r, coord.c, Blob::size())]
                 );
                 sprite.color = color;
                 t.translation.z = z;
@@ -220,7 +266,7 @@ pub fn blob_update_sprites(
 
 #[cfg(test)]
 mod test {
-    use crate::blob::{coords_to_idx, pivot_coord};
+    use crate::blob::{pivot_coord};
 
     use super::{Blob, pivot_idx};
 
@@ -286,6 +332,6 @@ mod test {
         assert_eq!(blob.body[pivot_idx()], 5);
         
         let (r,c) = pivot_coord();
-        assert_eq!(blob.body[coords_to_idx(r,c)], 5);
+        assert_eq!(blob.body[Blob::coords_to_idx(r,c)], 5);
     }
 }

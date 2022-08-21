@@ -1,6 +1,6 @@
 use bevy::{prelude::*, ecs::system::EntityCommands};
 use leafwing_input_manager::prelude::*;
-use crate::{prelude::*, blob::*};
+use crate::{prelude::*, blob::*, field::spawn_field};
 
 use rand::Rng;
 
@@ -51,8 +51,9 @@ impl UpgradeableMover {
 
 pub fn spawn_world( 
     mut commands: Commands, // stores commands for entity/component creation / deletion
-    asset_server: Res<AssetServer> // used to access files stored in the assets folder.
+    _asset_server: Res<AssetServer> // used to access files stored in the assets folder.
 ) { 
+    /*
     // wasd bird
     spawn_bird(
         Vec3::new(-200.0, -200.0, 0.0),
@@ -73,22 +74,40 @@ pub fn spawn_world(
             ec.insert(Name::new("Bird 2"));
         }
     );
+    */
 
-    // generate two example blobs, one that is controlled
-    spawn_blob(
+    let fac_field = spawn_field(
+        &mut commands,
+        Field::as_factory(),
+        "Factory Field",
+        Vec3::new(-220.0, 0.0, 0.0), 
+        &|_| {}
+    );
+    let l_stone = spawn_blob(
         &mut commands,
         gen_l_body(),
         "L Stone",
-        Vec3::new(50.0, 300.0, 0.0),
+        Vec3::ZERO,
         &|ec| {add_tetris_control(ec);}
     );
-    spawn_blob(
+    commands.entity(fac_field).push_children(&[l_stone]);
+
+    let pr_field = spawn_field(
+        &mut commands, 
+        Field::as_production_field(), 
+        "Production Field", 
+        Vec3::new(480.0, 0.0, 0.0), 
+        &|_| {}
+    );
+
+    let t_stone = spawn_blob(
         &mut commands,
         gen_t_body(),
         "T Stone",
-        Vec3::new(178.0, 300.0, 0.0),
+        Vec3::ZERO,
         &|_| {}
     );
+    commands.entity(pr_field).push_children(&[t_stone]);
     
 } 
 

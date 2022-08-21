@@ -9,7 +9,8 @@ use {
         RegisterInspectable
     },
 
-    bevy_jam_2_tba_lib::blob::{Coordinate, BlobGravity},
+    bevy_jam_2_tba_lib::blob::{Coordinate, BlobGravity, Blob},
+    bevy_jam_2_tba_lib::field::Field,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -88,6 +89,8 @@ fn main() {
         .register_inspectable::<UpgradeableMover>()
         .register_inspectable::<Coordinate>()
         .register_inspectable::<BlobGravity>()
+        .register_inspectable::<Blob>()
+        .register_inspectable::<Field>()
     ;
 
     app.run();

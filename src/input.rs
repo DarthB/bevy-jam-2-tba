@@ -18,7 +18,8 @@ pub enum WASDActions {
 pub enum TetrisActionsWASD {
     Left,
     Right,
-    FastDown,
+    Up,
+    Down,
     LRotate,
     RRotate,
 }
@@ -38,7 +39,8 @@ pub fn add_tetris_control (commands: &mut EntityCommands) {
         action_state: ActionState::default(),
         // Describes how to convert from player inputs into those actions
         input_map: InputMap::new([
-            (KeyCode::S, TetrisActionsWASD::FastDown),
+            (KeyCode::W, TetrisActionsWASD::Up),
+            (KeyCode::S, TetrisActionsWASD::Down),
             (KeyCode::A, TetrisActionsWASD::Left),
             (KeyCode::D, TetrisActionsWASD::Right),
             (KeyCode::Q, TetrisActionsWASD::LRotate),
