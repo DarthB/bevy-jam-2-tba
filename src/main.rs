@@ -12,6 +12,14 @@ use {
     bevy_jam_2_tba_lib::blob::{Coordinate, BlobGravity},
 };
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(SystemLabel)]
+enum MySystems {
+    TurnManagement,
+    Input,
+    GameUpdates,
+}
+
 fn main() {
     let mut app = App::new();
     app
@@ -53,13 +61,23 @@ fn main() {
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
+                .with_system(progress_turn)
+                .label(MySystems::TurnManagement)
+            )
+        .add_system_set(
+            SystemSet::on_update(GameState::Ingame)
                 .with_system(move_players_by_actions)
                 .with_system(apply_powerups_by_actions)
                 .with_system(move_blob_by_player)
+                .label(MySystems::Input)
+                .after(MySystems::TurnManagement)    
+        )
+        .add_system_set(
+            SystemSet::on_update(GameState::Ingame)
                 .with_system(move_blobs_by_gravity)
                 .with_system(blob_update_sprites)
-                // @todo check turn status before
-                .with_system(progress_turn)
+                .label(MySystems::GameUpdates)
+                .after(MySystems::Input)
         )
     ;
 
