@@ -26,7 +26,7 @@ pub struct BlobGravity {
 
 impl BlobGravity {
     pub fn is_zero(&self) -> bool {
-        return self.gravity.0 == 0 && self.gravity.1 == 0;
+        self.gravity.0 == 0 && self.gravity.1 == 0
     }
 }
 
@@ -48,6 +48,10 @@ impl Blob {
 
     pub fn size() -> usize {
         9
+    }
+
+    pub fn empty(&self) -> bool {
+        self.body.iter().sum::<i32>() == 0
     }
 
     pub fn pivot_idx() -> usize {
@@ -82,19 +86,23 @@ impl Blob {
         self.body = rot_vec;
     }
 
+    /// the function calculates the occupied coordinates in the coordinate system of the
+    /// parent (coordinate property)
     pub fn occupied_coordinates(&self) -> Vec<(i32, i32)> {
-        let mut reval: Vec<(i32, i32)> = Vec::new();
-        for r in 0..Blob::size() {
-            for c in 0..Blob::size() {
-                if self.body[Blob::coords_to_idx(r, c)] != 0 {
-                    reval.push((
-                        c as i32 - (Blob::size() as f32 / 2.0) as i32,
-                        r as i32 - (Blob::size() as f32 / 2.0) as i32,
-                    ));
+        let mut reval = Vec::new();
+        if self.coordinate.is_some() {
+            for r in 0..Blob::size() {
+                for c in 0..Blob::size() {
+                    if self.body[Blob::coords_to_idx(r, c)] != 0 {
+                        let x = c as i32 - (Blob::size() as f32 / 2.0) as i32;
+                        let y = r as i32 - (Blob::size() as f32 / 2.0) as i32;
+                        if let Some(coord) = &self.coordinate {
+                            reval.push((x + coord.c, y + coord.r));
+                        }
+                    }
                 }
             }
         }
-
         reval
     }
 }

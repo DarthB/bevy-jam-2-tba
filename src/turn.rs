@@ -10,6 +10,8 @@ pub struct Turn {
 
     num_turn: i32,
 
+    pub pause: bool,
+
     pub num_additional_bricks: i32,
 
     pub fac_id: Option<Entity>,
@@ -27,10 +29,16 @@ impl Turn {
             num_additional_bricks: 0,
             fac_id: None,
             prod_id: None,
+            pause: false,
         }
     }
 
     pub fn apply_time(&mut self, dt: f32) {
+        if self.pause {
+            return;
+        }
+        //~
+
         self.new_turn = false;
         self.cur += dt;
         if self.cur > self.time_per_turn {

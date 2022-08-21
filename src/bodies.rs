@@ -149,7 +149,7 @@ pub mod prototype {
             0, 0, 0, 0, 0, 0, 0, 0, 0, //
         ]
     }
-    
+
     pub fn gen_target_body() -> Vec<i32> {
         vec![
             0, 0, 0, 0, 0, 0, 0, 0, 0, //

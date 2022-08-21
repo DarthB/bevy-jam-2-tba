@@ -100,34 +100,30 @@ pub fn move_production_blobs_by_events(
     for ev in ev.iter() {
         if let Ok((id, p, mut blob, mut grav)) = query.get_mut(ev.entity) {
             if let Ok(mut field) = parent_query.get_mut(p.get()) {
-                let mut occ_coords = blob.occupied_coordinates();
+                let occ_coords = blob.occupied_coordinates();
 
                 if let Some(coord) = &mut blob.coordinate {
-                    let (tc, tr) = (coord.c + ev.delta.0, coord.r + ev.delta.1);
-
                     // transform grid
-                    let mut occ_coords_test = occ_coords.clone();
-                    for ch in &mut occ_coords_test {
-                        ch.0 += tc;
-                        ch.1 += tr;
+                    let mut occ_coords_delta = occ_coords.clone();
+                    for ch in &mut occ_coords_delta {
+                        ch.0 += ev.delta.0;
+                        ch.1 += ev.delta.1;
                     }
 
                     // test for occupied
-                    let (occupied, _) = field.any_coordinate_occupied(&occ_coords_test);
+                    let (occupied, _) = field.any_coordinate_occupied(&occ_coords_delta);
 
                     if !occupied {
-                        coord.c = tc;
-                        coord.r = tr;
+                        coord.c += ev.delta.0;
+                        coord.r += ev.delta.1;
                     } else {
                         grav.gravity = (0, 0);
-                        for ch in &mut occ_coords {
-                            ch.0 += coord.c;
-                            ch.1 += coord.r;
-                        }
                         log::info!("Full Stop and occupy");
                         field.occupy_coordinates(&occ_coords);
 
-                        commands.entity(id).remove_bundle::<InputManagerBundle::<TetrisActionsWASD>>();
+                        commands
+                            .entity(id)
+                            .remove_bundle::<InputManagerBundle<TetrisActionsWASD>>();
                         // @todo play plong sound or similar
                     }
                 }

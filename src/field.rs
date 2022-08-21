@@ -2,6 +2,8 @@ use std::fmt::Debug;
 
 use bevy::{ecs::system::EntityCommands, log, prelude::*};
 
+use itertools::Itertools;
+
 use crate::prelude::*;
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
@@ -20,6 +22,8 @@ pub struct Field {
     occupied: Vec<bool>,
 
     tracks_occupied: bool,
+
+    remove_full_lines: bool,
 }
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
@@ -196,6 +200,41 @@ impl Field {
             bottom: (self.movable_size.1 + self.allow_overlap.bottom) as i32,
         }
     }
+
+    pub fn full_lines(&self) -> Vec<usize> {
+        let mut reval: Vec<usize> = Vec::new();
+        if !self.tracks_occupied || !self.remove_full_lines {
+            return reval;
+        }
+        //~
+
+        for r in 0..self.movable_size.1 {
+            let mut full_line = true;
+            for c in 0..self.movable_size.0 {
+                full_line = full_line && self.occupied()[self.coords_to_idx(c, r)]
+            }
+            if full_line {
+                reval.push(r);
+            }
+        }
+
+        reval
+    }
+
+    pub fn deoccupy_lines(&mut self, lines: &Vec<usize>) {
+        if !self.tracks_occupied {
+            return;
+        }
+
+        for r in lines {
+            for c in 0..self.movable_size.0 {
+                let idx = self.coords_to_idx(c, *r);
+                if idx < self.occupied.len() {
+                    self.occupied[idx] = false;
+                }
+            }
+        }
+    }
 }
 
 impl Default for Field {
@@ -218,6 +257,7 @@ impl Default for Field {
             },
             occupied: Vec::new(),
             tracks_occupied: false,
+            remove_full_lines: true,
         }
     }
 }
@@ -365,5 +405,63 @@ pub fn update_field_debug(
                 Color::WHITE
             }
         }
+    }
+}
+
+pub fn remove_field_lines(
+    mut query_field: Query<(&mut Field, &Children)>,
+    mut query_blob: Query<&mut Blob>,
+    mut turn: ResMut<Turn>,
+) {
+    for (mut field, children) in query_field.iter_mut() {
+        let fl = field.full_lines();
+        if fl.is_empty() {
+            continue;
+        }
+        //~
+
+        turn.pause = true;
+        log::info!("Removing {} lines", fl.len());
+
+        let coordinates: Vec<(i32, i32)> = fl
+            .iter()
+            .cartesian_product(0..field.mov_size().0)
+            .map(|(y, x)| (x as i32, *y as i32))
+            .collect();
+        log::info!(
+            "Cartesian Product contains  {} elments\n{:?}",
+            coordinates.len(),
+            coordinates
+        );
+
+        for child in children {
+            // @todo send an event that these rows will are triggerd for destroy and
+            // work on this event on blob side instead doing everything here (easier anim later)
+            if let Ok(mut blob) = query_blob.get_mut(*child) {
+                let blob_coords = blob.occupied_coordinates();
+                println!("Blob:{:?}", blob_coords);
+                blob_coords
+                    .iter()
+                    .filter(|(x, y)| !coordinates.contains(&(*x, *y)))
+                    .map(|(x, y)| (x - pivot_coord().0 as i32, y - pivot_coord().1 as i32))
+                    .for_each(|(x, y)| {
+                        if x > 0 && y > 0 {
+                            let idx = Blob::coords_to_idx(x as usize, y as usize);
+                            if idx < blob.body.len() {
+                                let prior = blob.body[idx];
+                                log::info!("Delete sprite at {x},{y} with {idx}, was={prior}");
+                                blob.body[idx] = 0;
+                            } else {
+                                log::warn!(
+                                    "Cannot delete sprite at {x},{y} with {idx}, as len={}",
+                                    blob.body.len()
+                                );
+                            }
+                        }
+                    });
+            }
+        }
+
+        field.deoccupy_lines(&fl);
     }
 }

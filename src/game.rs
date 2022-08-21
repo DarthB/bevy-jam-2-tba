@@ -51,7 +51,7 @@ impl UpgradeableMover {
 pub fn spawn_world(
     mut commands: Commands, // stores commands for entity/component creation / deletion
     _asset_server: Res<AssetServer>,
-    mut turn: ResMut<Turn> // used to access files stored in the assets folder.
+    mut turn: ResMut<Turn>, // used to access files stored in the assets folder.
 ) {
     /*
     // wasd bird
@@ -141,24 +141,24 @@ pub fn spawn_bird(
 pub fn contiously_spawn_tetris_at_end(
     mut commands: Commands,
     query_active: Query<&BlobGravity>,
-    turn: ResMut<Turn>,
+    mut turn: ResMut<Turn>,
 ) {
     if let Some(prod_ent) = turn.prod_id {
-
-        if turn.is_new_turn() && 
-            query_active.iter().filter(|g| {!g.is_zero()}).count() == 0 {
-            
+        if turn.is_new_turn() && query_active.iter().filter(|g| !g.is_zero()).count() == 0 {
             let body = gen_random_tetris_body();
 
             let new_id = spawn_blob(
-                &mut commands, 
-                body, 
-                format!("{}. Additional Tetris Brick", turn.num_additional_bricks).as_str(), 
-                Some(Coordinate{r:-3,c:3}), 
-                &|ec| {add_tetris_control(ec);}
+                &mut commands,
+                body,
+                format!("{}. Additional Tetris Brick", turn.num_additional_bricks).as_str(),
+                Some(Coordinate { r: -3, c: 3 }),
+                &|ec| {
+                    add_tetris_control(ec);
+                },
             );
+            turn.num_additional_bricks += 1;
             commands.entity(prod_ent).push_children(&[new_id]);
-        }   
+        }
     } else {
         panic!("The programmer forgot to create the production Field...");
     }

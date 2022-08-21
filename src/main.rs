@@ -57,6 +57,7 @@ fn main() {
             SystemSet::on_update(GameState::Ingame)
                 .with_system(progress_turn)
                 .with_system(contiously_spawn_tetris_at_end)
+                .with_system(remove_field_lines)
                 .label(MySystems::EventHandling),
         )
         .add_system_set(

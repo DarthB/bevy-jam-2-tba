@@ -15,6 +15,7 @@ path = "src/lib.rs"
 name = "bevy_jam_2_tba"
 path = "src/main.rs"
 
+
 # use basic optimizations for development (set to zero if compile times are to long)
 [profile.dev]
 opt-level = 0
@@ -42,6 +43,7 @@ features = ["x11"]
 bevy-inspector-egui = { version = "0.12.1", optional = true }
 leafwing-input-manager = "0.5.1"
 rand = "0.8.5"
+itertools = "0.10.3"
 
 [features]
 default = []
