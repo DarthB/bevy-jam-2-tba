@@ -1,4 +1,6 @@
-use bevy::{ecs::system::EntityCommands, prelude::*};
+use std::fmt::Debug;
+
+use bevy::{ecs::system::EntityCommands, log, prelude::*};
 
 use crate::prelude::*;
 
@@ -15,8 +17,22 @@ pub struct Field {
 
     allow_overlap: UiRect<usize>,
 
-    gravity: (i32, i32),
+    occupied: Vec<bool>,
+
+    tracks_occupied: bool,
 }
+
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
+pub struct DebugOccupiedTag {}
+
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
+pub struct FactoryFieldTag {}
+
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
+pub struct ProductionFieldTag {}
 
 impl Field {
     pub fn as_factory() -> Self {
@@ -34,21 +50,151 @@ impl Field {
                 left: 10,
                 right: 0,
                 top: 4,
-                bottom: 4,
+                bottom: 9,
             },
-            gravity: (0, -1),
-        }
-    }
-
-    pub fn as_production_field() -> Self {
-        Field {
-            edge_color: Color::rgba(0.25, 0.0, 0.0, 1.0),
             ..Default::default()
         }
     }
 
-    pub fn coords_to_px(&self, r: usize, c: usize) -> (f32, f32) {
-        coords_to_px(r, c, self.movable_size.0, self.movable_size.1)
+    pub fn as_production_field() -> Self {
+        let mut reval = Field {
+            edge_color: Color::rgba(0.25, 0.0, 0.0, 1.0),
+            tracks_occupied: true,
+            allow_overlap: UiRect {
+                left: 0,
+                right: 0,
+                top: 10,
+                bottom: 0,
+            },
+            ..Default::default()
+        };
+
+        let num = reval.movable_size.0 * reval.movable_size.1;
+        reval.occupied = vec![false; num];
+
+        reval
+    }
+
+    pub fn tracks_occupied(&self) -> bool {
+        self.tracks_occupied
+    }
+
+    pub fn occupied(&self) -> &Vec<bool> {
+        &self.occupied
+    }
+
+    pub fn occupy_coordinates(&mut self, coords: &Vec<(i32, i32)>) {
+        for (x, y) in coords {
+            if *x < 0 || *y < 0 {
+                continue;
+            }
+
+            let idx = self.coords_to_idx(*x as usize, *y as usize);
+            if idx < self.occupied.len() {
+                self.occupied[idx] = true;
+            } else {
+                log::warn!(
+                    "Tried to occupy coordinate at idx {idx}, also only {} elemnts exist",
+                    self.occupied.len()
+                );
+            }
+        }
+    }
+
+    pub fn any_coordinate_occupied(&self, coords: &Vec<(i32, i32)>) -> (bool, Option<(i32, i32)>) {
+        for (x, y) in coords {
+            let res = self.is_coordinate_occupied(*x, *y);
+            if res.0 {
+                return res;
+            }
+        }
+        (false, None)
+    }
+
+    /// return true if the given coordinate can be occupied, otherwise provide
+    /// an information how the movement can be reduced such that the border is reached
+    pub fn is_coordinate_occupied(&self, x: i32, y: i32) -> (bool, Option<(i32, i32)>) {
+        // first check if the space is already occupied:
+        if self.tracks_occupied && x >= 0 && y >= 0 {
+            let idx = self.coords_to_idx(x as usize, y as usize);
+            if idx < self.occupied.len() && self.occupied[idx] {
+                return (true, None);
+            }
+        }
+
+        let mut x_correct = 0;
+        let mut y_correct = 0;
+
+        let border = self.coordinate_limits();
+
+        let left_check = x < border.left;
+        if left_check {
+            x_correct = border.left - x;
+        }
+
+        let right_check = x >= border.right;
+        if right_check {
+            x_correct = border.right - x;
+        }
+
+        let up_check = y < border.top;
+        if up_check {
+            y_correct = border.top - y;
+        }
+
+        let down_check = y >= border.bottom;
+        if down_check {
+            y_correct = border.bottom - y;
+        }
+
+        let occupied_by_edge = left_check || right_check || up_check || down_check;
+
+        if x_correct != 0 || y_correct != 0 {
+            (occupied_by_edge, Some((x + x_correct, y + y_correct)))
+        } else {
+            (occupied_by_edge, None)
+        }
+    }
+
+    pub fn coords_to_px(&self, x: i32, y: i32) -> (f32, f32) {
+        let woo = coords_to_px(x, y, self.movable_size.1, self.movable_size.0);
+        //let (ox, oy) = self.offset();
+        (woo.0, woo.1)
+    }
+
+    pub fn coords_to_idx(&self, x: usize, y: usize) -> usize {
+        x + y * self.movable_size.0
+    }
+
+    pub fn size(&self) -> (usize, usize) {
+        (
+            self.movable_size.0 + self.additional_grids.left + self.additional_grids.right,
+            self.movable_size.1 + self.additional_grids.top + self.additional_grids.bottom,
+        )
+    }
+
+    pub fn mov_size(&self) -> (usize, usize) {
+        self.movable_size
+    }
+
+    /// Calculates the offset in pixels used to render to the movable area, if uneven edges are used.
+    pub fn offset(&self) -> (f32, f32) {
+        let f = PX_PER_TILE / 2.0;
+        (
+            self.additional_grids.right as f32 * f - self.additional_grids.left as f32 * f,
+            self.additional_grids.top as f32 * f - self.additional_grids.bottom as f32 * f,
+        )
+    }
+
+    /// returns a rect that gives defines the limits of the corrdinates by respecting
+    /// the allow_overlap property
+    pub fn coordinate_limits(&self) -> UiRect<i32> {
+        UiRect {
+            left: -(self.allow_overlap.left as i32),
+            right: (self.movable_size.0 + self.allow_overlap.right) as i32,
+            top: -(self.allow_overlap.top as i32),
+            bottom: (self.movable_size.1 + self.allow_overlap.bottom) as i32,
+        }
     }
 }
 
@@ -57,8 +203,7 @@ impl Default for Field {
         Self {
             movable_area_color: Color::GRAY,
             edge_color: Color::DARK_GRAY,
-            gravity: (0, -1),
-            movable_size: (10, 20),
+            movable_size: (10, 18),
             additional_grids: UiRect {
                 left: 1,
                 right: 1,
@@ -71,6 +216,8 @@ impl Default for Field {
                 top: 5,
                 bottom: 0,
             },
+            occupied: Vec::new(),
+            tracks_occupied: false,
         }
     }
 }
@@ -90,11 +237,8 @@ pub fn spawn_field(
         ..Default::default()
     });
     ec.with_children(|cb| {
-        let sx = field.movable_size.0 + field.additional_grids.left + field.additional_grids.right;
-        let sy = field.movable_size.1 + field.additional_grids.top + field.additional_grids.bottom;
-        let f = PX_PER_TILE / 2.0;
-        let ox = field.additional_grids.right as f32 * f - field.additional_grids.left as f32 * f;
-        let oy = field.additional_grids.top as f32 * f - field.additional_grids.bottom as f32 * f;
+        let (sx, sy) = field.size();
+        let (ox, oy) = field.offset();
 
         cb.spawn_bundle(SpriteBundle {
             sprite: Sprite {
@@ -159,9 +303,67 @@ pub fn spawn_field(
             })
             .insert(Name::new("Zero Sprite"));
         }
+
+        #[cfg(feature = "debug")]
+        if field.tracks_occupied {
+            cb.spawn_bundle(SpatialBundle::default())
+                .with_children(|cb| {
+                    for x in 0..field.mov_size().0 {
+                        for y in 0..field.mov_size().1 {
+                            let (px, py) = field.coords_to_px(x as i32, y as i32);
+                            cb.spawn_bundle(SpriteBundle {
+                                sprite: Sprite {
+                                    color: Color::WHITE,
+                                    custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
+                                    ..Default::default()
+                                },
+                                transform: Transform {
+                                    translation: Vec3::new(px, py - PX_PER_TILE / 4.0, Z_OVERLAY),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            })
+                            .insert(Name::new(format!("{x}x{y} occupied helper")))
+                            .insert(Coordinate {
+                                c: x as i32,
+                                r: y as i32,
+                            })
+                            .insert(DebugOccupiedTag {});
+                        }
+                    }
+                })
+                .insert(Name::new("Debug occupied"));
+        }
     })
     .insert(Name::new(name.to_string()))
     .insert(field);
     adapter(&mut ec);
     ec.id()
+}
+
+pub fn update_field_debug(
+    query: Query<&Field>,
+    mut query_sprite: Query<(&mut Sprite, &Coordinate), With<DebugOccupiedTag>>,
+) {
+    for field in query.iter() {
+        if !field.tracks_occupied() {
+            continue;
+        }
+        //~
+
+        for (mut sprite, coord) in query_sprite.iter_mut() {
+            if coord.c < 0 || coord.r < 0 {
+                continue;
+            }
+            //~
+
+            let idx = field.coords_to_idx(coord.c as usize, coord.r as usize);
+
+            sprite.color = if idx < field.occupied().len() && field.occupied()[idx] {
+                Color::RED
+            } else {
+                Color::WHITE
+            }
+        }
+    }
 }

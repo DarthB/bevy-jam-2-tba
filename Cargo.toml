@@ -17,14 +17,14 @@ path = "src/main.rs"
 
 # use basic optimizations for development (set to zero if compile times are to long)
 [profile.dev]
-opt-level = 1
+opt-level = 0
 
 # use full optimization on every dependent package during development 
 # (bevy and other dependencies are optimized in debug builds as a side-effect
 # this raises compile time when dependencies changes (full recompile takes ages)
 [profile.dev.package."*"]
 opt-level = 3
-debug = false
+# debug = false
 
 [dependencies.bevy]
 version = "0.8"

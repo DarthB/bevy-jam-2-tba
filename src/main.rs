@@ -1,9 +1,5 @@
-use bevy::{prelude::*, window::WindowMode, render::camera::ScalingMode};
-use bevy_jam_2_tba_lib::{
-    blob::{blob_update_sprites, move_blob_by_player},
-    prelude::*,
-    SECONDS_PER_ROUND,
-};
+use bevy::{prelude::*, render::camera::ScalingMode, window::WindowMode};
+use bevy_jam_2_tba_lib::{prelude::*, SECONDS_PER_ROUND};
 
 #[cfg(feature = "debug")]
 use {
@@ -18,9 +14,10 @@ use {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SystemLabel)]
 enum MySystems {
-    TurnManagement,
+    EventHandling,
     Input,
     GameUpdates,
+    RenderUpdates,
 }
 
 fn main() {
@@ -40,6 +37,9 @@ fn main() {
     })
     .insert_resource(Turn::new(SECONDS_PER_ROUND));
 
+    app.add_event::<BlobMoveEvent>()
+        .add_event::<BlobTeleportEvent>();
+
     // Use default pluign and show own plugin for input mapping
     app.add_plugins(DefaultPlugins)
         // the following plugin is an example on how bigger units
@@ -56,7 +56,7 @@ fn main() {
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
                 .with_system(progress_turn)
-                .label(MySystems::TurnManagement),
+                .label(MySystems::EventHandling),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
@@ -64,14 +64,24 @@ fn main() {
                 .with_system(apply_powerups_by_actions)
                 .with_system(move_blob_by_player)
                 .label(MySystems::Input)
-                .after(MySystems::TurnManagement),
+                .after(MySystems::EventHandling),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
                 .with_system(move_blobs_by_gravity)
-                .with_system(blob_update_sprites)
+                .with_system(move_factory_blobs_by_events)
+                .with_system(move_production_blobs_by_events)
+                .with_system(teleport_blob_out_of_factory)
                 .label(MySystems::GameUpdates)
                 .after(MySystems::Input),
+        )
+        .add_system_set(
+            SystemSet::on_update(GameState::Ingame)
+                .with_system(blob_update_sprites)
+                .with_system(blob_update_transforms)
+                .with_system(update_field_debug)
+                .label(MySystems::RenderUpdates)
+                .after(MySystems::GameUpdates),
         );
 
     // Add an ingame inspector window

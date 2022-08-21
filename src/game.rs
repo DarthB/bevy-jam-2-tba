@@ -75,16 +75,25 @@ pub fn spawn_world(
     );
     */
 
+    let comp = Field::as_factory();
     let fac_field = spawn_field(
         &mut commands,
-        Field::as_factory(),
+        comp,
         "Factory Field",
         Vec3::new(-350.0, 0.0, 0.0),
-        &|_| {},
+        &|ec| {
+            ec.insert(FactoryFieldTag {});
+        },
     );
-    let l_stone = spawn_blob(&mut commands, gen_l_body(), "L Stone", Vec3::ZERO, &|ec| {
-        add_tetris_control(ec);
-    });
+    let l_stone = spawn_blob(
+        &mut commands,
+        gen_h_body(),
+        "L Stone",
+        Some(Coordinate { c: 3, r: -4 }),
+        &|ec| {
+            add_tetris_control(ec);
+        },
+    );
     commands.entity(fac_field).push_children(&[l_stone]);
 
     let pr_field = spawn_field(
@@ -92,10 +101,18 @@ pub fn spawn_world(
         Field::as_production_field(),
         "Production Field",
         Vec3::new(480.0, 0.0, 0.0),
-        &|_| {},
+        &|ec| {
+            ec.insert(ProductionFieldTag {});
+        },
     );
 
-    let t_stone = spawn_blob(&mut commands, gen_t_body(), "T Stone", Vec3::ZERO, &|_| {});
+    let t_stone = spawn_blob(
+        &mut commands,
+        gen_t_body(),
+        "T Stone",
+        Some(Coordinate { c: 1, r: -3 }),
+        &|_| {},
+    );
     commands.entity(pr_field).push_children(&[t_stone]);
 }
 
