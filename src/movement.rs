@@ -49,10 +49,12 @@ pub fn move_blobs_by_gravity(
     if turn.is_new_turn() {
         query.for_each_mut(|(e, mut t, g, blob)| {
             if blob.coordinate.is_some() {
-                ev.send(BlobMoveEvent {
-                    delta: g.gravity,
-                    entity: e,
-                });
+                if !g.is_zero() {
+                    ev.send(BlobMoveEvent {
+                        delta: g.gravity,
+                        entity: e,
+                    });
+                }
             } else {
                 // fallback if not ona field
                 t.translation.x -= g.gravity.0 as f32 * PX_PER_TILE;
@@ -90,12 +92,13 @@ pub fn move_factory_blobs_by_events(
 }
 
 pub fn move_production_blobs_by_events(
-    mut query: Query<(&Parent, &mut Blob, &mut BlobGravity)>,
+    mut commands: Commands,
+    mut query: Query<(Entity, &Parent, &mut Blob, &mut BlobGravity)>,
     mut parent_query: Query<&mut Field, With<ProductionFieldTag>>,
     mut ev: EventReader<BlobMoveEvent>,
 ) {
     for ev in ev.iter() {
-        if let Ok((p, mut blob, mut grav)) = query.get_mut(ev.entity) {
+        if let Ok((id, p, mut blob, mut grav)) = query.get_mut(ev.entity) {
             if let Ok(mut field) = parent_query.get_mut(p.get()) {
                 let mut occ_coords = blob.occupied_coordinates();
 
@@ -123,6 +126,8 @@ pub fn move_production_blobs_by_events(
                         }
                         log::info!("Full Stop and occupy");
                         field.occupy_coordinates(&occ_coords);
+
+                        commands.entity(id).remove_bundle::<InputManagerBundle::<TetrisActionsWASD>>();
                         // @todo play plong sound or similar
                     }
                 }

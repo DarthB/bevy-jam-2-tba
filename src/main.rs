@@ -56,6 +56,7 @@ fn main() {
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
                 .with_system(progress_turn)
+                .with_system(contiously_spawn_tetris_at_end)
                 .label(MySystems::EventHandling),
         )
         .add_system_set(

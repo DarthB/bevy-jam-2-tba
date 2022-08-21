@@ -9,6 +9,12 @@ pub struct Turn {
     time_per_turn: f32,
 
     num_turn: i32,
+
+    pub num_additional_bricks: i32,
+
+    pub fac_id: Option<Entity>,
+
+    pub prod_id: Option<Entity>,
 }
 
 impl Turn {
@@ -18,6 +24,9 @@ impl Turn {
             time_per_turn,
             new_turn: false,
             num_turn: 0,
+            num_additional_bricks: 0,
+            fac_id: None,
+            prod_id: None,
         }
     }
 

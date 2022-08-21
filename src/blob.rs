@@ -11,11 +11,6 @@ pub struct Blob {
     pub coordinate: Option<Coordinate>,
 }
 
-/// used for tagging the sprites that belong to a Blob
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
-pub struct BlobGridSprite {}
-
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct Coordinate {
@@ -29,46 +24,10 @@ pub struct BlobGravity {
     pub gravity: (i32, i32),
 }
 
-pub fn gen_h_body() -> Vec<i32> {
-    vec![
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        0, 1, 0, 0, 1, 0, 0, 0, 0, //
-        0, 1, 0, 0, 1, 0, 0, 0, 0, //
-        0, 1, 1, 1, 1, 0, 0, 0, 0, //
-        0, 1, 0, 0, 1, 0, 0, 0, 0, //
-        0, 1, 0, 0, 1, 0, 0, 0, 0, //
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-    ]
-}
-
-pub fn gen_l_body() -> Vec<i32> {
-    vec![
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        0, 0, 0, 0, 1, 0, 0, 0, 0, //
-        0, 0, 0, 0, 1, 0, 0, 0, 0, //
-        0, 0, 0, 0, 1, 1, 0, 0, 0, //
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-    ]
-}
-
-pub fn gen_t_body() -> Vec<i32> {
-    vec![
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        0, 0, 0, 0, 1, 0, 0, 0, 0, //
-        0, 0, 0, 1, 1, 1, 0, 0, 0, //
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        0, 0, 0, 0, 0, 0, 0, 0, 0, //
-    ]
+impl BlobGravity {
+    pub fn is_zero(&self) -> bool {
+        return self.gravity.0 == 0 && self.gravity.1 == 0;
+    }
 }
 
 impl Blob {
@@ -180,7 +139,6 @@ pub fn spawn_blob(
     });
     ec.insert(BlobGravity { gravity: (0, 1) })
         .with_children(|cb| {
-            #[cfg(feature = "debug")]
             cb.spawn_bundle(SpriteBundle {
                 sprite: Sprite {
                     color: Color::YELLOW,

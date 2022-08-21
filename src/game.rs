@@ -50,7 +50,8 @@ impl UpgradeableMover {
 
 pub fn spawn_world(
     mut commands: Commands, // stores commands for entity/component creation / deletion
-    _asset_server: Res<AssetServer>, // used to access files stored in the assets folder.
+    _asset_server: Res<AssetServer>,
+    mut turn: ResMut<Turn> // used to access files stored in the assets folder.
 ) {
     /*
     // wasd bird
@@ -85,9 +86,11 @@ pub fn spawn_world(
             ec.insert(FactoryFieldTag {});
         },
     );
+    turn.fac_id = Some(fac_field);
+
     let l_stone = spawn_blob(
         &mut commands,
-        gen_h_body(),
+        bodies::prototype::gen_blob_body(),
         "L Stone",
         Some(Coordinate { c: 3, r: -4 }),
         &|ec| {
@@ -105,12 +108,13 @@ pub fn spawn_world(
             ec.insert(ProductionFieldTag {});
         },
     );
+    turn.prod_id = Some(pr_field);
 
     let t_stone = spawn_blob(
         &mut commands,
-        gen_t_body(),
-        "T Stone",
-        Some(Coordinate { c: 1, r: -3 }),
+        bodies::prototype::gen_target_body(),
+        "Target Stone",
+        Some(Coordinate { c: 4, r: -3 }),
         &|_| {},
     );
     commands.entity(pr_field).push_children(&[t_stone]);
@@ -132,6 +136,32 @@ pub fn spawn_bird(
     });
     ec.insert(UpgradeableMover::new());
     adapter(&mut ec);
+}
+
+pub fn contiously_spawn_tetris_at_end(
+    mut commands: Commands,
+    query_active: Query<&BlobGravity>,
+    turn: ResMut<Turn>,
+) {
+    if let Some(prod_ent) = turn.prod_id {
+
+        if turn.is_new_turn() && 
+            query_active.iter().filter(|g| {!g.is_zero()}).count() == 0 {
+            
+            let body = gen_random_tetris_body();
+
+            let new_id = spawn_blob(
+                &mut commands, 
+                body, 
+                format!("{}. Additional Tetris Brick", turn.num_additional_bricks).as_str(), 
+                Some(Coordinate{r:-3,c:3}), 
+                &|ec| {add_tetris_control(ec);}
+            );
+            commands.entity(prod_ent).push_children(&[new_id]);
+        }   
+    } else {
+        panic!("The programmer forgot to create the production Field...");
+    }
 }
 
 pub fn apply_powerups_by_actions(

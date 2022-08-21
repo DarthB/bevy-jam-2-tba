@@ -1,4 +1,5 @@
 pub mod blob;
+pub mod bodies;
 pub mod field;
 pub mod game;
 pub mod input;
@@ -15,6 +16,7 @@ pub const Z_OVERLAY: f32 = 30.0;
 
 pub mod prelude {
     pub use crate::blob::*;
+    pub use crate::bodies::*;
     pub use crate::field::*;
     pub use crate::game::*;
     pub use crate::input::*;
