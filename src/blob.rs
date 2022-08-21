@@ -4,25 +4,25 @@ use leafwing_input_manager::prelude::*;
 use crate::{input::TetrisActionsWASD, turn::Turn, PX_PER_TILE};
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, Default, PartialEq, Clone, Reflect)]
+#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct Blob{
     pub body: Vec<i32>,
 }
 
 /// used for tagging the sprites that belong to a Blob
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, Default, PartialEq, Clone, Reflect)]
+#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct BlobGridSprite {}
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, Default, PartialEq, Clone, Reflect)]
+#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct Coordinate {
     pub r: usize,
     pub c: usize,
 }
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, Default, PartialEq, Clone, Reflect)]
+#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct BlobGravity {
     pub gravity: i32,
 }

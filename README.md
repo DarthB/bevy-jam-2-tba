@@ -1,3 +1,5 @@
+[![CI](https://github.com/DarthB/bevy-jam-2-tba/actions/workflows/ci.yaml/badge.svg)](https://github.com/DarthB/bevy-jam-2-tba/actions/workflows/ci.yaml)
+
 # TITLE TBA - A bevy-jam-2 Game
 
 A contribution to [bevy-jam-2](https://itch.io/jam/bevy-jam-2)
