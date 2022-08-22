@@ -1,7 +1,7 @@
 use bevy::{ecs::system::EntityCommands, prelude::*};
 use leafwing_input_manager::prelude::*;
 
-use crate::prelude::*;
+use crate::{game_assets::GameAssets, prelude::*};
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
@@ -124,7 +124,7 @@ pub fn coords_to_px(x: i32, y: i32, rs: usize, cs: usize) -> (f32, f32) {
 
 pub fn blob_sprite_color_and_zorder(num: i32) -> (Color, f32) {
     if num == 1 {
-        (Color::BLACK, Z_SOLID)
+        (Color::default(), Z_SOLID)
     } else {
         (Color::rgba(0.5, 0.5, 0.5, 0.25), Z_TRANS)
     }
@@ -132,6 +132,7 @@ pub fn blob_sprite_color_and_zorder(num: i32) -> (Color, f32) {
 
 pub fn spawn_blob(
     commands: &mut Commands,
+    assets: &GameAssets,
     body: Vec<i32>,
     name: &str,
     coord: Option<Coordinate>, // @todo later work with coordinates and parent tetris-field
@@ -194,6 +195,7 @@ pub fn spawn_blob(
                             translation: Vec3::new(x, y, z),
                             ..Default::default()
                         },
+                        texture: assets.blob_image.clone(),
                         ..Default::default()
                     })
                     .insert(Coordinate {

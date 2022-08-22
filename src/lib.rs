@@ -2,6 +2,7 @@ pub mod blob;
 pub mod bodies;
 pub mod field;
 pub mod game;
+pub mod game_assets;
 pub mod input;
 pub mod movement;
 pub mod turn;
@@ -19,6 +20,7 @@ pub mod prelude {
     pub use crate::bodies::*;
     pub use crate::field::*;
     pub use crate::game::*;
+    pub use crate::game_assets;
     pub use crate::input::*;
     pub use crate::movement::*;
     pub use crate::turn::*;

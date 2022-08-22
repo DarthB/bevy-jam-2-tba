@@ -1,5 +1,5 @@
 use bevy::{prelude::*, render::camera::ScalingMode, window::WindowMode};
-use bevy_jam_2_tba_lib::{prelude::*, SECONDS_PER_ROUND};
+use bevy_jam_2_tba_lib::{game_assets::GameAssets, prelude::*, SECONDS_PER_ROUND};
 
 #[cfg(feature = "debug")]
 use {
@@ -62,8 +62,6 @@ fn main() {
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
-                .with_system(move_players_by_actions)
-                .with_system(apply_powerups_by_actions)
                 .with_system(move_blob_by_player)
                 .label(MySystems::Input)
                 .after(MySystems::EventHandling),
@@ -89,7 +87,6 @@ fn main() {
     // Add an ingame inspector window
     #[cfg(feature = "debug")]
     app.add_plugin(WorldInspectorPlugin::new())
-        .register_inspectable::<UpgradeableMover>()
         .register_inspectable::<Coordinate>()
         .register_inspectable::<BlobGravity>()
         .register_inspectable::<Blob>()
@@ -98,7 +95,11 @@ fn main() {
     app.run();
 }
 
-fn setup(mut commands: Commands, mut app_state: ResMut<State<GameState>>) {
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut app_state: ResMut<State<GameState>>,
+) {
     // setup the camera
     commands.spawn_bundle(Camera2dBundle {
         projection: OrthographicProjection {
@@ -109,6 +110,18 @@ fn setup(mut commands: Commands, mut app_state: ResMut<State<GameState>>) {
     });
 
     // @todo Preload assets
+    commands.insert_resource(GameAssets {
+        blob_image: asset_server.load("blocks/64/blob.png"),
+        direction_d: asset_server.load("blocks/64/direction_d.png"),
+        direction_l: asset_server.load("blocks/64/direction_l.png"),
+        direction_r: asset_server.load("blocks/64/direction_r.png"),
+        direction_u: asset_server.load("blocks/64/direction_u.png"),
+        factory_floor: asset_server.load("blocks/64/factory_floor.png"),
+        rotate_l: asset_server.load("blocks/64/rotate_l.png"),
+        rotate_r: asset_server.load("blocks/64/rotate_r.png"),
+        target_outline: asset_server.load("blocks/64/target_outline.png"),
+        tetris_floor: asset_server.load("blocks/64/tetris_floor.png"),
+    });
 
     // Switch state
     app_state.overwrite_set(GameState::Ingame).unwrap();

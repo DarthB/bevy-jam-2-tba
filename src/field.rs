@@ -4,7 +4,7 @@ use bevy::{ecs::system::EntityCommands, log, prelude::*};
 
 use itertools::Itertools;
 
-use crate::prelude::*;
+use crate::{game_assets::GameAssets, prelude::*};
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, PartialEq, Clone, Reflect)]
@@ -264,6 +264,7 @@ impl Default for Field {
 
 pub fn spawn_field(
     commands: &mut Commands,
+    assets: &GameAssets,
     field: Field,
     name: &str,
     trans: Vec3,
@@ -296,7 +297,6 @@ pub fn spawn_field(
 
         cb.spawn_bundle(SpriteBundle {
             sprite: Sprite {
-                color: field.movable_area_color,
                 custom_size: Some(Vec2::new(
                     PX_PER_TILE * field.movable_size.0 as f32,
                     PX_PER_TILE * field.movable_size.1 as f32,
@@ -307,6 +307,7 @@ pub fn spawn_field(
                 translation: Vec3::new(0.0, 0.0, Z_FIELD + 1.0),
                 ..Default::default()
             },
+            texture: assets.factory_floor.clone(),
             ..Default::default()
         })
         .insert(Name::new("Moveable Area Sprite"));
