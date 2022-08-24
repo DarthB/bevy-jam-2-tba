@@ -4,7 +4,7 @@ use bevy::{ecs::system::EntityCommands, log, prelude::*};
 
 use itertools::Itertools;
 
-use crate::{game_assets::GameAssets, prelude::*};
+use crate::prelude::*;
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, PartialEq, Clone, Reflect)]
@@ -264,7 +264,7 @@ impl Default for Field {
 
 pub fn spawn_field(
     commands: &mut Commands,
-    assets: &GameAssets,
+    movable_tile_tex: &Handle<Image>,
     field: Field,
     name: &str,
     trans: Vec3,
@@ -295,22 +295,34 @@ pub fn spawn_field(
         })
         .insert(Name::new("Background Sprite"));
 
-        cb.spawn_bundle(SpriteBundle {
-            sprite: Sprite {
-                custom_size: Some(Vec2::new(
-                    PX_PER_TILE * field.movable_size.0 as f32,
-                    PX_PER_TILE * field.movable_size.1 as f32,
-                )),
-                ..Default::default()
-            },
-            transform: Transform {
-                translation: Vec3::new(0.0, 0.0, Z_FIELD + 1.0),
-                ..Default::default()
-            },
-            texture: assets.factory_floor.clone(),
-            ..Default::default()
-        })
-        .insert(Name::new("Moveable Area Sprite"));
+        cb.spawn_bundle(SpatialBundle::default())
+            .insert(Name::new("Movable Area Group"))
+            .with_children(|cb| {
+                for x in 0..field.movable_size.0 {
+                    for y in 0..field.movable_size.1 {
+                        cb.spawn_bundle(SpriteBundle {
+                            sprite: Sprite {
+                                custom_size: Some(Vec2::new(
+                                    PX_PER_TILE,
+                                    PX_PER_TILE,
+                                )),
+                                ..Default::default()
+                            },
+                            transform: Transform {
+                                translation: Vec3::new(
+                                    (x as f32 - field.mov_size().0 as f32 / 2.0 + 0.5) * PX_PER_TILE + ox, 
+                                    (y as f32 - field.mov_size().1 as f32 / 2.0 + 0.5) * PX_PER_TILE + oy,
+                                    Z_FIELD + 1.0),
+                                ..Default::default()
+                            },
+                            texture: movable_tile_tex.clone(),
+                            ..Default::default()
+                        })
+                        .insert(Name::new(format!("Sprite {x},{y}")));
+                    }
+                }
+            })
+        ;
 
         #[cfg(feature = "debug")]
         cb.spawn_bundle(SpriteBundle {
@@ -439,27 +451,44 @@ pub fn remove_field_lines(
             // @todo send an event that these rows will are triggerd for destroy and
             // work on this event on blob side instead doing everything here (easier anim later)
             if let Ok(mut blob) = query_blob.get_mut(*child) {
-                let blob_coords = blob.occupied_coordinates();
+                if blob.coordinate.is_none() {
+                    continue;
+                }
+                let (c, r) = (
+                    blob.coordinate.as_ref().unwrap().c - pivot_coord().0 as i32, 
+                    blob.coordinate.as_ref().unwrap().r - pivot_coord().1 as i32,
+                );
+                //~
+
+                let mut blob_coords = blob.occupied_coordinates();
                 println!("Blob:{:?}", blob_coords);
-                blob_coords
+                let adapted_blob_coords: Vec<(i32, i32)> = blob_coords
                     .iter()
-                    .filter(|(x, y)| !coordinates.contains(&(*x, *y)))
-                    .map(|(x, y)| (x - pivot_coord().0 as i32, y - pivot_coord().1 as i32))
-                    .for_each(|(x, y)| {
-                        if x > 0 && y > 0 {
-                            let idx = Blob::coords_to_idx(x as usize, y as usize);
-                            if idx < blob.body.len() {
-                                let prior = blob.body[idx];
-                                log::info!("Delete sprite at {x},{y} with {idx}, was={prior}");
-                                blob.body[idx] = 0;
-                            } else {
-                                log::warn!(
-                                    "Cannot delete sprite at {x},{y} with {idx}, as len={}",
-                                    blob.body.len()
-                                );
-                            }
+                    .map(|(x, y)| {(
+                        x-pivot_coord().0 as i32,
+                        y-pivot_coord().1 as i32
+                    )})
+                    .collect();
+                let filtered_blob_coords: Vec<(i32, i32)> = adapted_blob_coords.iter()
+                    .filter(|&&(x, y)| coordinates.contains(&(x, y)))
+                    .map(|&(x,y)| (x,y))
+                    .collect();
+
+                for (x,y) in filtered_blob_coords {
+                    if x >= 0 && y >= 0 {
+                        let idx = Blob::coords_to_idx(y as usize - r as usize, x as usize - c as usize);
+                        if idx < blob.body.len() {
+                            let prior = blob.body[idx];
+                            log::info!("Delete sprite at {x},{y} with {idx}, was={prior}");
+                            blob.body[idx] = 0;
+                        } else {
+                            log::warn!(
+                                "Cannot delete sprite at {x},{y} with {idx}, as len={}",
+                                blob.body.len()
+                            );
                         }
-                    });
+                    }
+                }
             }
         }
 

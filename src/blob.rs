@@ -6,6 +6,7 @@ use crate::{game_assets::GameAssets, prelude::*};
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct Blob {
+    #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub body: Vec<i32>,
 
     pub coordinate: Option<Coordinate>,
@@ -94,10 +95,8 @@ impl Blob {
             for r in 0..Blob::size() {
                 for c in 0..Blob::size() {
                     if self.body[Blob::coords_to_idx(r, c)] != 0 {
-                        let x = c as i32 - (Blob::size() as f32 / 2.0) as i32;
-                        let y = r as i32 - (Blob::size() as f32 / 2.0) as i32;
                         if let Some(coord) = &self.coordinate {
-                            reval.push((x + coord.c, y + coord.r));
+                            reval.push((c as i32 + coord.c, r as i32 + coord.r));
                         }
                     }
                 }
@@ -301,7 +300,7 @@ pub fn blob_update_sprites(
 mod test {
     use crate::blob::pivot_coord;
 
-    use super::Blob;
+    use super::{Blob, Coordinate};
 
     pub fn gen_3x3_test_body() -> Vec<i32> {
         vec![
@@ -366,5 +365,15 @@ mod test {
 
         let (r, c) = pivot_coord();
         assert_eq!(blob.body[Blob::coords_to_idx(r, c)], 5);
+    }
+
+    #[test]
+    fn test_occupied_coordinates() {
+        let body = gen_3x3_test_body();
+        let mut blob = Blob::new(body);
+        blob.coordinate = Some(Coordinate{c: -3, r:2});
+        let ocs = blob.occupied_coordinates();
+        
+        assert_eq!(ocs, vec![(0,5), (1,5), (2,5), (0,6), (1,6), (2,6), (0, 7), (1, 7), (2, 7)]);
     }
 }

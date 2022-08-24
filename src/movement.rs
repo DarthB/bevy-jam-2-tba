@@ -71,7 +71,13 @@ pub fn move_production_blobs_by_events(
     for ev in ev.iter() {
         if let Ok((id, p, mut blob, mut grav)) = query.get_mut(ev.entity) {
             if let Ok(mut field) = parent_query.get_mut(p.get()) {
-                let occ_coords = blob.occupied_coordinates();
+                let occ_coords: Vec<(i32, i32)> = blob
+                    .occupied_coordinates().iter()
+                    .map(|(x,y)| {(
+                        x - pivot_coord().0 as i32, 
+                        y - pivot_coord().1 as i32)
+                    })
+                    .collect();
 
                 if let Some(coord) = &mut blob.coordinate {
                     // transform grid

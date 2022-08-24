@@ -49,7 +49,7 @@ impl Turn {
     }
 
     pub fn is_new_turn(&self) -> bool {
-        self.new_turn
+        self.new_turn && !self.pause
     }
     pub fn get_num_turn(&self) -> i32 {
         self.num_turn

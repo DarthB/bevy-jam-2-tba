@@ -18,7 +18,7 @@ pub fn spawn_world(
     let comp = Field::as_factory();
     let fac_field = spawn_field(
         &mut commands,
-        &assets,
+        &assets.factory_floor,
         comp,
         "Factory Field",
         Vec3::new(-350.0, 0.0, 0.0),
@@ -31,7 +31,7 @@ pub fn spawn_world(
     let l_stone = spawn_blob(
         &mut commands,
         &assets,
-        bodies::prototype::gen_blob_body(),
+        bodies::prototype::gen_blob_body2(),
         "L Stone",
         Some(Coordinate { c: 3, r: -4 }),
         &|ec| {
@@ -42,7 +42,7 @@ pub fn spawn_world(
 
     let pr_field = spawn_field(
         &mut commands,
-        &assets,
+        &assets.tetris_floor,
         Field::as_production_field(),
         "Production Field",
         Vec3::new(480.0, 0.0, 0.0),
@@ -55,7 +55,7 @@ pub fn spawn_world(
     let t_stone = spawn_blob(
         &mut commands,
         &assets,
-        bodies::prototype::gen_target_body(),
+        bodies::prototype::gen_target_body2(),
         "Target Stone",
         Some(Coordinate { c: 4, r: -3 }),
         &|_| {},
