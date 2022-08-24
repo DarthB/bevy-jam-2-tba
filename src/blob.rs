@@ -371,9 +371,22 @@ mod test {
     fn test_occupied_coordinates() {
         let body = gen_3x3_test_body();
         let mut blob = Blob::new(body);
-        blob.coordinate = Some(Coordinate{c: -3, r:2});
+        blob.coordinate = Some(Coordinate { c: -3, r: 2 });
         let ocs = blob.occupied_coordinates();
-        
-        assert_eq!(ocs, vec![(0,5), (1,5), (2,5), (0,6), (1,6), (2,6), (0, 7), (1, 7), (2, 7)]);
+
+        assert_eq!(
+            ocs,
+            vec![
+                (0, 5),
+                (1, 5),
+                (2, 5),
+                (0, 6),
+                (1, 6),
+                (2, 6),
+                (0, 7),
+                (1, 7),
+                (2, 7)
+            ]
+        );
     }
 }

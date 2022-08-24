@@ -302,17 +302,19 @@ pub fn spawn_field(
                     for y in 0..field.movable_size.1 {
                         cb.spawn_bundle(SpriteBundle {
                             sprite: Sprite {
-                                custom_size: Some(Vec2::new(
-                                    PX_PER_TILE,
-                                    PX_PER_TILE,
-                                )),
+                                custom_size: Some(Vec2::new(PX_PER_TILE, PX_PER_TILE)),
                                 ..Default::default()
                             },
                             transform: Transform {
                                 translation: Vec3::new(
-                                    (x as f32 - field.mov_size().0 as f32 / 2.0 + 0.5) * PX_PER_TILE + ox, 
-                                    (y as f32 - field.mov_size().1 as f32 / 2.0 + 0.5) * PX_PER_TILE + oy,
-                                    Z_FIELD + 1.0),
+                                    (x as f32 - field.mov_size().0 as f32 / 2.0 + 0.5)
+                                        * PX_PER_TILE
+                                        + ox,
+                                    (y as f32 - field.mov_size().1 as f32 / 2.0 + 0.5)
+                                        * PX_PER_TILE
+                                        + oy,
+                                    Z_FIELD + 1.0,
+                                ),
                                 ..Default::default()
                             },
                             texture: movable_tile_tex.clone(),
@@ -321,8 +323,7 @@ pub fn spawn_field(
                         .insert(Name::new(format!("Sprite {x},{y}")));
                     }
                 }
-            })
-        ;
+            });
 
         #[cfg(feature = "debug")]
         cb.spawn_bundle(SpriteBundle {
@@ -424,7 +425,6 @@ pub fn update_field_debug(
 pub fn remove_field_lines(
     mut query_field: Query<(&mut Field, &Children)>,
     mut query_blob: Query<&mut Blob>,
-    mut turn: ResMut<Turn>,
 ) {
     for (mut field, children) in query_field.iter_mut() {
         let fl = field.full_lines();
@@ -432,8 +432,6 @@ pub fn remove_field_lines(
             continue;
         }
         //~
-
-        turn.pause = true;
         log::info!("Removing {} lines", fl.len());
 
         let coordinates: Vec<(i32, i32)> = fl
@@ -455,28 +453,27 @@ pub fn remove_field_lines(
                     continue;
                 }
                 let (c, r) = (
-                    blob.coordinate.as_ref().unwrap().c - pivot_coord().0 as i32, 
+                    blob.coordinate.as_ref().unwrap().c - pivot_coord().0 as i32,
                     blob.coordinate.as_ref().unwrap().r - pivot_coord().1 as i32,
                 );
                 //~
 
-                let mut blob_coords = blob.occupied_coordinates();
+                let blob_coords = blob.occupied_coordinates();
                 println!("Blob:{:?}", blob_coords);
                 let adapted_blob_coords: Vec<(i32, i32)> = blob_coords
                     .iter()
-                    .map(|(x, y)| {(
-                        x-pivot_coord().0 as i32,
-                        y-pivot_coord().1 as i32
-                    )})
+                    .map(|(x, y)| (x - pivot_coord().0 as i32, y - pivot_coord().1 as i32))
                     .collect();
-                let filtered_blob_coords: Vec<(i32, i32)> = adapted_blob_coords.iter()
+                let filtered_blob_coords: Vec<(i32, i32)> = adapted_blob_coords
+                    .iter()
                     .filter(|&&(x, y)| coordinates.contains(&(x, y)))
-                    .map(|&(x,y)| (x,y))
+                    .map(|&(x, y)| (x, y))
                     .collect();
 
-                for (x,y) in filtered_blob_coords {
+                for (x, y) in filtered_blob_coords {
                     if x >= 0 && y >= 0 {
-                        let idx = Blob::coords_to_idx(y as usize - r as usize, x as usize - c as usize);
+                        let idx =
+                            Blob::coords_to_idx(y as usize - r as usize, x as usize - c as usize);
                         if idx < blob.body.len() {
                             let prior = blob.body[idx];
                             log::info!("Delete sprite at {x},{y} with {idx}, was={prior}");
