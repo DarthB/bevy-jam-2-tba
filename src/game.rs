@@ -70,7 +70,7 @@ pub fn contiously_spawn_tetris_at_end(
     mut turn: ResMut<Turn>,
 ) {
     if let Some(prod_ent) = turn.prod_id {
-        if turn.is_new_turn() && query_active.iter().filter(|g| !g.is_zero()).count() == 0 {
+        if turn.is_new_turn() && query_active.iter().filter(|g| g.active).count() == 0 {
             let body = gen_random_tetris_body();
 
             let new_id = spawn_blob(

@@ -23,6 +23,8 @@ pub struct Coordinate {
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct BlobGravity {
     pub gravity: (i32, i32),
+
+    pub active: bool,
 }
 
 impl BlobGravity {
@@ -145,68 +147,71 @@ pub fn spawn_blob(
     let mut ec = commands.spawn_bundle(SpatialBundle {
         ..Default::default()
     });
-    ec.insert(BlobGravity { gravity: (0, 1) })
-        .with_children(|cb| {
+    ec.insert(BlobGravity {
+        gravity: (0, 1),
+        active: true,
+    })
+    .with_children(|cb| {
+        cb.spawn_bundle(SpriteBundle {
+            sprite: Sprite {
+                color: Color::YELLOW,
+                custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
+                ..Default::default()
+            },
+            transform: Transform {
+                translation: Vec3::new(0.0, 0.0, Z_OVERLAY),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(Name::new("Pivot Sprite"));
+
+        #[cfg(feature = "debug")]
+        {
+            let (x, y) = Blob::coords_to_px(0, 0);
             cb.spawn_bundle(SpriteBundle {
                 sprite: Sprite {
-                    color: Color::YELLOW,
+                    color: Color::GREEN,
                     custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
                     ..Default::default()
                 },
                 transform: Transform {
-                    translation: Vec3::new(0.0, 0.0, Z_OVERLAY),
+                    translation: Vec3::new(x, y, Z_OVERLAY),
                     ..Default::default()
                 },
                 ..Default::default()
             })
-            .insert(Name::new("Pivot Sprite"));
+            .insert(Name::new("ZERO Sprite"));
+        }
 
-            #[cfg(feature = "debug")]
-            {
-                let (x, y) = Blob::coords_to_px(0, 0);
+        for r in 0..Blob::size() {
+            for c in 0..Blob::size() {
+                let (color, z) = blob_sprite_color_and_zorder(blob.body[r * Blob::size() + c]);
+                let (x, y) = Blob::coords_to_px(c as i32, r as i32);
+
                 cb.spawn_bundle(SpriteBundle {
                     sprite: Sprite {
-                        color: Color::GREEN,
-                        custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
+                        color,
+                        custom_size: Some(Vec2::ONE * PX_PER_TILE - 2.0),
                         ..Default::default()
                     },
                     transform: Transform {
-                        translation: Vec3::new(x, y, Z_OVERLAY),
+                        translation: Vec3::new(x, y, z),
                         ..Default::default()
                     },
+                    texture: assets.blob_image.clone(),
                     ..Default::default()
                 })
-                .insert(Name::new("ZERO Sprite"));
+                .insert(Coordinate {
+                    r: r as i32,
+                    c: c as i32,
+                })
+                .insert(Name::new(format!("grid {}:{}", r, c)));
             }
-
-            for r in 0..Blob::size() {
-                for c in 0..Blob::size() {
-                    let (color, z) = blob_sprite_color_and_zorder(blob.body[r * Blob::size() + c]);
-                    let (x, y) = Blob::coords_to_px(c as i32, r as i32);
-
-                    cb.spawn_bundle(SpriteBundle {
-                        sprite: Sprite {
-                            color,
-                            custom_size: Some(Vec2::ONE * PX_PER_TILE - 2.0),
-                            ..Default::default()
-                        },
-                        transform: Transform {
-                            translation: Vec3::new(x, y, z),
-                            ..Default::default()
-                        },
-                        texture: assets.blob_image.clone(),
-                        ..Default::default()
-                    })
-                    .insert(Coordinate {
-                        r: r as i32,
-                        c: c as i32,
-                    })
-                    .insert(Name::new(format!("grid {}:{}", r, c)));
-                }
-            }
-        })
-        .insert(blob)
-        .insert(Name::new(name.to_string()));
+        }
+    })
+    .insert(blob)
+    .insert(Name::new(name.to_string()));
     adapter(&mut ec);
     ec.id()
 }

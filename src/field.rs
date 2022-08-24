@@ -38,6 +38,13 @@ pub struct FactoryFieldTag {}
 #[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
 pub struct ProductionFieldTag {}
 
+/*
+struct FieldMutator {
+    inner: dyn Fn(&mut Field, (i32, i32), usize),
+}
+*/
+type FieldMutator = dyn Fn(&mut Field, (i32, i32), usize);
+
 impl Field {
     pub fn as_factory() -> Self {
         Field {
@@ -87,22 +94,42 @@ impl Field {
         &self.occupied
     }
 
-    pub fn occupy_coordinates(&mut self, coords: &Vec<(i32, i32)>) {
-        for (x, y) in coords {
-            if *x < 0 || *y < 0 {
+    pub fn is_idx_valid(&self, idx: usize) -> bool {
+        idx < self.occupied.len()
+    }
+
+    pub fn max_idx(&self) -> usize {
+        self.occupied.len() - 1
+    }
+
+    pub fn mutate_at_coordinates(&mut self, coords: &Vec<(i32, i32)>, mutator: &FieldMutator) {
+        for &(x, y) in coords {
+            if x < 0 || y < 0 {
                 continue;
             }
 
-            let idx = self.coords_to_idx(*x as usize, *y as usize);
-            if idx < self.occupied.len() {
-                self.occupied[idx] = true;
+            let idx = self.coords_to_idx(x as usize, y as usize);
+            if self.is_idx_valid(idx) {
+                mutator(self, (x, y), idx);
             } else {
                 log::warn!(
-                    "Tried to occupy coordinate at idx {idx}, also only {} elemnts exist",
-                    self.occupied.len()
+                    "Tried to mutate something at idx {idx}, although {} is the maximum idx for this field.",
+                    self.max_idx()
                 );
             }
         }
+    }
+
+    pub fn occupy_coordinates(&mut self, coords: &Vec<(i32, i32)>) {
+        self.mutate_at_coordinates(coords, &|field, _, idx| {
+            field.occupied[idx] = true;
+        });
+    }
+
+    pub fn deoccupy_coordinates(&mut self, coords: &Vec<(i32, i32)>) {
+        self.mutate_at_coordinates(coords, &|field, _, idx| {
+            field.occupied[idx] = false;
+        });
     }
 
     pub fn any_coordinate_occupied(&self, coords: &Vec<(i32, i32)>) -> (bool, Option<(i32, i32)>) {
@@ -423,8 +450,10 @@ pub fn update_field_debug(
 }
 
 pub fn remove_field_lines(
+    mut commands: Commands,
     mut query_field: Query<(&mut Field, &Children)>,
-    mut query_blob: Query<&mut Blob>,
+    mut query_blob: Query<(Entity, &mut Blob, &mut BlobGravity)>,
+    turn: Res<Turn>,
 ) {
     for (mut field, children) in query_field.iter_mut() {
         let fl = field.full_lines();
@@ -448,7 +477,7 @@ pub fn remove_field_lines(
         for child in children {
             // @todo send an event that these rows will are triggerd for destroy and
             // work on this event on blob side instead doing everything here (easier anim later)
-            if let Ok(mut blob) = query_blob.get_mut(*child) {
+            if let Ok((entity, mut blob, mut grav)) = query_blob.get_mut(*child) {
                 if blob.coordinate.is_none() {
                     continue;
                 }
@@ -470,10 +499,11 @@ pub fn remove_field_lines(
                     .map(|&(x, y)| (x, y))
                     .collect();
 
-                for (x, y) in filtered_blob_coords {
+                for &(x, y) in &filtered_blob_coords {
+                    let x = x - c;
+                    let y = y - r;
                     if x >= 0 && y >= 0 {
-                        let idx =
-                            Blob::coords_to_idx(y as usize - r as usize, x as usize - c as usize);
+                        let idx = Blob::coords_to_idx(y as usize, x as usize);
                         if idx < blob.body.len() {
                             let prior = blob.body[idx];
                             log::info!("Delete sprite at {x},{y} with {idx}, was={prior}");
@@ -485,6 +515,15 @@ pub fn remove_field_lines(
                             );
                         }
                     }
+                }
+
+                if blob.body.iter().sum::<i32>() == 0 {
+                    commands.entity(entity).despawn_recursive();
+                }
+
+                if turn.remove_line_turns_on_gravity {
+                    field.deoccupy_coordinates(&adapted_blob_coords);
+                    grav.active = true;
                 }
             }
         }

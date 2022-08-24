@@ -13,25 +13,36 @@ pub struct BlobTeleportEvent {
 }
 
 pub fn move_blobs_by_gravity(
+    query_collector: Query<(Entity, &BlobGravity)>,
     mut query: Query<(Entity, &mut Transform, &BlobGravity, &Blob)>,
     turn: Res<Turn>,
     mut ev: EventWriter<BlobMoveEvent>,
 ) {
     if turn.is_new_turn() {
-        query.for_each_mut(|(e, mut t, g, blob)| {
-            if blob.coordinate.is_some() {
-                if !g.is_zero() {
-                    ev.send(BlobMoveEvent {
-                        delta: g.gravity,
-                        entity: e,
-                    });
+        let mut vec: Vec<(Entity, i32)> = query_collector
+            .iter()
+            .map(|(entity, grav)| (entity, grav.gravity.1))
+            .collect();
+
+        vec.sort_by(|left, right| left.1.cmp(&right.1));
+
+        for (id, _) in vec {
+            if let Ok((e, mut t, g, blob)) = query.get_mut(id) {
+                if blob.coordinate.is_some() {
+                    if g.active {
+                        // events are afterwards read in order!
+                        ev.send(BlobMoveEvent {
+                            delta: g.gravity,
+                            entity: e,
+                        });
+                    }
+                } else {
+                    // fallback if not ona field
+                    t.translation.x -= g.gravity.0 as f32 * PX_PER_TILE;
+                    t.translation.y -= g.gravity.1 as f32 * PX_PER_TILE;
                 }
-            } else {
-                // fallback if not ona field
-                t.translation.x -= g.gravity.0 as f32 * PX_PER_TILE;
-                t.translation.y -= g.gravity.1 as f32 * PX_PER_TILE;
             }
-        });
+        }
     }
 }
 
@@ -92,8 +103,8 @@ pub fn move_production_blobs_by_events(
                         coord.c += ev.delta.0;
                         coord.r += ev.delta.1;
                     } else {
-                        grav.gravity = (0, 0);
                         log::info!("Full Stop and occupy");
+                        grav.active = false;
                         field.occupy_coordinates(&occ_coords);
 
                         commands

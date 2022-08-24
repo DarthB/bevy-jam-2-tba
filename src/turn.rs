@@ -17,6 +17,8 @@ pub struct Turn {
     pub fac_id: Option<Entity>,
 
     pub prod_id: Option<Entity>,
+
+    pub remove_line_turns_on_gravity: bool,
 }
 
 impl Turn {
@@ -30,6 +32,7 @@ impl Turn {
             fac_id: None,
             prod_id: None,
             pause: false,
+            remove_line_turns_on_gravity: true,
         }
     }
 
