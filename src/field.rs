@@ -1,34 +1,34 @@
 use std::fmt::Debug;
 
-use bevy::{ecs::system::EntityCommands, log, prelude::*};
+use bevy::{ecs::system::EntityCommands, log, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
 
 use itertools::Itertools;
 
-use crate::prelude::*;
+use crate::{game_assets::GameAssets, prelude::*};
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, PartialEq, Clone, Reflect)]
 pub struct Field {
-    movable_area_color: Color,
+    pub movable_area_color: Color,
 
-    edge_color: Color,
+    pub edge_color: Color,
 
-    movable_size: (usize, usize),
+    pub movable_size: (usize, usize),
 
-    additional_grids: UiRect<usize>,
+    pub additional_grids: UiRect<usize>,
 
-    allow_overlap: UiRect<usize>,
+    pub allow_overlap: UiRect<usize>,
 
-    occupied: Vec<bool>,
+    pub occupied: Vec<i32>,
 
-    tracks_occupied: bool,
+    pub tracks_occupied: bool,
 
-    remove_full_lines: bool,
+    pub remove_full_lines: bool,
+
+    pub movable_area_image: Handle<Image>,
+
+    pub brick_image: Handle<Image>,
 }
-
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
-pub struct DebugOccupiedTag {}
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
@@ -38,15 +38,18 @@ pub struct FactoryFieldTag {}
 #[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
 pub struct ProductionFieldTag {}
 
-/*
-struct FieldMutator {
-    inner: dyn Fn(&mut Field, (i32, i32), usize),
+pub struct FieldDeltaEvent {
+    pub conditional_y: i32,
+
+    pub delta_y: i32,
+
+    pub field_id: Entity,
 }
-*/
+
 type FieldMutator = dyn Fn(&mut Field, (i32, i32), usize);
 
 impl Field {
-    pub fn as_factory() -> Self {
+    pub fn as_factory(assets: &GameAssets) -> Self {
         Field {
             movable_area_color: Color::MIDNIGHT_BLUE,
             edge_color: Color::rgb(0.0, 0.2, 0.5),
@@ -63,11 +66,13 @@ impl Field {
                 top: 4,
                 bottom: 9,
             },
+            movable_area_image: assets.factory_floor.clone(),
+            brick_image: assets.blob_image.clone(),
             ..Default::default()
         }
     }
 
-    pub fn as_production_field() -> Self {
+    pub fn as_production_field(assets: &GameAssets) -> Self {
         let mut reval = Field {
             edge_color: Color::rgba(0.25, 0.0, 0.0, 1.0),
             tracks_occupied: true,
@@ -77,11 +82,13 @@ impl Field {
                 top: 10,
                 bottom: 0,
             },
+            movable_area_image: assets.tetris_floor.clone(),
+            brick_image: assets.blob_image.clone(),
             ..Default::default()
         };
 
         let num = reval.movable_size.0 * reval.movable_size.1;
-        reval.occupied = vec![false; num];
+        reval.occupied = vec![0; num];
 
         reval
     }
@@ -90,7 +97,7 @@ impl Field {
         self.tracks_occupied
     }
 
-    pub fn occupied(&self) -> &Vec<bool> {
+    pub fn occupied(&self) -> &Vec<i32> {
         &self.occupied
     }
 
@@ -122,13 +129,13 @@ impl Field {
 
     pub fn occupy_coordinates(&mut self, coords: &Vec<(i32, i32)>) {
         self.mutate_at_coordinates(coords, &|field, _, idx| {
-            field.occupied[idx] = true;
+            field.occupied[idx] = 1;
         });
     }
 
     pub fn deoccupy_coordinates(&mut self, coords: &Vec<(i32, i32)>) {
         self.mutate_at_coordinates(coords, &|field, _, idx| {
-            field.occupied[idx] = false;
+            field.occupied[idx] = 0;
         });
     }
 
@@ -148,7 +155,7 @@ impl Field {
         // first check if the space is already occupied:
         if self.tracks_occupied && x >= 0 && y >= 0 {
             let idx = self.coords_to_idx(x as usize, y as usize);
-            if idx < self.occupied.len() && self.occupied[idx] {
+            if idx < self.occupied.len() && self.occupied[idx] > 0 {
                 return (true, None);
             }
         }
@@ -185,12 +192,6 @@ impl Field {
         } else {
             (occupied_by_edge, None)
         }
-    }
-
-    pub fn coords_to_px(&self, x: i32, y: i32) -> (f32, f32) {
-        let woo = coords_to_px(x, y, self.movable_size.1, self.movable_size.0);
-        //let (ox, oy) = self.offset();
-        (woo.0, woo.1)
     }
 
     pub fn coords_to_idx(&self, x: usize, y: usize) -> usize {
@@ -238,7 +239,7 @@ impl Field {
         for r in 0..self.movable_size.1 {
             let mut full_line = true;
             for c in 0..self.movable_size.0 {
-                full_line = full_line && self.occupied()[self.coords_to_idx(c, r)]
+                full_line = full_line && self.occupied()[self.coords_to_idx(c, r)] > 0
             }
             if full_line {
                 reval.push(r);
@@ -257,7 +258,20 @@ impl Field {
             for c in 0..self.movable_size.0 {
                 let idx = self.coords_to_idx(c, *r);
                 if idx < self.occupied.len() {
-                    self.occupied[idx] = false;
+                    self.occupied[idx] = 0;
+                }
+            }
+        }
+    }
+
+    pub fn move_down_if_possible(&mut self) {
+        for r in (0..self.mov_size().1 - 1).rev() {
+            for c in 0..self.mov_size().0 {
+                let idx_up = self.coords_to_idx(c, r);
+                let idx_below = self.coords_to_idx(c, r + 1);
+                if self.occupied[idx_up] != 0 && self.occupied[idx_below] == 0 {
+                    self.occupied[idx_below] = self.occupied[idx_up];
+                    self.occupied[idx_up] = 0;
                 }
             }
         }
@@ -285,13 +299,14 @@ impl Default for Field {
             occupied: Vec::new(),
             tracks_occupied: false,
             remove_full_lines: true,
+            movable_area_image: DEFAULT_IMAGE_HANDLE.typed(),
+            brick_image: DEFAULT_IMAGE_HANDLE.typed(),
         }
     }
 }
 
 pub fn spawn_field(
     commands: &mut Commands,
-    movable_tile_tex: &Handle<Image>,
     field: Field,
     name: &str,
     trans: Vec3,
@@ -304,117 +319,9 @@ pub fn spawn_field(
         },
         ..Default::default()
     });
+    let id = ec.id();
     ec.with_children(|cb| {
-        let (sx, sy) = field.size();
-        let (ox, oy) = field.offset();
-
-        cb.spawn_bundle(SpriteBundle {
-            sprite: Sprite {
-                color: field.edge_color,
-                custom_size: Some(Vec2::new(PX_PER_TILE * sx as f32, PX_PER_TILE * sy as f32)),
-                ..Default::default()
-            },
-            transform: Transform {
-                translation: Vec3::new(ox, oy, Z_FIELD),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(Name::new("Background Sprite"));
-
-        cb.spawn_bundle(SpatialBundle::default())
-            .insert(Name::new("Movable Area Group"))
-            .with_children(|cb| {
-                for x in 0..field.movable_size.0 {
-                    for y in 0..field.movable_size.1 {
-                        cb.spawn_bundle(SpriteBundle {
-                            sprite: Sprite {
-                                custom_size: Some(Vec2::new(PX_PER_TILE, PX_PER_TILE)),
-                                ..Default::default()
-                            },
-                            transform: Transform {
-                                translation: Vec3::new(
-                                    (x as f32 - field.mov_size().0 as f32 / 2.0 + 0.5)
-                                        * PX_PER_TILE
-                                        + ox,
-                                    (y as f32 - field.mov_size().1 as f32 / 2.0 + 0.5)
-                                        * PX_PER_TILE
-                                        + oy,
-                                    Z_FIELD + 1.0,
-                                ),
-                                ..Default::default()
-                            },
-                            texture: movable_tile_tex.clone(),
-                            ..Default::default()
-                        })
-                        .insert(Name::new(format!("Sprite {x},{y}")));
-                    }
-                }
-            });
-
-        #[cfg(feature = "debug")]
-        cb.spawn_bundle(SpriteBundle {
-            sprite: Sprite {
-                color: Color::YELLOW,
-                custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
-                ..Default::default()
-            },
-            transform: Transform {
-                translation: Vec3::new(0.0, 0.0, Z_OVERLAY),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(Name::new("Pivot Sprite"));
-
-        #[cfg(feature = "debug")]
-        {
-            let (x, y) = field.coords_to_px(0, 0);
-            cb.spawn_bundle(SpriteBundle {
-                sprite: Sprite {
-                    color: Color::GREEN,
-                    custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
-                    ..Default::default()
-                },
-                transform: Transform {
-                    translation: Vec3::new(x, y, Z_OVERLAY),
-                    ..Default::default()
-                },
-                ..Default::default()
-            })
-            .insert(Name::new("Zero Sprite"));
-        }
-
-        #[cfg(feature = "debug")]
-        if field.tracks_occupied {
-            cb.spawn_bundle(SpatialBundle::default())
-                .with_children(|cb| {
-                    for x in 0..field.mov_size().0 {
-                        for y in 0..field.mov_size().1 {
-                            let (px, py) = field.coords_to_px(x as i32, y as i32);
-                            cb.spawn_bundle(SpriteBundle {
-                                sprite: Sprite {
-                                    color: Color::WHITE,
-                                    custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
-                                    ..Default::default()
-                                },
-                                transform: Transform {
-                                    translation: Vec3::new(px, py - PX_PER_TILE / 4.0, Z_OVERLAY),
-                                    ..Default::default()
-                                },
-                                ..Default::default()
-                            })
-                            .insert(Name::new(format!("{x}x{y} occupied helper")))
-                            .insert(Coordinate {
-                                c: x as i32,
-                                r: y as i32,
-                            })
-                            .insert(DebugOccupiedTag {});
-                        }
-                    }
-                })
-                .insert(Name::new("Debug occupied"));
-        }
+        field.spawn_render_entities(id, cb);
     })
     .insert(Name::new(name.to_string()))
     .insert(field);
@@ -422,41 +329,9 @@ pub fn spawn_field(
     ec.id()
 }
 
-pub fn update_field_debug(
-    query: Query<&Field>,
-    mut query_sprite: Query<(&mut Sprite, &Coordinate), With<DebugOccupiedTag>>,
-) {
-    for field in query.iter() {
-        if !field.tracks_occupied() {
-            continue;
-        }
-        //~
-
-        for (mut sprite, coord) in query_sprite.iter_mut() {
-            if coord.c < 0 || coord.r < 0 {
-                continue;
-            }
-            //~
-
-            let idx = field.coords_to_idx(coord.c as usize, coord.r as usize);
-
-            sprite.color = if idx < field.occupied().len() && field.occupied()[idx] {
-                Color::RED
-            } else {
-                Color::WHITE
-            }
-        }
-    }
-}
-
-pub fn remove_field_lines(
-    mut commands: Commands,
-    mut query_field: Query<(&mut Field, &Children)>,
-    mut query_blob: Query<(Entity, &mut Blob, &mut BlobGravity)>,
-    turn: Res<Turn>,
-) {
-    for (mut field, children) in query_field.iter_mut() {
-        let fl = field.full_lines();
+pub fn remove_field_lines(mut query_field: Query<&mut Field>) {
+    for mut field in query_field.iter_mut() {
+        let fl: Vec<usize> = field.full_lines();
         if fl.is_empty() {
             continue;
         }
@@ -473,60 +348,6 @@ pub fn remove_field_lines(
             coordinates.len(),
             coordinates
         );
-
-        for child in children {
-            // @todo send an event that these rows will are triggerd for destroy and
-            // work on this event on blob side instead doing everything here (easier anim later)
-            if let Ok((entity, mut blob, mut grav)) = query_blob.get_mut(*child) {
-                if blob.coordinate.is_none() {
-                    continue;
-                }
-                let (c, r) = (
-                    blob.coordinate.as_ref().unwrap().c - pivot_coord().0 as i32,
-                    blob.coordinate.as_ref().unwrap().r - pivot_coord().1 as i32,
-                );
-                //~
-
-                let blob_coords = blob.occupied_coordinates();
-                println!("Blob:{:?}", blob_coords);
-                let adapted_blob_coords: Vec<(i32, i32)> = blob_coords
-                    .iter()
-                    .map(|(x, y)| (x - pivot_coord().0 as i32, y - pivot_coord().1 as i32))
-                    .collect();
-                let filtered_blob_coords: Vec<(i32, i32)> = adapted_blob_coords
-                    .iter()
-                    .filter(|&&(x, y)| coordinates.contains(&(x, y)))
-                    .map(|&(x, y)| (x, y))
-                    .collect();
-
-                for &(x, y) in &filtered_blob_coords {
-                    let x = x - c;
-                    let y = y - r;
-                    if x >= 0 && y >= 0 {
-                        let idx = Blob::coords_to_idx(y as usize, x as usize);
-                        if idx < blob.body.len() {
-                            let prior = blob.body[idx];
-                            log::info!("Delete sprite at {x},{y} with {idx}, was={prior}");
-                            blob.body[idx] = 0;
-                        } else {
-                            log::warn!(
-                                "Cannot delete sprite at {x},{y} with {idx}, as len={}",
-                                blob.body.len()
-                            );
-                        }
-                    }
-                }
-
-                if blob.body.iter().sum::<i32>() == 0 {
-                    commands.entity(entity).despawn_recursive();
-                }
-
-                if turn.remove_line_turns_on_gravity {
-                    field.deoccupy_coordinates(&adapted_blob_coords);
-                    grav.active = true;
-                }
-            }
-        }
 
         field.deoccupy_lines(&fl);
     }

@@ -1,13 +1,16 @@
 use bevy::{ecs::system::EntityCommands, prelude::*};
 use leafwing_input_manager::prelude::*;
 
-use crate::{game_assets::GameAssets, prelude::*};
+use crate::{game_assets::GameAssets, prelude::*, render_old::RenderableGrid};
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct Blob {
     #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub body: Vec<i32>,
+
+    #[cfg_attr(feature = "debug", inspectable(ignore))]
+    pub texture: Handle<Image>,
 
     pub coordinate: Option<Coordinate>,
 }
@@ -38,11 +41,8 @@ impl Blob {
         Blob {
             body,
             coordinate: None,
+            texture: Handle::default(),
         }
-    }
-
-    pub fn coords_to_px(x: i32, y: i32) -> (f32, f32) {
-        coords_to_px(x, y, Blob::size(), Blob::size())
     }
 
     pub fn coords_to_idx(r: usize, c: usize) -> usize {
@@ -123,14 +123,6 @@ pub fn coords_to_px(x: i32, y: i32, rs: usize, cs: usize) -> (f32, f32) {
     )
 }
 
-pub fn blob_sprite_color_and_zorder(num: i32) -> (Color, f32) {
-    if num == 1 {
-        (Color::default(), Z_SOLID)
-    } else {
-        (Color::rgba(0.5, 0.5, 0.5, 0.25), Z_TRANS)
-    }
-}
-
 pub fn spawn_blob(
     commands: &mut Commands,
     assets: &GameAssets,
@@ -142,73 +134,19 @@ pub fn spawn_blob(
     let blob = Blob {
         body,
         coordinate: coord,
+        texture: assets.blob_image.clone(),
     };
 
     let mut ec = commands.spawn_bundle(SpatialBundle {
         ..Default::default()
     });
+    let id = ec.id();
     ec.insert(BlobGravity {
         gravity: (0, 1),
         active: true,
     })
     .with_children(|cb| {
-        cb.spawn_bundle(SpriteBundle {
-            sprite: Sprite {
-                color: Color::YELLOW,
-                custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
-                ..Default::default()
-            },
-            transform: Transform {
-                translation: Vec3::new(0.0, 0.0, Z_OVERLAY),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(Name::new("Pivot Sprite"));
-
-        #[cfg(feature = "debug")]
-        {
-            let (x, y) = Blob::coords_to_px(0, 0);
-            cb.spawn_bundle(SpriteBundle {
-                sprite: Sprite {
-                    color: Color::GREEN,
-                    custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
-                    ..Default::default()
-                },
-                transform: Transform {
-                    translation: Vec3::new(x, y, Z_OVERLAY),
-                    ..Default::default()
-                },
-                ..Default::default()
-            })
-            .insert(Name::new("ZERO Sprite"));
-        }
-
-        for r in 0..Blob::size() {
-            for c in 0..Blob::size() {
-                let (color, z) = blob_sprite_color_and_zorder(blob.body[r * Blob::size() + c]);
-                let (x, y) = Blob::coords_to_px(c as i32, r as i32);
-
-                cb.spawn_bundle(SpriteBundle {
-                    sprite: Sprite {
-                        color,
-                        custom_size: Some(Vec2::ONE * PX_PER_TILE - 2.0),
-                        ..Default::default()
-                    },
-                    transform: Transform {
-                        translation: Vec3::new(x, y, z),
-                        ..Default::default()
-                    },
-                    texture: assets.blob_image.clone(),
-                    ..Default::default()
-                })
-                .insert(Coordinate {
-                    r: r as i32,
-                    c: c as i32,
-                })
-                .insert(Name::new(format!("grid {}:{}", r, c)));
-            }
-        }
+        blob.spawn_render_entities(id, cb);
     })
     .insert(blob)
     .insert(Name::new(name.to_string()));
@@ -279,23 +217,6 @@ pub fn blob_update_transforms(
             if let Ok(field) = parent_query.get(parent.get()) {
                 let (x, y) = field.coords_to_px(coord.c, coord.r);
                 transform.translation = Vec3::new(x, y, transform.translation.z);
-            }
-        }
-    }
-}
-
-pub fn blob_update_sprites(
-    query: Query<(&Blob, &Children)>,
-    mut q_children: Query<(&mut Sprite, &mut Transform, &Coordinate)>,
-) {
-    for (blob, children) in query.iter() {
-        for &child in children.iter() {
-            if let Ok((mut sprite, mut t, coord)) = q_children.get_mut(child) {
-                let (color, z) = blob_sprite_color_and_zorder(
-                    blob.body[coords_to_idx(coord.r as usize, coord.c as usize, Blob::size())],
-                );
-                sprite.color = color;
-                t.translation.z = z;
             }
         }
     }

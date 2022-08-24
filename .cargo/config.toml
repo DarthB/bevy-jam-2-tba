@@ -4,3 +4,5 @@ runner = "wasm-server-runner"
 [alias]
 serve = "run --target wasm32-unknown-unknown"
 dbg = "run --features bevy_jam_2_tba/debug"
+ci-check = "clippy -- -D warnings"
+fmt-check = "fmt --all -- --check"

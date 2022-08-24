@@ -1,6 +1,5 @@
 use crate::{blob::BlobGravity, prelude::*};
 use bevy::{log, prelude::*};
-use leafwing_input_manager::prelude::*;
 
 pub struct BlobMoveEvent {
     delta: (i32, i32),
@@ -107,10 +106,7 @@ pub fn move_production_blobs_by_events(
                         grav.active = false;
                         field.occupy_coordinates(&occ_coords);
 
-                        commands
-                            .entity(id)
-                            .remove_bundle::<InputManagerBundle<TetrisActionsWASD>>();
-                        // @todo play plong sound or similar
+                        commands.entity(id).despawn_recursive();
                     }
                 }
             }
@@ -136,5 +132,22 @@ pub fn teleport_blob_out_of_factory(
                 commands.entity(prod).push_children(&[ev.entity]);
             }
         }
+    }
+}
+
+pub fn move_field_content_down_if_not_occupied(
+    mut query_field: Query<&mut Field>,
+    turn: Res<Turn>,
+) {
+    if !turn.is_new_turn() {
+        return;
+    }
+    for mut field in query_field.iter_mut() {
+        if !field.tracks_occupied {
+            continue;
+        }
+        //~
+
+        field.move_down_if_possible();
     }
 }

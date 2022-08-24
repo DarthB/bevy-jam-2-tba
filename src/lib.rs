@@ -5,6 +5,7 @@ pub mod game;
 pub mod game_assets;
 pub mod input;
 pub mod movement;
+pub mod render_old;
 pub mod turn;
 
 pub const PX_PER_TILE: f32 = 32.0;
@@ -23,6 +24,7 @@ pub mod prelude {
     pub use crate::game_assets;
     pub use crate::input::*;
     pub use crate::movement::*;
+    pub use crate::render_old::*;
     pub use crate::turn::*;
 
     pub use crate::*;

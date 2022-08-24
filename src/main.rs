@@ -71,13 +71,15 @@ fn main() {
                 .with_system(move_blobs_by_gravity)
                 .with_system(move_factory_blobs_by_events)
                 .with_system(move_production_blobs_by_events)
+                .with_system(move_field_content_down_if_not_occupied)
                 .with_system(teleport_blob_out_of_factory)
                 .label(MySystems::GameUpdates)
                 .after(MySystems::Input),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
-                .with_system(blob_update_sprites)
+                .with_system(grid_update_render_entities::<Blob>)
+                .with_system(grid_update_render_entities::<Field>)
                 .with_system(blob_update_transforms)
                 .with_system(update_field_debug)
                 .label(MySystems::RenderUpdates)

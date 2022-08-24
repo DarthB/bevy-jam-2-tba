@@ -15,10 +15,9 @@ pub fn spawn_world(
     assets: Res<GameAssets>,
     mut turn: ResMut<Turn>, // used to access files stored in the assets folder.
 ) {
-    let comp = Field::as_factory();
+    let comp = Field::as_factory(&assets);
     let fac_field = spawn_field(
         &mut commands,
-        &assets.factory_floor,
         comp,
         "Factory Field",
         Vec3::new(-350.0, 0.0, 0.0),
@@ -31,7 +30,7 @@ pub fn spawn_world(
     let l_stone = spawn_blob(
         &mut commands,
         &assets,
-        bodies::prototype::gen_blob_body2(),
+        bodies::gen_l_body(),
         "L Stone",
         Some(Coordinate { c: 3, r: -4 }),
         &|ec| {
@@ -42,8 +41,7 @@ pub fn spawn_world(
 
     let pr_field = spawn_field(
         &mut commands,
-        &assets.tetris_floor,
-        Field::as_production_field(),
+        Field::as_production_field(&assets),
         "Production Field",
         Vec3::new(480.0, 0.0, 0.0),
         &|ec| {
