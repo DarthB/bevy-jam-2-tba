@@ -66,8 +66,8 @@ impl Field {
                 top: 4,
                 bottom: 9,
             },
-            movable_area_image: assets.factory_floor.clone(),
-            brick_image: assets.blob_image.clone(),
+            movable_area_image: assets.block_factory_floor.clone(),
+            brick_image: assets.block_blob.clone(),
             ..Default::default()
         }
     }
@@ -82,8 +82,8 @@ impl Field {
                 top: 10,
                 bottom: 0,
             },
-            movable_area_image: assets.tetris_floor.clone(),
-            brick_image: assets.blob_image.clone(),
+            movable_area_image: assets.block_tetris_floor.clone(),
+            brick_image: assets.block_blob.clone(),
             ..Default::default()
         };
 

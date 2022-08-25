@@ -10,6 +10,7 @@ use {
     },
     bevy_jam_2_tba_lib::blob::{Blob, BlobGravity, Coordinate},
     bevy_jam_2_tba_lib::field::Field,
+    bevy_jam_2_tba_lib::hud::{UITagHover, UITagImage},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SystemLabel)]
@@ -52,7 +53,11 @@ fn main() {
         // pitfals for fixed-time run criterias, see:
         // https://bevy-cheatbook.github.io/programming/states.html
         .add_system_set(SystemSet::on_enter(GameState::Starting).with_system(setup))
-        .add_system_set(SystemSet::on_enter(GameState::Ingame).with_system(spawn_world))
+        .add_system_set(
+            SystemSet::on_enter(GameState::Ingame)
+                .with_system(spawn_world)
+                .with_system(spawn_hud),
+        )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
                 .with_system(progress_turn)
@@ -80,6 +85,7 @@ fn main() {
             SystemSet::on_update(GameState::Ingame)
                 .with_system(grid_update_render_entities::<Blob>)
                 .with_system(grid_update_render_entities::<Field>)
+                .with_system(update_toolbar)
                 .with_system(blob_update_transforms)
                 .with_system(update_field_debug)
                 .label(MySystems::RenderUpdates)
@@ -92,8 +98,9 @@ fn main() {
         .register_inspectable::<Coordinate>()
         .register_inspectable::<BlobGravity>()
         .register_inspectable::<Blob>()
-        .register_inspectable::<Field>();
-
+        .register_inspectable::<Field>()
+        .register_inspectable::<UITagImage>()
+        .register_inspectable::<UITagHover>();
     app.run();
 }
 
@@ -111,18 +118,9 @@ fn setup(
         ..Default::default()
     });
 
-    // @todo Preload assets
-    commands.insert_resource(GameAssets {
-        blob_image: asset_server.load("blocks/64/blob.png"),
-        direction_d: asset_server.load("blocks/64/direction_d.png"),
-        direction_l: asset_server.load("blocks/64/direction_l.png"),
-        direction_r: asset_server.load("blocks/64/direction_r.png"),
-        direction_u: asset_server.load("blocks/64/direction_u.png"),
-        factory_floor: asset_server.load("blocks/64/factory_floor.png"),
-        rotate_l: asset_server.load("blocks/64/rotate_l.png"),
-        rotate_r: asset_server.load("blocks/64/rotate_r.png"),
-        target_outline: asset_server.load("blocks/64/target_outline.png"),
-        tetris_floor: asset_server.load("blocks/64/tetris_floor.png"),
+    commands.insert_resource(GameAssets::new(&asset_server));
+    commands.insert_resource(PlayerState {
+        selected_tool: Some(Tool::Rotate(RotateDirection::Left)),
     });
 
     // Switch state

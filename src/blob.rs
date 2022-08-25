@@ -134,7 +134,7 @@ pub fn spawn_blob(
     let blob = Blob {
         body,
         coordinate: coord,
-        texture: assets.blob_image.clone(),
+        texture: assets.block_blob.clone(),
     };
 
     let mut ec = commands.spawn_bundle(SpatialBundle {
