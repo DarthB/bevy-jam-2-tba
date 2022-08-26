@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use bevy::{prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
+use bevy::{ecs::system::EntityCommands, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
 
 pub struct SpriteInfo {
     pub image: Handle<Image>,
@@ -20,7 +20,7 @@ pub trait RenderableGrid {
 
     fn coords_to_px(&self, x: i32, y: i32) -> (f32, f32);
 
-    fn get_render_id(&self, r: usize, c: usize) -> i32;
+    fn get_render_id(&self, r: i32, c: i32) -> i32;
 
     fn spawn_pivot(&self) -> bool {
         false
@@ -34,17 +34,19 @@ pub trait RenderableGrid {
         false
     }
 
-    fn get_sprite_info(&self, num: i32) -> SpriteInfo;
+    fn get_sprite_info(&self, num: i32, assets: &GameAssets) -> SpriteInfo;
 
-    fn spawn_render_entities(&self, id: Entity, cb: &mut ChildBuilder) {
+    fn adapt_render_entities(&self, cb: &mut EntityCommands, r: usize, c: usize);
+
+    fn spawn_render_entities(&self, id: Entity, cb: &mut ChildBuilder, assets: &GameAssets) {
         for r in 0..self.rows() {
             for c in 0..self.cols() {
-                let num = self.get_render_id(r, c);
-                let info = self.get_sprite_info(num);
+                let num = self.get_render_id(r as i32, c as i32);
+                let info = self.get_sprite_info(num, assets);
 
                 let (x, y) = coords_to_px(c as i32, r as i32, self.rows(), self.cols());
 
-                cb.spawn_bundle(SpriteBundle {
+                let mut ec = cb.spawn_bundle(SpriteBundle {
                     sprite: Sprite {
                         color: info.color,
                         custom_size: Some(Vec2::ONE * PX_PER_TILE - 2.0),
@@ -56,12 +58,9 @@ pub trait RenderableGrid {
                     },
                     texture: info.image,
                     ..Default::default()
-                })
-                .insert(Coordinate {
-                    r: r as i32,
-                    c: c as i32,
-                })
-                .insert(Name::new(format!("grid {}:{}", r, c)));
+                });
+                ec.insert(Name::new(format!("grid {}:{}", r, c)));
+                self.adapt_render_entities(&mut ec, r, c);
             }
         }
 
@@ -103,14 +102,9 @@ pub trait RenderableGrid {
                 .with_children(|cb| {
                     for x in 0..self.cols() {
                         for y in 0..self.rows() {
-                            if self.get_render_id(y, x) == -1 {
+                            if self.get_render_id(y as i32, x as i32) == -1 {
                                 continue;
                             }
-
-                            // @hack as the edge is not handled here
-                            // update in special system (another hack) --> update_field_debug
-                            let x = x - 1;
-                            //let y = y + 1;
 
                             let (px, py) = self.coords_to_px(x as i32, y as i32);
                             cb.spawn_bundle(SpriteBundle {
@@ -120,7 +114,7 @@ pub trait RenderableGrid {
                                     ..Default::default()
                                 },
                                 transform: Transform {
-                                    translation: Vec3::new(px, py + PX_PER_TILE / 4.0, Z_OVERLAY),
+                                    translation: Vec3::new(px, py - PX_PER_TILE / 4.0, Z_OVERLAY),
                                     ..Default::default()
                                 },
                                 ..Default::default()
@@ -156,7 +150,20 @@ impl RenderableGrid for Blob {
         coords_to_px(x, y, Blob::size(), Blob::size())
     }
 
-    fn get_sprite_info(&self, num: i32) -> SpriteInfo {
+    fn get_render_id(&self, r: i32, c: i32) -> i32 {
+        self.body[r as usize * Blob::size() + c as usize]
+    }
+
+    fn spawn_pivot(&self) -> bool {
+        true
+    }
+
+    #[cfg(feature = "debug")]
+    fn spawn_origin(&self) -> bool {
+        true
+    }
+
+    fn get_sprite_info(&self, num: i32, _assets: &GameAssets) -> SpriteInfo {
         let mut reval = if num == 1 {
             SpriteInfo {
                 color: Color::default(),
@@ -174,17 +181,11 @@ impl RenderableGrid for Blob {
         reval
     }
 
-    #[cfg(feature = "debug")]
-    fn spawn_origin(&self) -> bool {
-        true
-    }
-
-    fn spawn_pivot(&self) -> bool {
-        true
-    }
-
-    fn get_render_id(&self, r: usize, c: usize) -> i32 {
-        self.body[r * Blob::size() + c]
+    fn adapt_render_entities(&self, cb: &mut EntityCommands, r: usize, c: usize) {
+        cb.insert(Coordinate {
+            r: r as i32,
+            c: c as i32,
+        });
     }
 }
 
@@ -197,7 +198,7 @@ impl RenderableGrid for Field {
         self.mov_size().0 + self.additional_grids.left + self.additional_grids.right
     }
 
-    fn get_sprite_info(&self, num: i32) -> SpriteInfo {
+    fn get_sprite_info(&self, num: i32, assets: &GameAssets) -> SpriteInfo {
         match num {
             -1 => SpriteInfo {
                 color: self.edge_color,
@@ -209,11 +210,21 @@ impl RenderableGrid for Field {
                 z: Z_SOLID,
                 image: self.brick_image.clone(),
             },
-            _ => SpriteInfo {
-                color: Color::WHITE,
-                z: Z_SOLID,
-                image: self.movable_area_image.clone(),
-            },
+            _ => {
+                if let Ok(tool) = TryInto::<Tool>::try_into(num) {
+                    SpriteInfo {
+                        color: Color::WHITE,
+                        z: Z_SOLID,
+                        image: assets.get_tool_image(tool).clone(),
+                    }
+                } else {
+                    SpriteInfo {
+                        color: Color::WHITE,
+                        z: Z_SOLID,
+                        image: self.movable_area_image.clone(),
+                    }
+                }
+            }
         }
     }
 
@@ -223,17 +234,11 @@ impl RenderableGrid for Field {
         (woo.0, woo.1)
     }
 
-    fn get_render_id(&self, r: usize, c: usize) -> i32 {
-        if r < self.additional_grids.top
-            || r >= self.additional_grids.top + self.mov_size().1
-            || c < self.additional_grids.left
-            || c >= self.additional_grids.left + self.mov_size().0
-        {
+    fn get_render_id(&self, r: i32, c: i32) -> i32 {
+        if r < 0 || r >= self.mov_size().1 as i32 || c < 0 || c >= self.mov_size().0 as i32 {
             -1
         } else if self.tracks_occupied {
-            let r = r - self.additional_grids.top;
-            let c = c - self.additional_grids.left;
-            let idx = self.coords_to_idx(c, r);
+            let idx = self.coords_to_idx(c as usize, r as usize);
             if idx < self.occupied.len() {
                 self.occupied[idx]
             } else {
@@ -256,17 +261,28 @@ impl RenderableGrid for Field {
     fn spawn_additional_debug(&self) -> bool {
         self.tracks_occupied
     }
+
+    fn adapt_render_entities(&self, cb: &mut EntityCommands, r: usize, c: usize) {
+        cb.insert(Coordinate {
+            r: r as i32 - self.additional_grids.top as i32,
+            c: c as i32 - self.additional_grids.left as i32,
+            //            r: r as i32,
+            //            c: c as i32,
+        });
+        cb.insert(FieldRenderTag {});
+    }
 }
 
 pub fn grid_update_render_entities<T: Component + RenderableGrid>(
     query_top: Query<(&Children, &T)>,
     mut query: Query<(&mut Sprite, &mut Transform, &mut Handle<Image>, &Coordinate)>,
+    assets: Res<GameAssets>,
 ) {
     for (children, renderable_grid) in query_top.iter() {
         for &child in children.iter() {
             if let Ok((mut sprite, mut t, mut texture, coord)) = query.get_mut(child) {
-                let num = renderable_grid.get_render_id(coord.r as usize, coord.c as usize);
-                let info = renderable_grid.get_sprite_info(num);
+                let num = renderable_grid.get_render_id(coord.r, coord.c);
+                let info = renderable_grid.get_sprite_info(num, &assets);
 
                 sprite.color = info.color;
                 *texture = info.image;

@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use bevy::{ecs::system::EntityCommands, input::mouse::MouseWheel, prelude::*};
+use bevy::{ecs::system::EntityCommands, input::mouse::MouseWheel, log, prelude::*};
 use leafwing_input_manager::prelude::*;
 
 pub struct InputMappingPlugin;
@@ -124,6 +124,61 @@ pub fn tool_switch_on_mouse_wheel(
                     }));
                 }
                 _ => {}
+            }
+        }
+    }
+}
+
+pub fn mouse_for_field_selection_and_tool_creation(
+    windows: Res<Windows>,
+    mut cursor_moved_events: EventReader<CursorMoved>,
+    mouse_button_input: Res<Input<MouseButton>>,
+    mut sprites: Query<(&mut Sprite, &GlobalTransform, &Coordinate, &Parent), With<FieldRenderTag>>,
+    mut field_query: Query<(Entity, &mut Field), With<FactoryFieldTag>>,
+    mut player_state: ResMut<PlayerState>,
+) {
+    let (field_id, mut field) = field_query.single_mut();
+
+    let ev = cursor_moved_events.iter().last();
+    if let (Some(moved), Some(window)) = (ev, windows.get_primary()) {
+        let half_window = Vec2::new(window.width() / 2.0, window.height() / 2.0);
+        let cursor_pos = moved.position - half_window;
+        player_state.tool_placement_coordinate = None;
+
+        for (mut sprite, trans, coord, parent) in sprites.iter_mut() {
+            // only continue when hovering a sprite on the factory field
+            if field_id != parent.get() {
+                continue;
+            }
+            //~
+
+            let sprite_pos = trans.translation();
+            let diff = Vec3::new(
+                sprite_pos.x - cursor_pos.x,
+                sprite_pos.y - cursor_pos.y,
+                0.0,
+            );
+
+            // sprite is a cube so x test is enough
+            if diff.length() < (PX_PER_TILE / 2.0) {
+                sprite.color = Color::WHITE;
+                let (x, y) = (coord.c, coord.r);
+                log::info!("Mouse over: Coordinate {x},{y}");
+                player_state.tool_placement_coordinate = Some(*coord);
+            }
+        }
+    }
+
+    if mouse_button_input.just_pressed(MouseButton::Left) {
+        if let (Some(tool), Some(coord)) = (
+            player_state.selected_tool,
+            player_state.tool_placement_coordinate,
+        ) {
+            if tool != Tool::Play && tool != Tool::Stop {
+                log::info!("Place tool {:?} at ({},{})", tool, coord.c, coord.r);
+                field.mutate_at_coordinate((coord.c, coord.r), &move |field, _, idx| {
+                    field.occupied[idx] = Into::<i32>::into(tool);
+                })
             }
         }
     }

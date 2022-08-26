@@ -16,10 +16,16 @@ pub struct Blob {
 }
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
+#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Copy, Reflect)]
 pub struct Coordinate {
     pub r: i32,
     pub c: i32,
+}
+
+impl From<Coordinate> for (i32, i32) {
+    fn from(c: Coordinate) -> Self {
+        (c.c, c.r)
+    }
 }
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
@@ -126,6 +132,7 @@ pub fn coords_to_px(x: i32, y: i32, rs: usize, cs: usize) -> (f32, f32) {
 pub fn spawn_blob(
     commands: &mut Commands,
     texture: &Handle<Image>,
+    assets: &GameAssets,
     body: Vec<i32>,
     name: &str,
     coord: Option<Coordinate>, // @todo later work with coordinates and parent tetris-field
@@ -142,7 +149,7 @@ pub fn spawn_blob(
     });
     let id = ec.id();
     ec.with_children(|cb| {
-        blob.spawn_render_entities(id, cb);
+        blob.spawn_render_entities(id, cb, assets);
     })
     .insert(blob)
     .insert(Name::new(name.to_string()));

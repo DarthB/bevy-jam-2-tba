@@ -23,6 +23,7 @@ pub fn spawn_world(
     let comp = Field::as_factory(&assets);
     let fac_field = spawn_field(
         &mut commands,
+        &assets,
         comp,
         "Factory Field",
         Vec3::new(-350.0, 0.0, 0.0),
@@ -35,6 +36,7 @@ pub fn spawn_world(
     let l_stone = spawn_blob(
         &mut commands,
         &assets.block_blob,
+        &assets,
         level.start_blob.clone(),
         "L Stone",
         Some(Coordinate { c: 3, r: -4 }),
@@ -51,6 +53,7 @@ pub fn spawn_world(
 
     let pr_field = spawn_field(
         &mut commands,
+        &assets,
         Field::as_production_field(&assets),
         "Production Field",
         Vec3::new(480.0, 0.0, 0.0),
@@ -63,6 +66,7 @@ pub fn spawn_world(
     let t_stone = spawn_blob(
         &mut commands,
         &assets.block_target_outline,
+        &assets,
         level.target_figure.clone(),
         "Target Stone",
         Some(Coordinate { c: 4, r: 13 }),
@@ -84,6 +88,7 @@ pub fn contiously_spawn_tetris_at_end(
             let new_id = spawn_blob(
                 &mut commands,
                 &assets.block_blob,
+                &assets,
                 body,
                 format!("{}. Additional Tetris Brick", turn.num_additional_bricks).as_str(),
                 Some(Coordinate { r: -3, c: 3 }),

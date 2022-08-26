@@ -25,7 +25,7 @@ pub mod prelude {
     pub use crate::bodies::*;
     pub use crate::field::*;
     pub use crate::game::*;
-    pub use crate::game_assets;
+    pub use crate::game_assets::*;
     pub use crate::hud::*;
     pub use crate::input::*;
     pub use crate::level::*;

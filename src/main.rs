@@ -80,6 +80,7 @@ fn main() {
                 .with_system(move_production_blobs_by_events)
                 .with_system(move_field_content_down_if_not_occupied)
                 .with_system(teleport_blob_out_of_factory)
+                .with_system(mouse_for_field_selection_and_tool_creation)
                 .label(MySystems::GameUpdates)
                 .after(MySystems::Input),
         )

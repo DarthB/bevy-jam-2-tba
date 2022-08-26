@@ -4,6 +4,7 @@ use bevy::prelude::Component;
 use bevy::reflect::Reflect;
 use bevy::utils::HashMap;
 
+use crate::blob::Coordinate;
 use crate::bodies::TetrisBricks;
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
@@ -81,6 +82,47 @@ pub enum Tool {
     Stop,
 }
 
+impl TryFrom<i32> for Tool {
+    type Error = ();
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            101 => Ok(Tool::Move(MoveDirection::Up)),
+            102 => Ok(Tool::Move(MoveDirection::Down)),
+            103 => Ok(Tool::Move(MoveDirection::Left)),
+            104 => Ok(Tool::Move(MoveDirection::Right)),
+
+            201 => Ok(Tool::Rotate(RotateDirection::Left)),
+            202 => Ok(Tool::Rotate(RotateDirection::Right)),
+
+            301 => Ok(Tool::Cutter(TetrisBricks::Square)),
+            302 => Ok(Tool::Cutter(TetrisBricks::Line)),
+            303 => Ok(Tool::Cutter(TetrisBricks::L)),
+            304 => Ok(Tool::Cutter(TetrisBricks::InvL)),
+            305 => Ok(Tool::Cutter(TetrisBricks::StairsL)),
+            306 => Ok(Tool::Cutter(TetrisBricks::StairsR)),
+            307 => Ok(Tool::Cutter(TetrisBricks::SmallT)),
+
+            401 => Ok(Tool::Play),
+
+            501 => Ok(Tool::Stop),
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<Tool> for i32 {
+    fn from(t: Tool) -> Self {
+        match t {
+            Tool::Move(d) => 100 + d as i32,
+            Tool::Rotate(d) => 200 + d as i32,
+            Tool::Cutter(brick) => 300 + brick as i32,
+            Tool::Play => 401,
+            Tool::Stop => 501,
+        }
+    }
+}
+
 impl Display for Tool {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let name = match self {
@@ -99,6 +141,8 @@ pub struct PlayerState {
     pub selected_tool: Option<Tool>,
 
     pub applicable_tools: HashMap<Tool, usize>,
+
+    pub tool_placement_coordinate: Option<Coordinate>,
 }
 
 impl PlayerState {
@@ -109,6 +153,7 @@ impl PlayerState {
         PlayerState {
             selected_tool: None,
             applicable_tools,
+            tool_placement_coordinate: None,
         }
     }
 }
