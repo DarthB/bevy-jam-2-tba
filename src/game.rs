@@ -8,6 +8,9 @@ pub enum GameState {
 
     /// The ingame state where the actual action happens!
     Ingame,
+
+    /// Animation test code
+    AnimationTest,
 }
 
 pub fn spawn_world(

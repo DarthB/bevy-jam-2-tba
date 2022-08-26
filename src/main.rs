@@ -39,7 +39,8 @@ fn main() {
     .insert_resource(Turn::new(SECONDS_PER_ROUND));
 
     app.add_event::<BlobMoveEvent>()
-        .add_event::<BlobTeleportEvent>();
+        .add_event::<BlobTeleportEvent>()
+        .add_event::<crate::view::ViewUpdate>();
 
     // Use default pluign and show own plugin for input mapping
     app.add_plugins(DefaultPlugins)
@@ -53,6 +54,15 @@ fn main() {
         // pitfals for fixed-time run criterias, see:
         // https://bevy-cheatbook.github.io/programming/states.html
         .add_system_set(SystemSet::on_enter(GameState::Starting).with_system(setup))
+        .add_system_set(
+            SystemSet::on_enter(GameState::AnimationTest)
+                .with_system(crate::view::setup_demo_system),
+        )
+        .add_system_set(
+            SystemSet::on_update(GameState::AnimationTest)
+                .with_system(crate::view::demo_system)
+                .with_system(crate::view::handle_view_updates),
+        )
         .add_system_set(
             SystemSet::on_enter(GameState::Ingame)
                 .with_system(spawn_world)
@@ -124,5 +134,5 @@ fn setup(
     });
 
     // Switch state
-    app_state.overwrite_set(GameState::Ingame).unwrap();
+    app_state.overwrite_set(GameState::AnimationTest).unwrap();
 }

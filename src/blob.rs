@@ -16,7 +16,7 @@ pub struct Blob {
 }
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
+#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Copy, Reflect)]
 pub struct Coordinate {
     pub r: i32,
     pub c: i32,
