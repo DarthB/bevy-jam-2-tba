@@ -3,6 +3,8 @@
 //!
 //!
 
+use std::time::Duration;
+
 use crate::{
     blob::{Blob, Coordinate},
     game_assets::GameAssets,
@@ -10,6 +12,7 @@ use crate::{
     PX_PER_TILE,
 };
 use bevy::prelude::*;
+use bevy_tweening::{lens::TransformPositionLens, Animator, EaseFunction, Tween, TweeningType};
 use leafwing_input_manager::{
     prelude::{ActionState, InputMap},
     InputManagerBundle,
@@ -110,16 +113,21 @@ fn handle_blob_moved(
     commands: &mut Commands,
     blob: Entity,
     blobs: &mut Query<(&Blob, &mut BlobRenderState)>,
-    transforms: &mut Query<&mut Transform>,
-    config: &Res<ViewConfig>,
 ) {
     if let Ok((blobdata, mut state)) = blobs.get_mut(blob) {
         let last_trans = state.last_trans;
         let trans = coord_to_translation(blobdata.coordinate.unwrap_or_default());
 
-        if let Ok(mut x) = transforms.get_mut(state.root) {
-            x.translation = trans;
-        }
+        let tween = Tween::new(
+            EaseFunction::QuadraticInOut,
+            TweeningType::Once,
+            Duration::from_millis(200),
+            TransformPositionLens {
+                start: last_trans,
+                end: trans,
+            },
+        );
+        commands.entity(state.root).insert(Animator::new(tween));
         state.last_trans = trans;
     }
 }
@@ -129,7 +137,6 @@ pub fn handle_view_updates(
     mut ev: EventReader<ViewUpdate>,
     blobs: Query<&Blob>,
     mut rendered_blobs: Query<(&Blob, &mut BlobRenderState)>,
-    mut transforms: Query<&mut Transform>,
     config: Res<ViewConfig>,
 ) {
     for ev in ev.iter() {
@@ -141,8 +148,6 @@ pub fn handle_view_updates(
                 &mut commands,
                 blob,
                 &mut rendered_blobs,
-                &mut transforms,
-                &config,
             ),
             _ => unimplemented!(),
         }

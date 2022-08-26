@@ -1,4 +1,5 @@
 use bevy::{prelude::*, render::camera::ScalingMode, window::WindowMode};
+use bevy_tweening::TweeningPlugin;
 use bevy_jam_2_tba_lib::{game_assets::GameAssets, prelude::*, SECONDS_PER_ROUND};
 
 #[cfg(feature = "debug")]
@@ -46,7 +47,8 @@ fn main() {
     app.add_plugins(DefaultPlugins)
         // the following plugin is an example on how bigger units
         // of functionalities can be structured
-        .add_plugin(InputMappingPlugin);
+        .add_plugin(InputMappingPlugin)
+        .add_plugin(TweeningPlugin);
 
     // Setup the game loop
     app.add_state(GameState::Starting)
