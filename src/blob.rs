@@ -42,6 +42,12 @@ impl BlobGravity {
     }
 }
 
+impl From<BlobGravity> for (i32, i32) {
+    fn from(g: BlobGravity) -> Self {
+        (g.gravity.0, g.gravity.1)
+    }
+}
+
 impl Blob {
     pub fn new(body: Vec<i32>) -> Self {
         Blob {

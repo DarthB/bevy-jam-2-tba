@@ -41,6 +41,17 @@ impl MoveDirection {
     }
 }
 
+impl From<MoveDirection> for (i32, i32) {
+    fn from(d: MoveDirection) -> Self {
+        match d {
+            MoveDirection::Up => (0, -1),
+            MoveDirection::Down => (0, 1),
+            MoveDirection::Left => (-1, 0),
+            MoveDirection::Right => (1, 0),
+        }
+    }
+}
+
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
 pub enum RotateDirection {

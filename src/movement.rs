@@ -46,19 +46,39 @@ pub fn move_blobs_by_gravity(
 }
 
 pub fn move_factory_blobs_by_events(
-    mut query: Query<(&Parent, &mut Blob)>,
+    mut query: Query<(&Parent, &mut Blob, &mut BlobGravity)>,
     parent_query: Query<&Field, With<FactoryFieldTag>>,
     mut ev: EventReader<BlobMoveEvent>,
     mut ev_teleport: EventWriter<BlobTeleportEvent>,
 ) {
     for ev in ev.iter() {
-        if let Ok((p, mut blob)) = query.get_mut(ev.entity) {
+        if let Ok((p, mut blob, mut grav)) = query.get_mut(ev.entity) {
             if let Ok(field) = parent_query.get(p.get()) {
-                if let Some(coord) = &mut blob.coordinate {
+                if let Some(coord) = blob.coordinate {
                     let (tc, tr) = (coord.c + ev.delta.0, coord.r + ev.delta.1);
 
                     let (occupied, _) = field.is_coordinate_occupied(tc, tr);
-                    if !occupied {
+                    if occupied && !(tc < 0 || tr < 0) {
+                        let num = field.occupied[field.coords_to_idx(tc as usize, tr as usize)];
+                        let tool = TryInto::<Tool>::try_into(num);
+                        if let Ok(tool) = tool {
+                            match tool {
+                                Tool::Move(d) => {
+                                    grav.gravity = d.into();
+                                }
+                                Tool::Rotate(d) => match d {
+                                    RotateDirection::Left => blob.rotate_left(),
+                                    RotateDirection::Right => blob.rotate_right(),
+                                },
+                                Tool::Cutter(_) => {}
+                                _ => {}
+                            }
+                        }
+                        let coord = blob.coordinate.as_mut().unwrap();
+                        coord.c = tc;
+                        coord.r = tr;
+                    } else if !occupied {
+                        let coord = blob.coordinate.as_mut().unwrap();
                         coord.c = tc;
                         coord.r = tr;
                     } else if tr >= field.coordinate_limits().bottom {
