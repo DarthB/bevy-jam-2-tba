@@ -177,7 +177,9 @@ pub fn mouse_for_field_selection_and_tool_creation(
             if tool != Tool::Play && tool != Tool::Stop {
                 log::info!("Place tool {:?} at ({},{})", tool, coord.c, coord.r);
                 field.mutate_at_coordinate((coord.c, coord.r), &move |field, _, idx| {
-                    field.occupied[idx] = Into::<i32>::into(tool);
+                    field
+                        .set_occupied(idx, Into::<i32>::into(tool))
+                        .expect("wrong coordinate in set_occupied due to mouse click");
                 })
             }
         }

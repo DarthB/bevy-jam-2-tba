@@ -19,7 +19,7 @@ pub struct Field {
 
     pub allow_overlap: UiRect<usize>,
 
-    pub occupied: Vec<i32>,
+    occupied: Vec<i32>,
 
     pub tracks_occupied: bool,
 
@@ -106,8 +106,21 @@ impl Field {
         self.tracks_occupied
     }
 
-    pub fn occupied(&self) -> &Vec<i32> {
-        &self.occupied
+    pub fn occupied(&self, idx: usize) -> Option<i32> {
+        if idx < self.occupied.len() {
+            Some(self.occupied[idx])
+        } else {
+            None
+        }
+    }
+
+    pub fn set_occupied(&mut self, idx: usize, val: i32) -> Result<(), String> {
+        if idx < self.occupied.len() {
+            self.occupied[idx] = val;
+            Ok(())
+        } else {
+            Err("occupied out of bounds".into())
+        }
     }
 
     pub fn is_idx_valid(&self, idx: usize) -> bool {
@@ -252,7 +265,7 @@ impl Field {
         for r in 0..self.movable_size.1 {
             let mut full_line = true;
             for c in 0..self.movable_size.0 {
-                full_line = full_line && self.occupied()[self.coords_to_idx(c, r)] > 0
+                full_line = full_line && self.occupied[self.coords_to_idx(c, r)] > 0
             }
             if full_line {
                 reval.push(r);

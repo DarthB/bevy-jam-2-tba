@@ -239,11 +239,7 @@ impl RenderableGrid for Field {
             -1
         } else if self.tracks_occupied {
             let idx = self.coords_to_idx(c as usize, r as usize);
-            if idx < self.occupied.len() {
-                self.occupied[idx]
-            } else {
-                0
-            }
+            self.occupied(idx).unwrap_or(0)
         } else {
             0
         }
@@ -310,11 +306,16 @@ pub fn update_field_debug(
 
             let idx = field.coords_to_idx(coord.c as usize, coord.r as usize);
 
-            sprite.color = if idx < field.occupied().len() && field.occupied()[idx] > 0 {
-                Color::RED
-            } else {
-                Color::WHITE
-            }
+            sprite.color = match field.occupied(idx) {
+                Some(v) => {
+                    if v > 0 {
+                        Color::RED
+                    } else {
+                        Color::WHITE
+                    }
+                }
+                None => Color::WHITE,
+            };
         }
     }
 }
