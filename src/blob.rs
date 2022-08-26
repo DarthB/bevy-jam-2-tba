@@ -1,7 +1,7 @@
 use bevy::{ecs::system::EntityCommands, prelude::*};
 use leafwing_input_manager::prelude::*;
 
-use crate::{game_assets::GameAssets, prelude::*, render_old::RenderableGrid};
+use crate::{prelude::*, render_old::RenderableGrid};
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
@@ -125,7 +125,7 @@ pub fn coords_to_px(x: i32, y: i32, rs: usize, cs: usize) -> (f32, f32) {
 
 pub fn spawn_blob(
     commands: &mut Commands,
-    assets: &GameAssets,
+    texture: &Handle<Image>,
     body: Vec<i32>,
     name: &str,
     coord: Option<Coordinate>, // @todo later work with coordinates and parent tetris-field
@@ -134,18 +134,14 @@ pub fn spawn_blob(
     let blob = Blob {
         body,
         coordinate: coord,
-        texture: assets.block_blob.clone(),
+        texture: texture.clone(),
     };
 
     let mut ec = commands.spawn_bundle(SpatialBundle {
         ..Default::default()
     });
     let id = ec.id();
-    ec.insert(BlobGravity {
-        gravity: (0, 1),
-        active: true,
-    })
-    .with_children(|cb| {
+    ec.with_children(|cb| {
         blob.spawn_render_entities(id, cb);
     })
     .insert(blob)

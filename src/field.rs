@@ -75,13 +75,13 @@ impl Field {
     pub fn as_production_field(assets: &GameAssets) -> Self {
         let mut reval = Field {
             edge_color: Color::rgba(0.25, 0.0, 0.0, 1.0),
-            tracks_occupied: true,
             allow_overlap: UiRect {
                 left: 0,
                 right: 0,
                 top: 10,
                 bottom: 0,
             },
+            tracks_occupied: true,
             movable_area_image: assets.block_tetris_floor.clone(),
             brick_image: assets.block_blob.clone(),
             ..Default::default()

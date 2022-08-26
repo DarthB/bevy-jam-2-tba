@@ -1,4 +1,5 @@
-use bevy::{ecs::system::EntityCommands, prelude::*};
+use crate::prelude::*;
+use bevy::{ecs::system::EntityCommands, input::mouse::MouseWheel, prelude::*};
 use leafwing_input_manager::prelude::*;
 
 pub struct InputMappingPlugin;
@@ -75,4 +76,55 @@ pub fn add_arrow_control(commands: &mut EntityCommands) {
             (KeyCode::RShift, WASDActions::Powerup),
         ]),
     });
+}
+
+pub fn tool_switch_on_mouse_wheel(
+    mut mouse_wheel_events: EventReader<MouseWheel>,
+    mut player_state: ResMut<PlayerState>,
+) {
+    for event in mouse_wheel_events.iter() {
+        let y = event.y.signum() as i32;
+        if let Some(tool) = &mut player_state.selected_tool {
+            match tool {
+                Tool::Move(d) => {
+                    let mut cur = *d as i32;
+                    cur += y;
+                    if cur < 1 {
+                        cur = MoveDirection::max();
+                    } else if cur > MoveDirection::max() {
+                        cur = 1;
+                    }
+                    *tool = Tool::Move(cur.try_into().unwrap_or_else(|_| {
+                        panic!("Error in Enum Trait try_from({})<MoveDirection>", cur);
+                    }));
+                }
+                Tool::Rotate(d) => {
+                    let mut cur = *d as i32;
+                    cur += y;
+                    if cur < 1 {
+                        cur = RotateDirection::max();
+                    } else if cur > RotateDirection::max() {
+                        cur = 1;
+                    }
+                    *tool = Tool::Rotate(cur.try_into().unwrap_or_else(|_| {
+                        panic!("Error in Enum Trait try_from({})<RotateDirection>", cur);
+                    }));
+                }
+                Tool::Cutter(blob) => {
+                    let mut cur = *blob as i32;
+                    cur += y;
+                    cur = cur.clamp(0, TetrisBricks::max());
+                    if cur < 1 {
+                        cur = TetrisBricks::max();
+                    } else if cur > TetrisBricks::max() {
+                        cur = 1;
+                    }
+                    *tool = Tool::Cutter(cur.try_into().unwrap_or_else(|_| {
+                        panic!("Error in Enum Trait try_from({})<TetrisBricks>", cur);
+                    }));
+                }
+                _ => {}
+            }
+        }
+    }
 }

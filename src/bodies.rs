@@ -5,28 +5,49 @@ use rand::Rng;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
 pub enum TetrisBricks {
     #[default]
-    Square,
-    Line,
-    L,
-    InvL,
-    StairsL,
-    StairsR,
-    SmallT,
+    Square = 1,
+    Line = 2,
+    L = 3,
+    InvL = 4,
+    StairsL = 5,
+    StairsR = 6,
+    SmallT = 7,
+}
+
+impl TetrisBricks {
+    pub fn min() -> i32 {
+        1
+    }
+
+    pub fn max() -> i32 {
+        7
+    }
+}
+
+impl TryFrom<i32> for TetrisBricks {
+    type Error = ();
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            x if x == TetrisBricks::Square as i32 => Ok(TetrisBricks::Square),
+            x if x == TetrisBricks::Line as i32 => Ok(TetrisBricks::Line),
+            x if x == TetrisBricks::L as i32 => Ok(TetrisBricks::L),
+            x if x == TetrisBricks::InvL as i32 => Ok(TetrisBricks::InvL),
+            x if x == TetrisBricks::StairsL as i32 => Ok(TetrisBricks::StairsL),
+            x if x == TetrisBricks::StairsR as i32 => Ok(TetrisBricks::StairsR),
+            x if x == TetrisBricks::SmallT as i32 => Ok(TetrisBricks::SmallT),
+            _ => Err(()),
+        }
+    }
 }
 
 pub fn gen_random_tetris_body() -> Vec<i32> {
     let mut rng = rand::thread_rng();
-    let kind = match rng.gen_range(0..6) {
-        0 => TetrisBricks::InvL,
-        1 => TetrisBricks::L,
-        2 => TetrisBricks::Line,
-        3 => TetrisBricks::SmallT,
-        4 => TetrisBricks::Square,
-        5 => TetrisBricks::StairsL,
-        6 => TetrisBricks::StairsR,
-        _ => panic!("Random Number for Tetris brick selection out of bounce"),
-    };
-    gen_tetris_body(kind)
+    let kind = rng.gen_range(TetrisBricks::min()..TetrisBricks::max());
+    gen_tetris_body(
+        kind.try_into()
+            .expect("The random range is bigger as the given stones, fix this coder!"),
+    )
 }
 
 pub fn gen_tetris_body(kind: TetrisBricks) -> Vec<i32> {

@@ -1,4 +1,4 @@
-use bevy::{prelude::*, render::camera::ScalingMode, window::WindowMode};
+use bevy::{prelude::*, window::WindowMode};
 use bevy_jam_2_tba_lib::{game_assets::GameAssets, prelude::*, SECONDS_PER_ROUND};
 
 #[cfg(feature = "debug")]
@@ -68,6 +68,8 @@ fn main() {
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
                 .with_system(move_blob_by_player)
+                .with_system(toolbar_button_system)
+                .with_system(tool_switch_on_mouse_wheel)
                 .label(MySystems::Input)
                 .after(MySystems::EventHandling),
         )
@@ -100,7 +102,8 @@ fn main() {
         .register_inspectable::<Blob>()
         .register_inspectable::<Field>()
         .register_inspectable::<UITagImage>()
-        .register_inspectable::<UITagHover>();
+        .register_inspectable::<UITagHover>()
+        .register_type::<Interaction>();
     app.run();
 }
 
@@ -112,16 +115,16 @@ fn setup(
     // setup the camera
     commands.spawn_bundle(Camera2dBundle {
         projection: OrthographicProjection {
-            scaling_mode: ScalingMode::FixedVertical(1000.0),
+            //    scaling_mode: ScalingMode::FixedVertical(1000.0),
             ..Default::default()
         },
         ..Default::default()
     });
 
+    //commands.insert_resource(WinitSettings::desktop_app());
     commands.insert_resource(GameAssets::new(&asset_server));
-    commands.insert_resource(PlayerState {
-        selected_tool: Some(Tool::Rotate(RotateDirection::Left)),
-    });
+    commands.insert_resource(PlayerState::new());
+    commands.insert_resource(Level::new());
 
     // Switch state
     app_state.overwrite_set(GameState::Ingame).unwrap();

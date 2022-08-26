@@ -5,6 +5,7 @@ pub mod game;
 pub mod game_assets;
 pub mod hud;
 pub mod input;
+pub mod level;
 pub mod movement;
 pub mod player_state;
 pub mod render_old;
@@ -27,6 +28,7 @@ pub mod prelude {
     pub use crate::game_assets;
     pub use crate::hud::*;
     pub use crate::input::*;
+    pub use crate::level::*;
     pub use crate::movement::*;
     pub use crate::player_state::*;
     pub use crate::render_old::*;
