@@ -1,6 +1,8 @@
 [![CI](https://github.com/DarthB/bevy-jam-2-tba/actions/workflows/ci.yaml/badge.svg)](https://github.com/DarthB/bevy-jam-2-tba/actions/workflows/ci.yaml)
 
-# TITLE TBA - A bevy-jam-2 Game
+# Disastris - A bevy-jam-2 Game
+
+Disastris - A disastrous factory meets tetris and you must fullfil the consumers' wishes! Therefore, disassemble the useless input blob that was delivered and combine the parts to something beautiful! Select tools and place them in the factory. Choose between several tool variants with the mouse wheel and hit the simulate button when you're ready. 
 
 A contribution to [bevy-jam-2](https://itch.io/jam/bevy-jam-2)
 
@@ -36,7 +38,7 @@ To generate the files that are needed for upload on a webserver install:
 and then use:
 
 * `cargo build --release --target wasm32-unknown-unknown`
-* `wasm-bindgen --out-dir ./wasm/ --target web ./target/wasm32-unknown-unknown/release/bevy_jam_2_tba.wasm`
+* `wasm-bindgen --out-dir ./wasm/ --target web ./target/wasm32-unknown-unknown/release/bevy_jam_2_disastris.wasm`
 This generates the files needed for an upload in wasm folder.
 See page on [Bevy Cheat Book](https://bevy-cheatbook.github.io/platforms/wasm.html) about WASM.
 

@@ -1,5 +1,5 @@
 use bevy::{prelude::*, window::WindowMode};
-use bevy_jam_2_tba_lib::{game_assets::GameAssets, prelude::*, SECONDS_PER_ROUND};
+use bevy_jam_2_disastris_lib::{game_assets::GameAssets, prelude::*, SECONDS_PER_ROUND};
 
 #[cfg(feature = "debug")]
 use {
@@ -8,9 +8,9 @@ use {
         //        InspectorPlugin,
         WorldInspectorPlugin,
     },
-    bevy_jam_2_tba_lib::blob::{Blob, BlobGravity, Coordinate},
-    bevy_jam_2_tba_lib::field::Field,
-    bevy_jam_2_tba_lib::hud::{UITagHover, UITagImage},
+    bevy_jam_2_disastris_lib::blob::{Blob, BlobGravity, Coordinate},
+    bevy_jam_2_disastris_lib::field::Field,
+    bevy_jam_2_disastris_lib::hud::{UITagHover, UITagImage},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SystemLabel)]
@@ -27,7 +27,7 @@ fn main() {
         width: 1600.0,
         height: 1000.0,
         position: bevy::window::WindowPosition::Centered(MonitorSelection::Primary),
-        title: "bevy_jam_2_tba".into(),
+        title: "Disastris - A contribution to bevy-jam-2".into(),
         resizable: true,
         decorations: true,
         cursor_visible: true,

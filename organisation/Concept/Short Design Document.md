@@ -1,4 +1,4 @@
-# Game Name TBA
+# Disastris
 
 ## Short Description
 Around 3 lines.
@@ -22,3 +22,7 @@ x. x most important feature
 ## Stretch Goals
 
 Things that are great but not MVP
+
+## Quotes
+"Back in my days they delivered the raw materials in clean 4-block packages!" by Gereon Bartel - Senior Block Composer
+"Rearranging ugly blobs into more elegant shapes is part of my daily routine!" by Tim Janus - Fulltime Code Refactorer

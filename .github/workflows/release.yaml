@@ -7,7 +7,7 @@ on:
 
 env:
   # update with the name of the main binary
-  binary: bevy_jam_2_tba
+  binary: bevy_jam_2_disastris
 
 
 jobs:
@@ -133,7 +133,7 @@ jobs:
 
   # Build for macOS
   release-macos:
-    runs-on: macOS-latest
+    runs-on: macos-latest
 
     steps:
       - uses: little-core-labs/get-git-tag@v3.0.1
