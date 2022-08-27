@@ -22,6 +22,7 @@ use leafwing_input_manager::{
 
 #[derive(Component, Debug, PartialEq, Clone, Reflect)]
 pub struct BlobExtra {
+    /// Blob's blocks
     blocks: Vec<Entity>,
     /// Position of the Blob's pivot element within the field
     pivot: IVec2,
@@ -57,6 +58,8 @@ pub enum ViewUpdate {
 pub struct ViewConfig {
     /// The factory field entity
     factory: Entity,
+    /// Relative translation to the factory's (0,0) block
+    factory_topleft: Vec3,
     /// The tetris field entity
     tetris: Entity,
 
@@ -124,7 +127,9 @@ fn handle_blob_spawned(
     config: &Res<ViewConfig>,
 ) {
     if let Ok(blobdata) = blob_query.get(blob) {
-        let transform = Transform::from_translation(coord_to_translation(blobdata.pivot));
+        let transform = Transform::from_translation(
+            config.factory_topleft + coord_to_translation(blobdata.pivot),
+        );
         let root = commands
             .spawn_bundle(SpatialBundle::from(transform))
             .with_children(|cb| {
@@ -173,10 +178,11 @@ fn handle_blob_moved(
     commands: &mut Commands,
     blob: Entity,
     blobs: &mut Query<(&BlobExtra, &mut BlobRenderState)>,
+    config: &Res<ViewConfig>,
 ) {
     if let Ok((blobdata, mut state)) = blobs.get_mut(blob) {
-        let start = coord_to_translation(state.last_pivot);
-        let end = coord_to_translation(blobdata.pivot);
+        let start = config.factory_topleft + coord_to_translation(state.last_pivot);
+        let end = config.factory_topleft + coord_to_translation(blobdata.pivot);
 
         let tween = Tween::new(
             EaseFunction::QuadraticInOut,
@@ -236,7 +242,7 @@ pub fn handle_view_updates(
                 handle_blob_spawned(&mut commands, blob, &blob_query, &block_query, &config)
             }
             ViewUpdate::BlobMoved(blob) => {
-                handle_blob_moved(&mut commands, blob, &mut rendered_blobs)
+                handle_blob_moved(&mut commands, blob, &mut rendered_blobs, &config)
             }
             ViewUpdate::BlobRotated(blob, rotation) => {
                 handle_blob_rotated(&mut commands, blob, rotation, &mut rendered_blobs)
@@ -270,7 +276,7 @@ fn spawn_demo_blob(commands: &mut Commands) -> Entity {
     commands
         .spawn()
         .insert(BlobExtra {
-            pivot: IVec2::new(-1, 4),
+            pivot: IVec2::default(), //IVec2::new(-1, 4),
             blocks,
         })
         .insert(Name::new("Test Blob"))
@@ -293,16 +299,19 @@ pub fn setup_demo_system(
     assets: Res<GameAssets>,
     mut evt: EventWriter<ViewUpdate>,
 ) {
+    let factory_gridsize = IVec2::new(10, 14);
     let factory = commands
-        .spawn_bundle::<SpatialBundle>(Transform::from_xyz(20.0, 30.0, 0.0).into())
+        .spawn_bundle::<SpatialBundle>(Transform::from_xyz(0.0, 0.0, 0.0).into())
         .with_children(|cb| {
             cb.spawn_bundle(SpriteBundle {
                 sprite: Sprite {
                     color: Color::BLUE,
-                    custom_size: Some(Vec2::ONE * PX_PER_TILE * 8.0),
+                    custom_size: Some(Vec2::new(
+                        factory_gridsize.x as f32 * PX_PER_TILE,
+                        factory_gridsize.y as f32 * PX_PER_TILE,
+                    )),
                     ..Default::default()
                 },
-                transform: Transform::from_xyz(-PX_PER_TILE * 4.5, -PX_PER_TILE * 4.5, 0.0),
                 ..Default::default()
             });
         })
@@ -321,6 +330,11 @@ pub fn setup_demo_system(
             ]),
         })
         .id();
+    let factory_topleft = Vec3::new(
+        -PX_PER_TILE * (-0.5 + factory_gridsize.x as f32 / 2.0),
+        PX_PER_TILE * (-0.5 + factory_gridsize.y as f32 / 2.0),
+        0.0,
+    );
 
     let tetris = commands.spawn().insert(Name::new("Mock Tetrisfield")).id();
 
@@ -328,6 +342,7 @@ pub fn setup_demo_system(
 
     commands.insert_resource(ViewConfig {
         factory,
+        factory_topleft,
         tetris,
         brick_image: assets.block_blob.clone(),
         test_blob: Some(blob),
