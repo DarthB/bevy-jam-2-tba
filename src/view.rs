@@ -26,6 +26,8 @@ pub struct BlobExtra {
     blocks: Vec<Entity>,
     /// Position of the Blob's pivot element within the field
     pivot: IVec2,
+    /// Transferred: is it on the tetris field?
+    transferred: bool,
 }
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
@@ -56,13 +58,11 @@ pub enum ViewUpdate {
 
 /// Configuration struct for integration into the rest of the project
 pub struct ViewConfig {
-    /// The factory field entity
-    factory: Entity,
-    /// Relative translation to the factory fields's (0,0) block
+    /// Global renderer entity to make the entity tree a bit cleaner.
+    renderer_entity: Entity,
+    /// Global translation to the factory fields's (0,0) block
     factory_topleft: Vec3,
-    /// The tetris field entity
-    tetris: Entity,
-    /// Relative translation to the tetris fields's (0,0) block
+    /// Global translation to the tetris fields's (0,0) block
     tetris_topleft: Vec3,
 
     brick_image: Handle<Image>,
@@ -129,6 +129,7 @@ fn handle_blob_spawned(
     config: &Res<ViewConfig>,
 ) {
     if let Ok(blobdata) = blob_query.get(blob) {
+        assert!(!blobdata.transferred);
         let transform = Transform::from_translation(
             config.factory_topleft + coord_to_translation(blobdata.pivot),
         );
@@ -167,7 +168,7 @@ fn handle_blob_spawned(
                 });
             })
             .id();
-        commands.entity(config.factory).add_child(root);
+        commands.entity(config.renderer_entity).add_child(root);
         commands.entity(blob).insert(BlobRenderState {
             root,
             last_pivot: blobdata.pivot,
@@ -179,12 +180,17 @@ fn handle_blob_spawned(
 fn handle_blob_moved(
     commands: &mut Commands,
     blob: Entity,
-    blobs: &mut Query<(&BlobExtra, &mut BlobRenderState)>,
+    blob_query: &mut Query<(&BlobExtra, &mut BlobRenderState)>,
     config: &Res<ViewConfig>,
 ) {
-    if let Ok((blobdata, mut state)) = blobs.get_mut(blob) {
-        let start = config.factory_topleft + coord_to_translation(state.last_pivot);
-        let end = config.factory_topleft + coord_to_translation(blobdata.pivot);
+    if let Ok((blobdata, mut state)) = blob_query.get_mut(blob) {
+        let topleft = if blobdata.transferred {
+            config.tetris_topleft
+        } else {
+            config.factory_topleft
+        };
+        let start = topleft + coord_to_translation(state.last_pivot);
+        let end = topleft + coord_to_translation(blobdata.pivot);
 
         let tween = Tween::new(
             EaseFunction::QuadraticInOut,
@@ -230,6 +236,27 @@ fn handle_blob_rotated(
     }
 }
 
+fn handle_blob_transferred(
+    commands: &mut Commands,
+    blob: Entity,
+    blob_query: &mut Query<(&BlobExtra, &mut BlobRenderState)>,
+    config: &Res<ViewConfig>,
+) {
+    if let Ok((blobdata, mut state)) = blob_query.get_mut(blob) {
+        let start = config.factory_topleft + coord_to_translation(state.last_pivot);
+        let end = config.tetris_topleft + coord_to_translation(blobdata.pivot);
+
+        let tween = Tween::new(
+            EaseFunction::QuadraticInOut,
+            TweeningType::Once,
+            Duration::from_millis(200),
+            TransformPositionLens { start, end },
+        );
+        commands.entity(state.root).insert(Animator::new(tween));
+        state.last_pivot = blobdata.pivot;
+    }
+}
+
 pub fn handle_view_updates(
     mut commands: Commands,
     mut ev: EventReader<ViewUpdate>,
@@ -249,7 +276,9 @@ pub fn handle_view_updates(
             ViewUpdate::BlobRotated(blob, rotation) => {
                 handle_blob_rotated(&mut commands, blob, rotation, &mut rendered_blobs)
             }
-            _ => unimplemented!(),
+            ViewUpdate::BlobTransferred(blob) => {
+                handle_blob_transferred(&mut commands, blob, &mut rendered_blobs, &config)
+            }
         }
     }
 }
@@ -278,6 +307,7 @@ fn spawn_demo_blob(commands: &mut Commands) -> Entity {
     commands
         .spawn()
         .insert(BlobExtra {
+            transferred: false,
             pivot: IVec2::default(), //IVec2::new(-1, 4),
             blocks,
         })
@@ -302,8 +332,9 @@ pub fn setup_demo_system(
     mut evt: EventWriter<ViewUpdate>,
 ) {
     let factory_gridsize = IVec2::new(10, 14);
+    let factory_pos = Vec3::new(-200.0, 0.0, 0.0);
     let factory = commands
-        .spawn_bundle::<SpatialBundle>(Transform::from_xyz(-200.0, 0.0, 0.0).into())
+        .spawn_bundle::<SpatialBundle>(Transform::from_translation(factory_pos).into())
         .with_children(|cb| {
             cb.spawn_bundle(SpriteBundle {
                 sprite: Sprite {
@@ -318,29 +349,18 @@ pub fn setup_demo_system(
             });
         })
         .insert(Name::new("Mock Factoryfield"))
-        .insert_bundle(InputManagerBundle::<TetrisActionsWASD> {
-            // Stores "which actions are currently pressed"
-            action_state: ActionState::default(),
-            // Describes how to convert from player inputs into those actions
-            input_map: InputMap::new([
-                (KeyCode::W, TetrisActionsWASD::Up),
-                (KeyCode::S, TetrisActionsWASD::Down),
-                (KeyCode::A, TetrisActionsWASD::Left),
-                (KeyCode::D, TetrisActionsWASD::Right),
-                (KeyCode::Q, TetrisActionsWASD::LRotate),
-                (KeyCode::E, TetrisActionsWASD::RRotate),
-            ]),
-        })
         .id();
-    let factory_topleft = Vec3::new(
-        -PX_PER_TILE * (-0.5 + factory_gridsize.x as f32 / 2.0),
-        PX_PER_TILE * (-0.5 + factory_gridsize.y as f32 / 2.0),
-        0.0,
-    );
+    let factory_topleft = factory_pos
+        + Vec3::new(
+            -PX_PER_TILE * (-0.5 + factory_gridsize.x as f32 / 2.0),
+            PX_PER_TILE * (-0.5 + factory_gridsize.y as f32 / 2.0),
+            0.0,
+        );
 
     let tetris_gridsize = IVec2::new(8, 14);
+    let tetris_pos = Vec3::new(400.0, 0.0, 0.0);
     let tetris = commands
-        .spawn_bundle::<SpatialBundle>(Transform::from_xyz(400.0, 0.0, 0.0).into())
+        .spawn_bundle::<SpatialBundle>(Transform::from_translation(tetris_pos).into())
         .with_children(|cb| {
             cb.spawn_bundle(SpriteBundle {
                 sprite: Sprite {
@@ -356,18 +376,38 @@ pub fn setup_demo_system(
         })
         .insert(Name::new("Mock TetrisField"))
         .id();
-    let tetris_topleft = Vec3::new(
-        -PX_PER_TILE * (-0.5 + tetris_gridsize.x as f32 / 2.0),
-        PX_PER_TILE * (-0.5 + tetris_gridsize.y as f32 / 2.0),
-        0.0,
-    );
+    let tetris_topleft = tetris_pos
+        + Vec3::new(
+            -PX_PER_TILE * (-0.5 + tetris_gridsize.x as f32 / 2.0),
+            PX_PER_TILE * (-0.5 + tetris_gridsize.y as f32 / 2.0),
+            0.0,
+        );
+
+    let renderer_entity = commands
+        .spawn_bundle(SpatialBundle::default())
+        .insert(Name::new("Rendering"))
+        .insert_bundle(InputManagerBundle::<TetrisActionsWASD> {
+            // Stores "which actions are currently pressed"
+            action_state: ActionState::default(),
+            // Describes how to convert from player inputs into those actions
+            input_map: InputMap::new([
+                (KeyCode::W, TetrisActionsWASD::Up),
+                (KeyCode::S, TetrisActionsWASD::Down),
+                (KeyCode::A, TetrisActionsWASD::Left),
+                (KeyCode::D, TetrisActionsWASD::Right),
+                (KeyCode::Q, TetrisActionsWASD::LRotate),
+                (KeyCode::E, TetrisActionsWASD::RRotate),
+            ]),
+        })
+        .add_child(factory)
+        .add_child(tetris)
+        .id();
 
     let blob = spawn_demo_blob(&mut commands);
 
     commands.insert_resource(ViewConfig {
-        factory,
+        renderer_entity,
         factory_topleft,
-        tetris,
         tetris_topleft,
         brick_image: assets.block_blob.clone(),
         test_blob: Some(blob),
@@ -399,6 +439,16 @@ pub fn demo_system(
                 if let Ok(blobdata) = blobs.get(test_blob) {
                     rotate_demo_blob(blobdata, &mut block_query, Rotation::Right);
                     evt.send(ViewUpdate::BlobRotated(test_blob, Rotation::Right));
+                }
+            }
+        }
+        if s.just_pressed(TetrisActionsWASD::Up) {
+            bevy::log::info!("UP for block transfer pressed!");
+            if let Some(test_blob) = config.test_blob {
+                if let Ok(mut blobdata) = blobs.get_mut(test_blob) {
+                    blobdata.transferred = true;
+                    blobdata.pivot.y = 0;
+                    evt.send(ViewUpdate::BlobTransferred(test_blob));
                 }
             }
         }
