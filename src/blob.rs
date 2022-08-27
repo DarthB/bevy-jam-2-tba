@@ -28,6 +28,12 @@ impl From<Coordinate> for (i32, i32) {
     }
 }
 
+impl From<(i32, i32)> for Coordinate {
+    fn from((c, r): (i32, i32)) -> Self {
+        Coordinate { r, c }
+    }
+}
+
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct BlobGravity {
@@ -76,8 +82,8 @@ impl Blob {
     pub fn rotate_left(&mut self) {
         let mut rot_vec = vec![0; Blob::size().pow(2)];
 
-        for r in 0..Blob::size() - 1 {
-            for c in 0..Blob::size() - 1 {
+        for r in 0..Blob::size() {
+            for c in 0..Blob::size() {
                 let index = Blob::coords_to_idx(r, c);
                 let index_in_new = (Blob::size() - c) * Blob::size() - (Blob::size() - r);
                 rot_vec[index_in_new] = self.body[index];
@@ -90,8 +96,8 @@ impl Blob {
     pub fn rotate_right(&mut self) {
         let mut rot_vec = vec![0; Blob::size().pow(2)];
 
-        for r in 0..Blob::size() - 1 {
-            for c in 0..Blob::size() - 1 {
+        for r in 0..Blob::size() {
+            for c in 0..Blob::size() {
                 let index = Blob::coords_to_idx(r, c);
                 let index_in_new = Blob::size() - r - 1 + c * Blob::size();
                 rot_vec[index_in_new] = self.body[index];

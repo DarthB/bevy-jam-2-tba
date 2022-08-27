@@ -37,9 +37,9 @@ pub fn spawn_world(
         &mut commands,
         &assets.block_blob,
         &assets,
-        level.start_blob.clone(),
+        level.start_blob.0.clone(),
         "L Stone",
-        Some(Coordinate { c: 3, r: -4 }),
+        Some(level.start_blob.1.into()),
         &|ec| {
             add_tetris_control(ec);
             ec.insert(RealBlob {});
@@ -67,9 +67,9 @@ pub fn spawn_world(
         &mut commands,
         &assets.block_target_outline,
         &assets,
-        level.target_figure.clone(),
+        level.target_figure.0.clone(),
         "Target Stone",
-        Some(Coordinate { c: 4, r: 13 }),
+        Some(level.target_figure.1.into()),
         &|_| {},
     );
     commands.entity(pr_field).push_children(&[t_stone]);

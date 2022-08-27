@@ -125,7 +125,7 @@ fn setup(
     //commands.insert_resource(WinitSettings::desktop_app());
     commands.insert_resource(GameAssets::new(&asset_server));
     commands.insert_resource(PlayerState::new());
-    commands.insert_resource(Level::new());
+    commands.insert_resource(Level::level_01());
 
     // Switch state
     app_state.overwrite_set(GameState::Ingame).unwrap();
