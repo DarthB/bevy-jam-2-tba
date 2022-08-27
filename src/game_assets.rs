@@ -133,8 +133,8 @@ impl GameAssets {
                 TetrisBricks::StairsR => &self.tool_cutter_stairs_r,
                 TetrisBricks::SmallT => &self.tool_cutter_small_t,
             },
-            Tool::Play => &self.tool_play,
-            Tool::Pause => &self.tool_stop,
+            Tool::Simulate => &self.tool_play,
+            Tool::Reset => &self.tool_stop,
             Tool::Eraser => &self.tool_eraser,
             Tool::EraseAll => &self.tool_erase_all,
         }

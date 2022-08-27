@@ -35,8 +35,7 @@ fn main() {
         mode: WindowMode::Windowed,
         transparent: false,
         ..Default::default()
-    })
-    .insert_resource(Turn::new(SECONDS_PER_ROUND));
+    });
 
     app.add_event::<BlobMoveEvent>()
         .add_event::<BlobTeleportEvent>();
@@ -95,7 +94,8 @@ fn main() {
                 .with_system(update_field_debug)
                 .label(MySystems::RenderUpdates)
                 .after(MySystems::GameUpdates),
-        );
+        )
+        .add_system_set(SystemSet::on_exit(GameState::Ingame).with_system(clean_all));
 
     // Add an ingame inspector window
     #[cfg(feature = "debug")]
@@ -128,7 +128,14 @@ fn setup(
     commands.insert_resource(GameAssets::new(&asset_server));
     commands.insert_resource(PlayerState::new());
     commands.insert_resource(Level::level_01());
+    commands.insert_resource(Turn::new(SECONDS_PER_ROUND));
 
     // Switch state
     app_state.overwrite_set(GameState::Ingame).unwrap();
+}
+
+pub fn clean_all(mut commands: Commands, query: Query<Entity>) {
+    for e in query.iter() {
+        commands.entity(e).despawn();
+    }
 }

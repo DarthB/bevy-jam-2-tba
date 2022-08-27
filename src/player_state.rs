@@ -89,8 +89,8 @@ pub enum Tool {
     Rotate(RotateDirection),
     Cutter(TetrisBricks),
     #[default]
-    Play,
-    Pause,
+    Simulate,
+    Reset,
     Eraser,
     EraseAll,
 }
@@ -127,9 +127,9 @@ impl TryFrom<i32> for Tool {
             306 => Ok(Tool::Cutter(TetrisBricks::StairsR)),
             307 => Ok(Tool::Cutter(TetrisBricks::SmallT)),
 
-            401 => Ok(Tool::Play),
+            401 => Ok(Tool::Simulate),
 
-            501 => Ok(Tool::Pause),
+            501 => Ok(Tool::Reset),
 
             601 => Ok(Tool::Eraser),
 
@@ -145,8 +145,8 @@ impl From<Tool> for i32 {
             Tool::Move(d) => 100 + d as i32,
             Tool::Rotate(d) => 200 + d as i32,
             Tool::Cutter(brick) => 300 + brick as i32,
-            Tool::Play => 401,
-            Tool::Pause => 501,
+            Tool::Simulate => 401,
+            Tool::Reset => 501,
             Tool::Eraser => 601,
             Tool::EraseAll => 701,
         }
@@ -159,8 +159,8 @@ impl Display for Tool {
             Tool::Move(_) => "Move",
             Tool::Rotate(_) => "Rotate",
             Tool::Cutter(_) => "Cut",
-            Tool::Play => "Play",
-            Tool::Pause => "Pause",
+            Tool::Simulate => "Play",
+            Tool::Reset => "Pause",
             Tool::Eraser => "Eraser",
             Tool::EraseAll => "Reset Factory",
         };

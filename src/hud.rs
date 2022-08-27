@@ -51,8 +51,8 @@ pub fn spawn_hud(mut commands: Commands, assets: Res<GameAssets>) {
             spawn_tool_button(cb, Tool::Move(MoveDirection::default()), &assets);
             spawn_tool_button(cb, Tool::Rotate(RotateDirection::default()), &assets);
             spawn_tool_button(cb, Tool::Cutter(TetrisBricks::default()), &assets);
-            spawn_tool_button(cb, Tool::Play, &assets);
-            spawn_tool_button(cb, Tool::Pause, &assets);
+            spawn_tool_button(cb, Tool::Simulate, &assets);
+            spawn_tool_button(cb, Tool::Reset, &assets);
             spawn_tool_button(cb, Tool::Eraser, &assets);
             spawn_tool_button(cb, Tool::EraseAll, &assets);
         });
@@ -202,6 +202,7 @@ pub fn toolbar_button_system(
     assets: Res<GameAssets>,
     mut player_state: ResMut<PlayerState>,
     mut turn: ResMut<Turn>,
+    mut app_state: ResMut<State<GameState>>,
     mut field_query: Query<&mut Field, With<FactoryFieldTag>>,
 ) {
     for (mut color, mut tag_hover) in &mut hover_query {
@@ -215,11 +216,11 @@ pub fn toolbar_button_system(
                 Interaction::Clicked => {
                     *color = assets.clicked_button_color.into();
                     match tag_hover.tool_status {
-                        Tool::Play => {
+                        Tool::Simulate => {
                             turn.pause = false;
                         }
-                        Tool::Pause => {
-                            turn.pause = true;
+                        Tool::Reset => {
+                            app_state.set(GameState::Starting).unwrap();
                         }
                         Tool::EraseAll => {
                             let mut field = field_query.single_mut();
