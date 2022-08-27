@@ -60,6 +60,8 @@ pub struct GameAssets {
     pub tool_cutter_stairs_l: Handle<Image>,
 
     pub tool_cutter_stairs_r: Handle<Image>,
+
+    pub font: Handle<Font>,
 }
 
 impl GameAssets {
@@ -94,12 +96,13 @@ impl GameAssets {
             tool_cutter_small_t: asset_server.load("tools/tool_tetris_t.png"),
             tool_cutter_stairs_l: asset_server.load("tools/tool_tetris_z_inv.png"),
             tool_cutter_stairs_r: asset_server.load("tools/tool_tetris_z.png"),
+            font: asset_server.load("fonts/FiraMono-Medium.ttf"),
         }
     }
 
     pub fn get_tool_image(&self, tool: Tool) -> &Handle<Image> {
         match tool {
-            Tool::Direction(d) => match d {
+            Tool::Move(d) => match d {
                 MoveDirection::Up => &self.tool_move_up,
                 MoveDirection::Down => &self.tool_move_down,
                 MoveDirection::Left => &self.tool_move_left,

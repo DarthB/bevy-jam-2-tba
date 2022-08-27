@@ -80,6 +80,9 @@ fn main() {
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
                 .with_system(move_blob_by_player)
+                .with_system(toolbar_button_system)
+                .with_system(tool_switch_on_mouse_wheel)
+                .with_system(teleport_blob_out_of_factory)
                 .label(MySystems::Input)
                 .after(MySystems::EventHandling),
         )
@@ -89,7 +92,7 @@ fn main() {
                 .with_system(move_factory_blobs_by_events)
                 .with_system(move_production_blobs_by_events)
                 .with_system(move_field_content_down_if_not_occupied)
-                .with_system(teleport_blob_out_of_factory)
+                .with_system(mouse_for_field_selection_and_tool_creation)
                 .label(MySystems::GameUpdates)
                 .after(MySystems::Input),
         )
@@ -112,7 +115,8 @@ fn main() {
         .register_inspectable::<Blob>()
         .register_inspectable::<Field>()
         .register_inspectable::<UITagImage>()
-        .register_inspectable::<UITagHover>();
+        .register_inspectable::<UITagHover>()
+        .register_type::<Interaction>();
     app.run();
 }
 
@@ -124,16 +128,16 @@ fn setup(
     // setup the camera
     commands.spawn_bundle(Camera2dBundle {
         projection: OrthographicProjection {
-            scaling_mode: ScalingMode::FixedVertical(1000.0),
+            //    scaling_mode: ScalingMode::FixedVertical(1000.0),
             ..Default::default()
         },
         ..Default::default()
     });
 
+    //commands.insert_resource(WinitSettings::desktop_app());
     commands.insert_resource(GameAssets::new(&asset_server));
-    commands.insert_resource(PlayerState {
-        selected_tool: Some(Tool::Rotate(RotateDirection::Left)),
-    });
+    commands.insert_resource(PlayerState::new());
+    commands.insert_resource(Level::new());
 
     // Switch state
     app_state.overwrite_set(GameState::AnimationTest).unwrap();

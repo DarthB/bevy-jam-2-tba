@@ -19,7 +19,7 @@ pub struct Field {
 
     pub allow_overlap: UiRect<usize>,
 
-    pub occupied: Vec<i32>,
+    occupied: Vec<i32>,
 
     pub tracks_occupied: bool,
 
@@ -38,6 +38,10 @@ pub struct FactoryFieldTag {}
 #[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
 pub struct ProductionFieldTag {}
 
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
+pub struct FieldRenderTag {}
+
 pub struct FieldDeltaEvent {
     pub conditional_y: i32,
 
@@ -46,11 +50,11 @@ pub struct FieldDeltaEvent {
     pub field_id: Entity,
 }
 
-type FieldMutator = dyn Fn(&mut Field, (i32, i32), usize);
+pub type FieldMutator = dyn Fn(&mut Field, (i32, i32), usize);
 
 impl Field {
     pub fn as_factory(assets: &GameAssets) -> Self {
-        Field {
+        let mut reval = Field {
             movable_area_color: Color::MIDNIGHT_BLUE,
             edge_color: Color::rgb(0.0, 0.2, 0.5),
             movable_size: (10, 18),
@@ -66,22 +70,27 @@ impl Field {
                 top: 4,
                 bottom: 9,
             },
+            tracks_occupied: true,
             movable_area_image: assets.block_factory_floor.clone(),
             brick_image: assets.block_blob.clone(),
             ..Default::default()
-        }
+        };
+
+        let num = reval.movable_size.0 * reval.movable_size.1;
+        reval.occupied = vec![0; num];
+        reval
     }
 
     pub fn as_production_field(assets: &GameAssets) -> Self {
         let mut reval = Field {
             edge_color: Color::rgba(0.25, 0.0, 0.0, 1.0),
-            tracks_occupied: true,
             allow_overlap: UiRect {
                 left: 0,
                 right: 0,
                 top: 10,
                 bottom: 0,
             },
+            tracks_occupied: true,
             movable_area_image: assets.block_tetris_floor.clone(),
             brick_image: assets.block_blob.clone(),
             ..Default::default()
@@ -97,8 +106,21 @@ impl Field {
         self.tracks_occupied
     }
 
-    pub fn occupied(&self) -> &Vec<i32> {
-        &self.occupied
+    pub fn occupied(&self, idx: usize) -> Option<i32> {
+        if idx < self.occupied.len() {
+            Some(self.occupied[idx])
+        } else {
+            None
+        }
+    }
+
+    pub fn set_occupied(&mut self, idx: usize, val: i32) -> Result<(), String> {
+        if idx < self.occupied.len() {
+            self.occupied[idx] = val;
+            Ok(())
+        } else {
+            Err("occupied out of bounds".into())
+        }
     }
 
     pub fn is_idx_valid(&self, idx: usize) -> bool {
@@ -107,6 +129,10 @@ impl Field {
 
     pub fn max_idx(&self) -> usize {
         self.occupied.len() - 1
+    }
+
+    pub fn mutate_at_coordinate(&mut self, coord: (i32, i32), mutator: &FieldMutator) {
+        self.mutate_at_coordinates(&vec![coord], mutator);
     }
 
     pub fn mutate_at_coordinates(&mut self, coords: &Vec<(i32, i32)>, mutator: &FieldMutator) {
@@ -239,7 +265,7 @@ impl Field {
         for r in 0..self.movable_size.1 {
             let mut full_line = true;
             for c in 0..self.movable_size.0 {
-                full_line = full_line && self.occupied()[self.coords_to_idx(c, r)] > 0
+                full_line = full_line && self.occupied[self.coords_to_idx(c, r)] > 0
             }
             if full_line {
                 reval.push(r);
@@ -269,7 +295,10 @@ impl Field {
             for c in 0..self.mov_size().0 {
                 let idx_up = self.coords_to_idx(c, r);
                 let idx_below = self.coords_to_idx(c, r + 1);
-                if self.occupied[idx_up] != 0 && self.occupied[idx_below] == 0 {
+                if self.occupied[idx_up] > 0
+                    && self.occupied[idx_up] < 100
+                    && self.occupied[idx_below] == 0
+                {
                     self.occupied[idx_below] = self.occupied[idx_up];
                     self.occupied[idx_up] = 0;
                 }
@@ -307,6 +336,7 @@ impl Default for Field {
 
 pub fn spawn_field(
     commands: &mut Commands,
+    assets: &GameAssets,
     field: Field,
     name: &str,
     trans: Vec3,
@@ -321,7 +351,7 @@ pub fn spawn_field(
     });
     let id = ec.id();
     ec.with_children(|cb| {
-        field.spawn_render_entities(id, cb);
+        field.spawn_render_entities(id, cb, assets);
     })
     .insert(Name::new(name.to_string()))
     .insert(field);

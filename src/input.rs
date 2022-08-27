@@ -1,4 +1,5 @@
-use bevy::{ecs::system::EntityCommands, prelude::*};
+use crate::prelude::*;
+use bevy::{ecs::system::EntityCommands, input::mouse::MouseWheel, log, prelude::*};
 use leafwing_input_manager::prelude::*;
 
 pub struct InputMappingPlugin;
@@ -75,4 +76,112 @@ pub fn add_arrow_control(commands: &mut EntityCommands) {
             (KeyCode::RShift, WASDActions::Powerup),
         ]),
     });
+}
+
+pub fn tool_switch_on_mouse_wheel(
+    mut mouse_wheel_events: EventReader<MouseWheel>,
+    mut player_state: ResMut<PlayerState>,
+) {
+    for event in mouse_wheel_events.iter() {
+        let y = event.y.signum() as i32;
+        if let Some(tool) = &mut player_state.selected_tool {
+            match tool {
+                Tool::Move(d) => {
+                    let mut cur = *d as i32;
+                    cur += y;
+                    if cur < 1 {
+                        cur = MoveDirection::max();
+                    } else if cur > MoveDirection::max() {
+                        cur = 1;
+                    }
+                    *tool = Tool::Move(cur.try_into().unwrap_or_else(|_| {
+                        panic!("Error in Enum Trait try_from({})<MoveDirection>", cur);
+                    }));
+                }
+                Tool::Rotate(d) => {
+                    let mut cur = *d as i32;
+                    cur += y;
+                    if cur < 1 {
+                        cur = RotateDirection::max();
+                    } else if cur > RotateDirection::max() {
+                        cur = 1;
+                    }
+                    *tool = Tool::Rotate(cur.try_into().unwrap_or_else(|_| {
+                        panic!("Error in Enum Trait try_from({})<RotateDirection>", cur);
+                    }));
+                }
+                Tool::Cutter(blob) => {
+                    let mut cur = *blob as i32;
+                    cur += y;
+                    cur = cur.clamp(0, TetrisBricks::max());
+                    if cur < 1 {
+                        cur = TetrisBricks::max();
+                    } else if cur > TetrisBricks::max() {
+                        cur = 1;
+                    }
+                    *tool = Tool::Cutter(cur.try_into().unwrap_or_else(|_| {
+                        panic!("Error in Enum Trait try_from({})<TetrisBricks>", cur);
+                    }));
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+pub fn mouse_for_field_selection_and_tool_creation(
+    windows: Res<Windows>,
+    mut cursor_moved_events: EventReader<CursorMoved>,
+    mouse_button_input: Res<Input<MouseButton>>,
+    mut sprites: Query<(&mut Sprite, &GlobalTransform, &Coordinate, &Parent), With<FieldRenderTag>>,
+    mut field_query: Query<(Entity, &mut Field), With<FactoryFieldTag>>,
+    mut player_state: ResMut<PlayerState>,
+) {
+    let (field_id, mut field) = field_query.single_mut();
+
+    let ev = cursor_moved_events.iter().last();
+    if let (Some(moved), Some(window)) = (ev, windows.get_primary()) {
+        let half_window = Vec2::new(window.width() / 2.0, window.height() / 2.0);
+        let cursor_pos = moved.position - half_window;
+        player_state.tool_placement_coordinate = None;
+
+        for (mut sprite, trans, coord, parent) in sprites.iter_mut() {
+            // only continue when hovering a sprite on the factory field
+            if field_id != parent.get() {
+                continue;
+            }
+            //~
+
+            let sprite_pos = trans.translation();
+            let diff = Vec3::new(
+                sprite_pos.x - cursor_pos.x,
+                sprite_pos.y - cursor_pos.y,
+                0.0,
+            );
+
+            // sprite is a cube so x test is enough
+            if diff.length() < (PX_PER_TILE / 2.0) {
+                sprite.color = Color::WHITE;
+                let (x, y) = (coord.c, coord.r);
+                log::info!("Mouse over: Coordinate {x},{y}");
+                player_state.tool_placement_coordinate = Some(*coord);
+            }
+        }
+    }
+
+    if mouse_button_input.just_pressed(MouseButton::Left) {
+        if let (Some(tool), Some(coord)) = (
+            player_state.selected_tool,
+            player_state.tool_placement_coordinate,
+        ) {
+            if tool != Tool::Play && tool != Tool::Stop {
+                log::info!("Place tool {:?} at ({},{})", tool, coord.c, coord.r);
+                field.mutate_at_coordinate((coord.c, coord.r), &move |field, _, idx| {
+                    field
+                        .set_occupied(idx, Into::<i32>::into(tool))
+                        .expect("wrong coordinate in set_occupied due to mouse click");
+                })
+            }
+        }
+    }
 }
