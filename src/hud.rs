@@ -1,7 +1,7 @@
 use bevy::{prelude::*, ui::FocusPolicy};
 use player_state::{MoveDirection, PlayerState, RotateDirection, Tool};
 
-use crate::{bodies::TetrisBricks, game_assets::GameAssets, player_state, PX_PER_ICON};
+use crate::prelude::*;
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Component)]
@@ -168,6 +168,7 @@ pub fn toolbar_button_system(
     mut hover_query: Query<(&mut UiColor, &mut UITagHover)>,
     assets: Res<GameAssets>,
     mut player_state: ResMut<PlayerState>,
+    mut turn: ResMut<Turn>,
 ) {
     for (mut color, mut tag_hover) in &mut hover_query {
         for (interaction, tag) in &mut interaction_query {
@@ -179,6 +180,15 @@ pub fn toolbar_button_system(
             match *interaction {
                 Interaction::Clicked => {
                     *color = assets.clicked_button_color.into();
+                    match tag_hover.tool_status {
+                        Tool::Play => {
+                            turn.pause = false;
+                        }
+                        Tool::Stop => {
+                            turn.pause = true;
+                        }
+                        _ => {}
+                    }
                     player_state.selected_tool = Some(tag_hover.tool_status);
                 }
                 Interaction::Hovered => {
