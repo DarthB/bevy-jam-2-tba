@@ -5,22 +5,38 @@
 
 use std::time::Duration;
 
-use crate::{
-    blob::{Blob, Coordinate},
-    game_assets::GameAssets,
-    input::TetrisActionsWASD,
-    PX_PER_TILE,
+use crate::{blob::Blob, game_assets::GameAssets, input::TetrisActionsWASD, PX_PER_TILE};
+use bevy::{prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
+use bevy_tweening::{
+    lens::{TransformPositionLens, TransformRotateZLens},
+    Animator, EaseFunction, Tween, TweeningType,
 };
-use bevy::prelude::*;
-use bevy_tweening::{lens::TransformPositionLens, Animator, EaseFunction, Tween, TweeningType};
 use leafwing_input_manager::{
     prelude::{ActionState, InputMap},
     InputManagerBundle,
 };
 
 //----------------------------------------------------------------------
+// Components I need from the game logic. These *Extra components should
+// later be merged into (or replaced with) the game logic components.
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Component, Debug, PartialEq, Clone, Reflect)]
+pub struct BlobExtra {
+    blocks: Vec<Entity>,
+    /// Position of the Blob's pivot element within the field
+    pivot: IVec2,
+}
+
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Component, Debug, PartialEq, Clone, Reflect)]
+pub struct BlockExtra {
+    /// Position relative to its Blob's pivot
+    coordinate: IVec2,
+}
+
+//----------------------------------------------------------------------
+
+#[derive(Clone, Copy)]
 pub enum Rotation {
     Left,
     Right,
@@ -33,7 +49,7 @@ pub enum ViewUpdate {
     BlobMoved(Entity),
     /// A blob has been rotated
     BlobRotated(Entity, Rotation),
-    /// A blog has been transferred from the factory to tetris arena
+    /// A blob has been transferred from the factory to tetris arena
     BlobTransferred(Entity),
 }
 
@@ -50,61 +66,105 @@ pub struct ViewConfig {
 }
 
 //----------------------------------------------------------------------
+// Internal helper components for rendering
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, PartialEq, Clone, Reflect)]
 pub struct BlobRenderState {
+    /// Gamelogic entity
     root: Entity,
-    last_trans: Vec3,
+    /// Last known `pivot` from the game logic
+    last_pivot: IVec2,
+    /// Cumulative left rotations (0..3)
+    rotation_steps: i32,
 }
 
 //----------------------------------------------------------------------
+// utility functions
 
-fn coord_to_translation(coord: Coordinate) -> Vec3 {
+fn coord_to_translation(coord: IVec2) -> Vec3 {
     Vec3::new(
-        -coord.c as f32 * PX_PER_TILE - PX_PER_TILE / 2.0,
-        -coord.r as f32 * PX_PER_TILE - PX_PER_TILE / 2.0,
+        -coord.x as f32 * PX_PER_TILE,
+        -coord.y as f32 * PX_PER_TILE,
         0.0,
     )
 }
 
+fn rotate_coord(coord: IVec2, rotation: Rotation) -> IVec2 {
+    let rot2vec = match rotation {
+        Rotation::Left => IVec2::new(0, -1),
+        Rotation::Right => IVec2::new(0, 1),
+    };
+    rot2vec.rotate(coord)
+}
+
+#[test]
+fn test_rotate_coord() {
+    let c1 = IVec2::new(0, 0);
+    let c2 = IVec2::new(0, -1);
+    let c3 = IVec2::new(1, 0);
+    let c4 = IVec2::new(1, -1);
+    let c5 = IVec2::new(1, 1);
+
+    assert_eq!(rotate_coord(c1, Rotation::Right), c1);
+    assert_eq!(rotate_coord(c1, Rotation::Left), c1);
+    assert_eq!(rotate_coord(c2, Rotation::Right), c3);
+    assert_eq!(rotate_coord(c4, Rotation::Right), c5);
+    assert_eq!(rotate_coord(c3, Rotation::Left), c2);
+    assert_eq!(rotate_coord(c5, Rotation::Left), c4);
+}
+
+//----------------------------------------------------------------------
+
 fn handle_blob_spawned(
     commands: &mut Commands,
     blob: Entity,
-    blobs: &Query<&Blob>,
+    blob_query: &Query<&BlobExtra>,
+    block_query: &Query<&BlockExtra>,
     config: &Res<ViewConfig>,
 ) {
-    if let Ok(blobdata) = blobs.get(blob) {
-        let trans = coord_to_translation(blobdata.coordinate.unwrap_or_default());
+    if let Ok(blobdata) = blob_query.get(blob) {
+        let transform = Transform::from_translation(coord_to_translation(blobdata.pivot));
         let root = commands
-            .spawn_bundle(SpatialBundle::from(Transform::from_translation(trans)))
+            .spawn_bundle(SpatialBundle::from(transform))
             .with_children(|cb| {
-                for r in 0..Blob::size() {
-                    for c in 0..Blob::size() {
-                        if blobdata.body[Blob::coords_to_idx(r, c)] != 0 {
-                            cb.spawn_bundle(SpriteBundle {
-                                sprite: Sprite {
-                                    color: Color::WHITE,
-                                    custom_size: Some(Vec2::ONE * PX_PER_TILE),
-                                    ..Default::default()
-                                },
-                                transform: Transform::from_xyz(
-                                    c as f32 * -PX_PER_TILE,
-                                    r as f32 * -PX_PER_TILE,
-                                    0.0,
-                                ),
-                                texture: config.brick_image.clone(),
-                                ..Default::default()
-                            });
-                        }
-                    }
+                for &block in blobdata.blocks.iter() {
+                    let blockdata = block_query.get(block).unwrap();
+
+                    cb.spawn_bundle(SpriteBundle {
+                        sprite: Sprite {
+                            color: Color::WHITE,
+                            custom_size: Some(Vec2::ONE * PX_PER_TILE),
+                            ..Default::default()
+                        },
+                        transform: Transform::from_xyz(
+                            blockdata.coordinate.x as f32 * -PX_PER_TILE,
+                            blockdata.coordinate.y as f32 * -PX_PER_TILE,
+                            0.0,
+                        ),
+                        texture: config.brick_image.clone(),
+                        ..Default::default()
+                    });
                 }
+
+                // Pivot
+                cb.spawn_bundle(SpriteBundle {
+                    sprite: Sprite {
+                        color: Color::RED,
+                        custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
+                        ..Default::default()
+                    },
+                    transform: Transform::from_xyz(0.0, 0.0, crate::Z_OVERLAY),
+                    texture: DEFAULT_IMAGE_HANDLE.typed(),
+                    ..Default::default()
+                });
             })
             .id();
         commands.entity(config.factory).add_child(root);
         commands.entity(blob).insert(BlobRenderState {
             root,
-            last_trans: trans,
+            last_pivot: blobdata.pivot,
+            rotation_steps: 0,
         });
     }
 }
@@ -112,49 +172,121 @@ fn handle_blob_spawned(
 fn handle_blob_moved(
     commands: &mut Commands,
     blob: Entity,
-    blobs: &mut Query<(&Blob, &mut BlobRenderState)>,
+    blobs: &mut Query<(&BlobExtra, &mut BlobRenderState)>,
 ) {
     if let Ok((blobdata, mut state)) = blobs.get_mut(blob) {
-        let last_trans = state.last_trans;
-        let trans = coord_to_translation(blobdata.coordinate.unwrap_or_default());
+        let start = coord_to_translation(state.last_pivot);
+        let end = coord_to_translation(blobdata.pivot);
 
         let tween = Tween::new(
             EaseFunction::QuadraticInOut,
             TweeningType::Once,
             Duration::from_millis(200),
-            TransformPositionLens {
-                start: last_trans,
-                end: trans,
-            },
+            TransformPositionLens { start, end },
         );
         commands.entity(state.root).insert(Animator::new(tween));
-        state.last_trans = trans;
+        state.last_pivot = blobdata.pivot;
+    }
+}
+
+fn handle_blob_rotated(
+    commands: &mut Commands,
+    blob: Entity,
+    rotation: Rotation,
+    blob_query: &mut Query<(&BlobExtra, &mut BlobRenderState)>,
+) {
+    if let Ok((_, mut state)) = blob_query.get_mut(blob) {
+        let start = (state.rotation_steps as f32 * 90.0).to_radians();
+        let end = match rotation {
+            Rotation::Left => ((state.rotation_steps + 1) as f32 * 90.0).to_radians(),
+            Rotation::Right => ((state.rotation_steps - 1) as f32 * 90.0).to_radians(),
+        };
+
+        let tween = Tween::new(
+            EaseFunction::QuadraticInOut,
+            TweeningType::Once,
+            Duration::from_millis(200),
+            TransformRotateZLens { start, end },
+        );
+
+        commands.entity(state.root).insert(Animator::new(tween));
+
+        match rotation {
+            Rotation::Left => {
+                state.rotation_steps = (state.rotation_steps + 1) % 4;
+            }
+            Rotation::Right => {
+                state.rotation_steps = (state.rotation_steps - 1 + 4) % 4;
+            }
+        }
     }
 }
 
 pub fn handle_view_updates(
     mut commands: Commands,
     mut ev: EventReader<ViewUpdate>,
-    blobs: Query<&Blob>,
-    mut rendered_blobs: Query<(&Blob, &mut BlobRenderState)>,
+    blob_query: Query<&BlobExtra>,
+    block_query: Query<&BlockExtra>,
+    mut rendered_blobs: Query<(&BlobExtra, &mut BlobRenderState)>,
     config: Res<ViewConfig>,
 ) {
     for ev in ev.iter() {
         match *ev {
             ViewUpdate::BlobSpawned(blob) => {
-                handle_blob_spawned(&mut commands, blob, &blobs, &config)
+                handle_blob_spawned(&mut commands, blob, &blob_query, &block_query, &config)
             }
-            ViewUpdate::BlobMoved(blob) => handle_blob_moved(
-                &mut commands,
-                blob,
-                &mut rendered_blobs,
-            ),
+            ViewUpdate::BlobMoved(blob) => {
+                handle_blob_moved(&mut commands, blob, &mut rendered_blobs)
+            }
+            ViewUpdate::BlobRotated(blob, rotation) => {
+                handle_blob_rotated(&mut commands, blob, rotation, &mut rendered_blobs)
+            }
             _ => unimplemented!(),
         }
     }
 }
 
 //----------------------------------------------------------------------
+// Code for demoing the rendering module
+
+fn spawn_demo_blob(commands: &mut Commands) -> Entity {
+    let body = crate::bodies::prototype::gen_target_body2();
+    let mut blocks = Vec::new();
+    for r in 0..Blob::size() {
+        for c in 0..Blob::size() {
+            if body[Blob::coords_to_idx(r, c)] != 0 {
+                blocks.push(
+                    commands
+                        .spawn()
+                        .insert(BlockExtra {
+                            coordinate: IVec2::new(c as i32 - 4, r as i32 - 4),
+                        })
+                        .id(),
+                );
+            }
+        }
+    }
+
+    commands
+        .spawn()
+        .insert(BlobExtra {
+            pivot: IVec2::new(-1, 4),
+            blocks,
+        })
+        .insert(Name::new("Test Blob"))
+        .id()
+}
+
+fn rotate_demo_blob(
+    blobdata: &BlobExtra,
+    block_query: &mut Query<&mut BlockExtra>,
+    rotation: Rotation,
+) {
+    for &block in blobdata.blocks.iter() {
+        let mut blockdata = block_query.get_mut(block).unwrap();
+        blockdata.coordinate = rotate_coord(blockdata.coordinate, rotation);
+    }
+}
 
 pub fn setup_demo_system(
     mut commands: Commands,
@@ -170,7 +302,7 @@ pub fn setup_demo_system(
                     custom_size: Some(Vec2::ONE * PX_PER_TILE * 8.0),
                     ..Default::default()
                 },
-                transform: Transform::from_xyz(-PX_PER_TILE * 4.0, -PX_PER_TILE * 4.0, 0.0),
+                transform: Transform::from_xyz(-PX_PER_TILE * 4.5, -PX_PER_TILE * 4.5, 0.0),
                 ..Default::default()
             });
         })
@@ -192,15 +324,7 @@ pub fn setup_demo_system(
 
     let tetris = commands.spawn().insert(Name::new("Mock Tetrisfield")).id();
 
-    let blob = commands
-        .spawn()
-        .insert(Blob {
-            body: crate::bodies::prototype::gen_target_body2(),
-            coordinate: Some(Coordinate { c: 1, r: -4 }),
-            ..Default::default()
-        })
-        .insert(Name::new("Test Blob"))
-        .id();
+    let blob = spawn_demo_blob(&mut commands);
 
     commands.insert_resource(ViewConfig {
         factory,
@@ -213,9 +337,9 @@ pub fn setup_demo_system(
 }
 
 pub fn demo_system(
-    mut commands: Commands,
     config: Res<ViewConfig>,
-    mut blobs: Query<&mut Blob>,
+    mut blobs: Query<&mut BlobExtra>,
+    mut block_query: Query<&mut BlockExtra>,
     query: Query<&ActionState<TetrisActionsWASD>>,
     mut evt: EventWriter<ViewUpdate>,
 ) {
@@ -224,10 +348,17 @@ pub fn demo_system(
             bevy::log::info!("DOWN pressed!");
             if let Some(test_blob) = config.test_blob {
                 if let Ok(mut blobdata) = blobs.get_mut(test_blob) {
-                    let mut coord = blobdata.coordinate.unwrap_or_default();
-                    coord.r += 1;
-                    blobdata.coordinate = Some(coord);
+                    blobdata.pivot.y += 1;
                     evt.send(ViewUpdate::BlobMoved(test_blob));
+                }
+            }
+        }
+        if s.just_pressed(TetrisActionsWASD::RRotate) {
+            bevy::log::info!("RRotate pressed!");
+            if let Some(test_blob) = config.test_blob {
+                if let Ok(blobdata) = blobs.get(test_blob) {
+                    rotate_demo_blob(blobdata, &mut block_query, Rotation::Right);
+                    evt.send(ViewUpdate::BlobRotated(test_blob, Rotation::Right));
                 }
             }
         }
