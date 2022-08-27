@@ -58,10 +58,12 @@ pub enum ViewUpdate {
 pub struct ViewConfig {
     /// The factory field entity
     factory: Entity,
-    /// Relative translation to the factory's (0,0) block
+    /// Relative translation to the factory fields's (0,0) block
     factory_topleft: Vec3,
     /// The tetris field entity
     tetris: Entity,
+    /// Relative translation to the tetris fields's (0,0) block
+    tetris_topleft: Vec3,
 
     brick_image: Handle<Image>,
 
@@ -301,7 +303,7 @@ pub fn setup_demo_system(
 ) {
     let factory_gridsize = IVec2::new(10, 14);
     let factory = commands
-        .spawn_bundle::<SpatialBundle>(Transform::from_xyz(0.0, 0.0, 0.0).into())
+        .spawn_bundle::<SpatialBundle>(Transform::from_xyz(-200.0, 0.0, 0.0).into())
         .with_children(|cb| {
             cb.spawn_bundle(SpriteBundle {
                 sprite: Sprite {
@@ -336,7 +338,29 @@ pub fn setup_demo_system(
         0.0,
     );
 
-    let tetris = commands.spawn().insert(Name::new("Mock Tetrisfield")).id();
+    let tetris_gridsize = IVec2::new(8, 14);
+    let tetris = commands
+        .spawn_bundle::<SpatialBundle>(Transform::from_xyz(400.0, 0.0, 0.0).into())
+        .with_children(|cb| {
+            cb.spawn_bundle(SpriteBundle {
+                sprite: Sprite {
+                    color: Color::YELLOW,
+                    custom_size: Some(Vec2::new(
+                        tetris_gridsize.x as f32 * PX_PER_TILE,
+                        tetris_gridsize.y as f32 * PX_PER_TILE,
+                    )),
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+        })
+        .insert(Name::new("Mock TetrisField"))
+        .id();
+    let tetris_topleft = Vec3::new(
+        -PX_PER_TILE * (-0.5 + tetris_gridsize.x as f32 / 2.0),
+        PX_PER_TILE * (-0.5 + tetris_gridsize.y as f32 / 2.0),
+        0.0,
+    );
 
     let blob = spawn_demo_blob(&mut commands);
 
@@ -344,6 +368,7 @@ pub fn setup_demo_system(
         factory,
         factory_topleft,
         tetris,
+        tetris_topleft,
         brick_image: assets.block_blob.clone(),
         test_blob: Some(blob),
     });
