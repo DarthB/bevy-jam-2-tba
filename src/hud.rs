@@ -23,7 +23,7 @@ pub struct UITagInventory {
 }
 
 pub fn spawn_hud(mut commands: Commands, assets: Res<GameAssets>) {
-    let ysize = PX_PER_ICON * 5.0 + 4.0 * 8.0;
+    let ysize = PX_PER_ICON * 7.0 + 4.0 * 8.0;
 
     commands
         .spawn_bundle(NodeBundle {
@@ -48,11 +48,13 @@ pub fn spawn_hud(mut commands: Commands, assets: Res<GameAssets>) {
         })
         .insert(Name::new("Toolbar"))
         .with_children(|cb| {
-            spawn_tool_button(cb, Tool::Move(MoveDirection::Left), &assets);
-            spawn_tool_button(cb, Tool::Rotate(RotateDirection::Left), &assets);
-            spawn_tool_button(cb, Tool::Cutter(TetrisBricks::Square), &assets);
+            spawn_tool_button(cb, Tool::Move(MoveDirection::default()), &assets);
+            spawn_tool_button(cb, Tool::Rotate(RotateDirection::default()), &assets);
+            spawn_tool_button(cb, Tool::Cutter(TetrisBricks::default()), &assets);
             spawn_tool_button(cb, Tool::Play, &assets);
-            spawn_tool_button(cb, Tool::Stop, &assets)
+            spawn_tool_button(cb, Tool::Pause, &assets);
+            spawn_tool_button(cb, Tool::Eraser, &assets);
+            spawn_tool_button(cb, Tool::EraseAll, &assets);
         });
 }
 
@@ -80,7 +82,7 @@ fn spawn_tool_button(cb: &mut ChildBuilder, tool: player_state::Tool, assets: &G
                     "INF",
                     TextStyle {
                         font: assets.font.clone(),
-                        font_size: 16.0,
+                        font_size: 24.0,
                         color: Color::GREEN,
                     },
                 )
@@ -117,13 +119,13 @@ fn spawn_tool_button(cb: &mut ChildBuilder, tool: player_state::Tool, assets: &G
     });
 }
 
-pub fn update_toolbar(
+pub fn update_toolbar_images(
     mut query_images: Query<(&mut UiImage, &mut UITagImage)>,
-    mut query_overlay: Query<(&mut UiColor, &mut UITagHover)>,
     player_state: Res<PlayerState>,
     assets: Res<GameAssets>,
 ) {
     for (mut img, mut tag) in query_images.iter_mut() {
+        // Ensure tool variant in tag is the same as selected by the player
         if let Some(sel_tool) = player_state.selected_tool {
             match (sel_tool, &mut tag.tool_status) {
                 (Tool::Move(new_sel), Tool::Move(in_hud)) => *in_hud = new_sel,
@@ -132,10 +134,30 @@ pub fn update_toolbar(
                 _ => {}
             }
         }
+
+        // Ensure its the right image
         *img = assets.get_tool_image(tag.tool_status).clone().into();
     }
+}
 
+pub fn update_toolbar_inventory(
+    mut query_text: Query<(&mut Text, &UITagInventory)>,
+    player_state: Res<PlayerState>,
+) {
+    for (mut text, tag) in query_text.iter_mut() {
+        if let Some(inv_num) = player_state.applicable_tools.get(&tag.tool_status) {
+            text.sections[0].value = inv_num.to_string();
+        }
+    }
+}
+
+pub fn update_toolbar_overlays(
+    mut query_overlay: Query<(&mut UiColor, &mut UITagHover)>,
+    player_state: Res<PlayerState>,
+    assets: Res<GameAssets>,
+) {
     for (mut hover, mut tag) in query_overlay.iter_mut() {
+        // Ensure tool variant in tag is the same as selected by the player
         if let Some(sel_tool) = player_state.selected_tool {
             match (sel_tool, &mut tag.tool_status) {
                 (Tool::Move(new_sel), Tool::Move(in_hud)) => *in_hud = new_sel,
@@ -145,16 +167,27 @@ pub fn update_toolbar(
             }
         }
 
+        let num_inv = player_state.num_in_inventory(tag.tool_status);
+
+        // Select the overlay color
         let color: UiColor = if let Some(selected_tool) = player_state.selected_tool {
             if selected_tool == tag.tool_status {
-                assets.selected_button_color.into()
+                if num_inv == 0 {
+                    assets.selected_but_unavailable_button_color.into()
+                } else {
+                    assets.selected_button_color.into()
+                }
+            } else if num_inv == 0 {
+                assets.unavailable_button_color.into()
             } else if tag.is_hovered {
                 assets.hover_button_color.into()
             } else {
                 assets.normal_button_color.into()
             }
-        } else if tag.is_hovered {
+        } else if tag.is_hovered && num_inv != 0 {
             assets.hover_button_color.into()
+        } else if num_inv == 0 {
+            assets.unavailable_button_color.into()
         } else {
             assets.normal_button_color.into()
         };
@@ -169,6 +202,7 @@ pub fn toolbar_button_system(
     assets: Res<GameAssets>,
     mut player_state: ResMut<PlayerState>,
     mut turn: ResMut<Turn>,
+    mut field_query: Query<&mut Field, With<FactoryFieldTag>>,
 ) {
     for (mut color, mut tag_hover) in &mut hover_query {
         for (interaction, tag) in &mut interaction_query {
@@ -184,8 +218,15 @@ pub fn toolbar_button_system(
                         Tool::Play => {
                             turn.pause = false;
                         }
-                        Tool::Stop => {
+                        Tool::Pause => {
                             turn.pause = true;
+                        }
+                        Tool::EraseAll => {
+                            let mut field = field_query.single_mut();
+                            let tools = field.remove_all_tools();
+                            for tool in tools {
+                                player_state.add_to_inventory(tool, 1);
+                            }
                         }
                         _ => {}
                     }

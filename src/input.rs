@@ -174,13 +174,35 @@ pub fn mouse_for_field_selection_and_tool_creation(
             player_state.selected_tool,
             player_state.tool_placement_coordinate,
         ) {
-            if tool != Tool::Play && tool != Tool::Stop {
+            let placeable_tool = matches!(tool, Tool::Move(_) | Tool::Rotate(_) | Tool::Cutter(_));
+            if placeable_tool && player_state.num_in_inventory(tool) > 0 {
+                player_state.add_to_inventory(tool, -1);
+
                 log::info!("Place tool {:?} at ({},{})", tool, coord.c, coord.r);
                 field.mutate_at_coordinate((coord.c, coord.r), &move |field, _, idx| {
-                    field
-                        .set_occupied(idx, Into::<i32>::into(tool))
-                        .expect("wrong coordinate in set_occupied due to mouse click");
+                    field.set_occupied(idx, Into::<i32>::into(tool)).expect(
+                        "should not happen: wrong coordinate in set_occupied due to mouse click",
+                    );
                 })
+            } else if tool == Tool::Eraser {
+                log::info!("Erase tool {:?} at ({},{})", tool, coord.c, coord.r);
+
+                // tool, tool, tool, tool -> how can this be simplified?
+                let tool = field.occupied(field.coords_to_idx(coord.c as usize, coord.r as usize));
+                if let Some(tool) = tool {
+                    let tool: Result<Tool, _> = TryFrom::<i32>::try_from(tool);
+                    if let Ok(tool) = tool {
+                        // update inventory
+                        player_state.add_to_inventory(tool, 1);
+
+                        // remove from field
+                        field.mutate_at_coordinate((coord.c, coord.r), &move |field, _, idx| {
+                            field
+                                .set_occupied(idx, 0)
+                                .expect("should not happen: wrong coordinate in set_occupied due to mouse click");
+                        })
+                    }
+                }
             }
         }
     }

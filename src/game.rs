@@ -19,7 +19,10 @@ pub fn spawn_world(
     assets: Res<GameAssets>, // used to access files stored in the assets folder.
     mut turn: ResMut<Turn>,
     level: Res<Level>,
+    mut player_state: ResMut<PlayerState>,
 ) {
+    player_state.applicable_tools = level.applicable_tools.clone();
+
     let comp = Field::as_factory(&assets);
     let fac_field = spawn_field(
         &mut commands,

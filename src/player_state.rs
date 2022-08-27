@@ -90,7 +90,20 @@ pub enum Tool {
     Cutter(TetrisBricks),
     #[default]
     Play,
-    Stop,
+    Pause,
+    Eraser,
+    EraseAll,
+}
+
+impl Tool {
+    pub fn as_default_variant(self) -> Self {
+        match self {
+            Tool::Move(_) => Tool::Move(MoveDirection::default()),
+            Tool::Rotate(_) => Tool::Rotate(RotateDirection::default()),
+            Tool::Cutter(_) => Tool::Cutter(TetrisBricks::default()),
+            _ => self,
+        }
+    }
 }
 
 impl TryFrom<i32> for Tool {
@@ -116,7 +129,11 @@ impl TryFrom<i32> for Tool {
 
             401 => Ok(Tool::Play),
 
-            501 => Ok(Tool::Stop),
+            501 => Ok(Tool::Pause),
+
+            601 => Ok(Tool::Eraser),
+
+            701 => Ok(Tool::EraseAll),
             _ => Err(()),
         }
     }
@@ -129,7 +146,9 @@ impl From<Tool> for i32 {
             Tool::Rotate(d) => 200 + d as i32,
             Tool::Cutter(brick) => 300 + brick as i32,
             Tool::Play => 401,
-            Tool::Stop => 501,
+            Tool::Pause => 501,
+            Tool::Eraser => 601,
+            Tool::EraseAll => 701,
         }
     }
 }
@@ -141,7 +160,9 @@ impl Display for Tool {
             Tool::Rotate(_) => "Rotate",
             Tool::Cutter(_) => "Cut",
             Tool::Play => "Play",
-            Tool::Stop => "Stop",
+            Tool::Pause => "Pause",
+            Tool::Eraser => "Eraser",
+            Tool::EraseAll => "Reset Factory",
         };
         write!(f, "{}", name)
     }
@@ -158,13 +179,41 @@ pub struct PlayerState {
 
 impl PlayerState {
     pub fn new() -> PlayerState {
-        let mut applicable_tools = HashMap::new();
-        applicable_tools.insert(Tool::Rotate(RotateDirection::Left), 1);
+        let applicable_tools = HashMap::new();
 
         PlayerState {
             selected_tool: None,
             applicable_tools,
             tool_placement_coordinate: None,
         }
+    }
+
+    pub fn num_in_inventory(&self, tool: Tool) -> usize {
+        // ensure default variants are used
+        let tool = tool.as_default_variant();
+
+        if let Some(num) = self.applicable_tools.get(&tool) {
+            *num
+        } else {
+            usize::MAX
+        }
+    }
+
+    pub fn add_to_inventory(&mut self, tool: Tool, change: i32) -> bool {
+        // ensure default variants are used
+        let tool = tool.as_default_variant();
+
+        if let Some(num) = self.applicable_tools.get(&tool) {
+            let res = *num as i32 + change;
+            if res < 0 {
+                return false;
+            }
+            let inv_num = self.applicable_tools.entry(tool).or_insert(0);
+            *inv_num = res as usize;
+        } else if change > 0 {
+            self.applicable_tools.insert(tool, change as usize);
+        }
+
+        true
     }
 }

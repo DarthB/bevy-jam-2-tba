@@ -305,6 +305,22 @@ impl Field {
             }
         }
     }
+
+    pub fn remove_all_tools(&mut self) -> Vec<Tool> {
+        let mut reval = Vec::new();
+        for r in 0..self.mov_size().1 {
+            for c in 0..self.mov_size().0 {
+                let idx = self.coords_to_idx(c, r);
+                let tool: Result<Tool, _> = TryFrom::<i32>::try_from(self.occupied[idx]);
+                if let Ok(tool) = tool {
+                    reval.push(tool);
+                    self.occupied[idx] = 0;
+                }
+            }
+        }
+
+        reval
+    }
 }
 
 impl Default for Field {
