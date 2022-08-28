@@ -8,7 +8,7 @@ use std::time::Duration;
 use crate::{blob::Blob, game_assets::GameAssets, input::TetrisActionsWASD, PX_PER_TILE};
 use bevy::{ecs::system::EntityCommands, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
 use bevy_tweening::{
-    lens::{TransformPositionLens, TransformRotateZLens},
+    lens::{SpriteColorLens, TransformPositionLens, TransformRotateZLens},
     Animator, EaseFunction, Tween, TweeningType,
 };
 use leafwing_input_manager::{
@@ -22,7 +22,7 @@ use leafwing_input_manager::{
 
 #[derive(Component, Debug, PartialEq, Clone, Reflect)]
 pub struct BlobExtra {
-    /// Blob's blocks
+    /// Blob's blocks. TODO: Currently redundant with parent-child stuff
     blocks: Vec<Entity>,
     /// Position of the Blob's pivot element within the field
     pivot: IVec2,
@@ -288,7 +288,15 @@ fn handle_cutout(
     config: &Res<ViewConfig>,
 ) {
     for &block in blocks.iter() {
-        // todo....
+        let start = Color::WHITE;
+        let end = Color::rgba(1.0, 1.0, 1.0, 0.0);
+        let tween = Tween::new(
+            EaseFunction::QuadraticInOut,
+            TweeningType::Once,
+            config.anim_duration,
+            SpriteColorLens { start, end },
+        );
+        commands.entity(block).insert(Animator::new(tween));
     }
 }
 
@@ -315,7 +323,7 @@ pub fn handle_view_updates(
                 handle_blob_transferred(&mut commands, blob, &mut rendered_blobs, &config)
             }
             ViewUpdate::Cutout(ref blocks) => {
-                // ...
+                handle_cutout(&mut commands, blocks, &block_query, &config)
             }
         }
     }
@@ -529,8 +537,13 @@ pub fn demo_system(
         }
         if s.just_pressed(TetrisActionsWASD::Left) {
             bevy::log::info!("LEFT for cutout pressed!");
-            let blocks = lowest_blocks_of_testblob(&block_query, &blob_query, &config);
-            evt.send(ViewUpdate::Cutout(blocks));
+            let to_remove = lowest_blocks_of_testblob(&block_query, &blob_query, &config);
+            if let Some(test_blob) = config.test_blob {
+                if let Ok(mut blobdata) = blob_query.get_mut(test_blob) {
+                    blobdata.blocks.retain(|x| !to_remove.contains(x));
+                    evt.send(ViewUpdate::Cutout(to_remove));
+                }
+            }
         }
     });
 }
