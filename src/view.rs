@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use crate::{blob::Blob, game_assets::GameAssets, input::TetrisActionsWASD, PX_PER_TILE};
-use bevy::{prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
+use bevy::{ecs::system::EntityCommands, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
 use bevy_tweening::{
     lens::{TransformPositionLens, TransformRotateZLens},
     Animator, EaseFunction, Tween, TweeningType,
@@ -45,6 +45,7 @@ pub enum Rotation {
     Right,
 }
 
+/// Events for the Renderer
 pub enum ViewUpdate {
     /// A new blob has been spawned in the factory
     BlobSpawned(Entity),
@@ -54,20 +55,34 @@ pub enum ViewUpdate {
     BlobRotated(Entity, Rotation),
     /// A blob has been transferred from the factory to tetris arena
     BlobTransferred(Entity),
+    /// A blob was cutout from another blob
+    Cutout(Vec<Entity>),
 }
 
 /// Configuration struct for integration into the rest of the project
 pub struct ViewConfig {
-    /// Global renderer entity to make the entity tree a bit cleaner.
+    /// Global renderer entity just for making the entity tree a bit cleaner.
+    /// Create a basic one via `spawn_simple_rendering_entity`.
     renderer_entity: Entity,
     /// Global translation to the factory fields's (0,0) block
     factory_topleft: Vec3,
     /// Global translation to the tetris fields's (0,0) block
     tetris_topleft: Vec3,
+    /// Animation duration
+    anim_duration: Duration,
 
     brick_image: Handle<Image>,
 
+    /// Used by the demo system (can be ignored)
     test_blob: Option<Entity>,
+}
+
+pub fn spawn_simple_rendering_entity<'w, 's, 'a>(
+    commands: &'a mut Commands<'w, 's>,
+) -> EntityCommands<'w, 's, 'a> {
+    let mut rv = commands.spawn_bundle(SpatialBundle::default());
+    rv.insert(Name::new("Rendering"));
+    rv
 }
 
 //----------------------------------------------------------------------
@@ -76,12 +91,19 @@ pub struct ViewConfig {
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, PartialEq, Clone, Reflect)]
 pub struct BlobRenderState {
-    /// Gamelogic entity
+    /// Root entity of the blob visualization
     root: Entity,
     /// Last known `pivot` from the game logic
     last_pivot: IVec2,
     /// Cumulative left rotations (0..3)
     rotation_steps: i32,
+}
+
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Component, Debug, PartialEq, Clone, Reflect)]
+pub struct BlockRenderState {
+    /// Root entity of the block visualization
+    root: Entity,
 }
 
 //----------------------------------------------------------------------
@@ -195,7 +217,7 @@ fn handle_blob_moved(
         let tween = Tween::new(
             EaseFunction::QuadraticInOut,
             TweeningType::Once,
-            Duration::from_millis(200),
+            config.anim_duration,
             TransformPositionLens { start, end },
         );
         commands.entity(state.root).insert(Animator::new(tween));
@@ -208,6 +230,7 @@ fn handle_blob_rotated(
     blob: Entity,
     rotation: Rotation,
     blob_query: &mut Query<(&BlobExtra, &mut BlobRenderState)>,
+    config: &Res<ViewConfig>,
 ) {
     if let Ok((_, mut state)) = blob_query.get_mut(blob) {
         let start = (state.rotation_steps as f32 * 90.0).to_radians();
@@ -219,7 +242,7 @@ fn handle_blob_rotated(
         let tween = Tween::new(
             EaseFunction::QuadraticInOut,
             TweeningType::Once,
-            Duration::from_millis(200),
+            config.anim_duration,
             TransformRotateZLens { start, end },
         );
 
@@ -249,11 +272,22 @@ fn handle_blob_transferred(
         let tween = Tween::new(
             EaseFunction::QuadraticInOut,
             TweeningType::Once,
-            Duration::from_millis(200),
+            config.anim_duration,
             TransformPositionLens { start, end },
         );
         commands.entity(state.root).insert(Animator::new(tween));
         state.last_pivot = blobdata.pivot;
+    }
+}
+
+fn handle_cutout(
+    commands: &mut Commands,
+    blocks: &Vec<Entity>,
+    block_query: &Query<&BlockExtra>,
+    config: &Res<ViewConfig>,
+) {
+    for &block in blocks.iter() {
+        // todo....
     }
 }
 
@@ -274,10 +308,13 @@ pub fn handle_view_updates(
                 handle_blob_moved(&mut commands, blob, &mut rendered_blobs, &config)
             }
             ViewUpdate::BlobRotated(blob, rotation) => {
-                handle_blob_rotated(&mut commands, blob, rotation, &mut rendered_blobs)
+                handle_blob_rotated(&mut commands, blob, rotation, &mut rendered_blobs, &config)
             }
             ViewUpdate::BlobTransferred(blob) => {
                 handle_blob_transferred(&mut commands, blob, &mut rendered_blobs, &config)
+            }
+            ViewUpdate::Cutout(ref blocks) => {
+                // ...
             }
         }
     }
@@ -383,9 +420,7 @@ pub fn setup_demo_system(
             0.0,
         );
 
-    let renderer_entity = commands
-        .spawn_bundle(SpatialBundle::default())
-        .insert(Name::new("Rendering"))
+    let renderer_entity = spawn_simple_rendering_entity(&mut commands)
         .insert_bundle(InputManagerBundle::<TetrisActionsWASD> {
             // Stores "which actions are currently pressed"
             action_state: ActionState::default(),
@@ -409,6 +444,7 @@ pub fn setup_demo_system(
         renderer_entity,
         factory_topleft,
         tetris_topleft,
+        anim_duration: Duration::from_millis(200),
         brick_image: assets.block_blob.clone(),
         test_blob: Some(blob),
     });
@@ -416,9 +452,38 @@ pub fn setup_demo_system(
     evt.send(ViewUpdate::BlobSpawned(blob));
 }
 
+fn lowest_blocks_of_testblob(
+    block_query: &Query<&mut BlockExtra>,
+    blob_query: &Query<&mut BlobExtra>,
+    config: &Res<ViewConfig>,
+) -> Vec<Entity> {
+    let blobdata = blob_query.get(config.test_blob.unwrap()).unwrap();
+    let max_y = blobdata
+        .blocks
+        .iter()
+        .map(|&block| {
+            let blockdata = block_query.get(block).unwrap();
+            blockdata.coordinate.y
+        })
+        .max()
+        .unwrap_or_default();
+    blobdata
+        .blocks
+        .iter()
+        .filter_map(|&block| {
+            let blockdata = block_query.get(block).unwrap();
+            if blockdata.coordinate.y == max_y {
+                Some(block)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 pub fn demo_system(
     config: Res<ViewConfig>,
-    mut blobs: Query<&mut BlobExtra>,
+    mut blob_query: Query<&mut BlobExtra>,
     mut block_query: Query<&mut BlockExtra>,
     query: Query<&ActionState<TetrisActionsWASD>>,
     mut evt: EventWriter<ViewUpdate>,
@@ -427,7 +492,7 @@ pub fn demo_system(
         if s.just_pressed(TetrisActionsWASD::Down) {
             bevy::log::info!("DOWN pressed!");
             if let Some(test_blob) = config.test_blob {
-                if let Ok(mut blobdata) = blobs.get_mut(test_blob) {
+                if let Ok(mut blobdata) = blob_query.get_mut(test_blob) {
                     blobdata.pivot.y += 1;
                     evt.send(ViewUpdate::BlobMoved(test_blob));
                 }
@@ -436,21 +501,35 @@ pub fn demo_system(
         if s.just_pressed(TetrisActionsWASD::RRotate) {
             bevy::log::info!("RRotate pressed!");
             if let Some(test_blob) = config.test_blob {
-                if let Ok(blobdata) = blobs.get(test_blob) {
+                if let Ok(blobdata) = blob_query.get(test_blob) {
                     rotate_demo_blob(blobdata, &mut block_query, Rotation::Right);
                     evt.send(ViewUpdate::BlobRotated(test_blob, Rotation::Right));
+                }
+            }
+        }
+        if s.just_pressed(TetrisActionsWASD::LRotate) {
+            bevy::log::info!("LRotate pressed!");
+            if let Some(test_blob) = config.test_blob {
+                if let Ok(blobdata) = blob_query.get(test_blob) {
+                    rotate_demo_blob(blobdata, &mut block_query, Rotation::Left);
+                    evt.send(ViewUpdate::BlobRotated(test_blob, Rotation::Left));
                 }
             }
         }
         if s.just_pressed(TetrisActionsWASD::Up) {
             bevy::log::info!("UP for block transfer pressed!");
             if let Some(test_blob) = config.test_blob {
-                if let Ok(mut blobdata) = blobs.get_mut(test_blob) {
+                if let Ok(mut blobdata) = blob_query.get_mut(test_blob) {
                     blobdata.transferred = true;
                     blobdata.pivot.y = 0;
                     evt.send(ViewUpdate::BlobTransferred(test_blob));
                 }
             }
+        }
+        if s.just_pressed(TetrisActionsWASD::Left) {
+            bevy::log::info!("LEFT for cutout pressed!");
+            let blocks = lowest_blocks_of_testblob(&block_query, &blob_query, &config);
+            evt.send(ViewUpdate::Cutout(blocks));
         }
     });
 }
