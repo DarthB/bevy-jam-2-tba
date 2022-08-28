@@ -1,4 +1,4 @@
-use bevy::{prelude::*, ui::FocusPolicy};
+use bevy::{ecs::system::EntityCommands, prelude::*, ui::FocusPolicy};
 use player_state::{MoveDirection, PlayerState, RotateDirection, Tool};
 
 use crate::prelude::*;
@@ -48,13 +48,13 @@ pub fn spawn_hud(mut commands: Commands, assets: Res<GameAssets>) {
         })
         .insert(Name::new("Toolbar"))
         .with_children(|cb| {
+            spawn_tool_button(cb, Tool::Simulate, &assets);
             spawn_tool_button(cb, Tool::Move(MoveDirection::default()), &assets);
             spawn_tool_button(cb, Tool::Rotate(RotateDirection::default()), &assets);
             spawn_tool_button(cb, Tool::Cutter(TetrisBricks::default()), &assets);
-            spawn_tool_button(cb, Tool::Simulate, &assets);
-            spawn_tool_button(cb, Tool::Reset, &assets);
             spawn_tool_button(cb, Tool::Eraser, &assets);
             spawn_tool_button(cb, Tool::EraseAll, &assets);
+            spawn_tool_button(cb, Tool::Reset, &assets);
         });
 }
 
@@ -244,4 +244,36 @@ pub fn toolbar_button_system(
             }
         }
     }
+}
+
+pub fn spawn_text(
+    commands: &mut Commands,
+    assets: &GameAssets,
+    text: &str,
+    pos: UiRect<Val>,
+    adapter: &dyn Fn(&mut EntityCommands),
+) {
+    let mut ec = commands.spawn_bundle(
+        TextBundle::from_section(
+            text,
+            TextStyle {
+                font: assets.font.clone(),
+                font_size: 36.0,
+                color: Color::BLACK,
+            },
+        )
+        .with_text_alignment(TextAlignment::CENTER)
+        .with_style(Style {
+            align_self: AlignSelf::Center,
+            position_type: PositionType::Absolute,
+            position: pos,
+            max_size: Size {
+                width: Val::Px(250.),
+                height: Val::Undefined,
+            },
+            ..default()
+        }),
+    );
+
+    adapter(&mut ec);
 }

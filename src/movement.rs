@@ -68,9 +68,10 @@ pub fn move_factory_blobs_by_events(
                 }
                 //~
 
-                let (occupied, _) = field.is_coordinate_occupied(tc, tr);
+                let (occupied, _) = field.is_coordinate_occupied(tc, tr, false);
                 if occupied && !(tc < 0 || tr < 0) {
-                    let num = field.occupied(field.coords_to_idx(tc as usize, tr as usize));
+                    let num =
+                        field.occupied(field.coords_to_idx(tc as usize, tr as usize).unwrap());
                     if num.is_none() {
                         continue;
                     }
@@ -139,7 +140,7 @@ pub fn move_production_blobs_by_events(
                     }
 
                     // test for occupied
-                    let (occupied, _) = field.any_coordinate_occupied(&occ_coords_delta);
+                    let (occupied, _) = field.any_coordinates_occupied(&occ_coords_delta, true);
 
                     if !occupied {
                         coord.c += ev.delta.0;

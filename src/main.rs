@@ -60,7 +60,7 @@ fn main() {
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
                 .with_system(progress_turn)
-                .with_system(contiously_spawn_tetris_at_end)
+                //                .with_system(contiously_spawn_tetris_at_end)
                 .with_system(remove_field_lines)
                 .label(MySystems::EventHandling),
         )
@@ -80,6 +80,7 @@ fn main() {
                 .with_system(move_production_blobs_by_events)
                 .with_system(move_field_content_down_if_not_occupied)
                 .with_system(mouse_for_field_selection_and_tool_creation)
+                .with_system(check_win)
                 .label(MySystems::GameUpdates)
                 .after(MySystems::Input),
         )

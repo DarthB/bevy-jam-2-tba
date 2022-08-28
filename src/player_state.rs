@@ -175,6 +175,8 @@ pub struct PlayerState {
     pub applicable_tools: HashMap<Tool, usize>,
 
     pub tool_placement_coordinate: Option<Coordinate>,
+
+    pub won: bool,
 }
 
 impl PlayerState {
@@ -185,6 +187,7 @@ impl PlayerState {
             selected_tool: None,
             applicable_tools,
             tool_placement_coordinate: None,
+            won: false,
         }
     }
 

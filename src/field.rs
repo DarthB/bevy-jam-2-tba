@@ -141,12 +141,11 @@ impl Field {
                 continue;
             }
 
-            let idx = self.coords_to_idx(x as usize, y as usize);
-            if self.is_idx_valid(idx) {
+            if let Some(idx) = self.coords_to_idx(x as usize, y as usize) {
                 mutator(self, (x, y), idx);
             } else {
                 log::warn!(
-                    "Tried to mutate something at idx {idx}, although {} is the maximum idx for this field.",
+                    "Tried to mutate something at ({x},{y}), although {} is the maximum idx for this field.",
                     self.max_idx()
                 );
             }
@@ -165,9 +164,23 @@ impl Field {
         });
     }
 
-    pub fn any_coordinate_occupied(&self, coords: &Vec<(i32, i32)>) -> (bool, Option<(i32, i32)>) {
+    pub fn all_coordinates_occupied(&self, coords: &Vec<(i32, i32)>, check_border: bool) -> bool {
         for (x, y) in coords {
-            let res = self.is_coordinate_occupied(*x, *y);
+            let res = self.is_coordinate_occupied(*x, *y, check_border);
+            if !res.0 {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn any_coordinates_occupied(
+        &self,
+        coords: &Vec<(i32, i32)>,
+        check_border: bool,
+    ) -> (bool, Option<(i32, i32)>) {
+        for (x, y) in coords {
+            let res = self.is_coordinate_occupied(*x, *y, check_border);
             if res.0 {
                 return res;
             }
@@ -175,15 +188,26 @@ impl Field {
         (false, None)
     }
 
+    pub fn num_occupied(&self) -> usize {
+        self.occupied.iter().filter(|v| **v != 0).count()
+    }
+
     /// return true if the given coordinate can be occupied, otherwise provide
     /// an information how the movement can be reduced such that the border is reached
-    pub fn is_coordinate_occupied(&self, x: i32, y: i32) -> (bool, Option<(i32, i32)>) {
+    pub fn is_coordinate_occupied(
+        &self,
+        x: i32,
+        y: i32,
+        check_border: bool,
+    ) -> (bool, Option<(i32, i32)>) {
         // first check if the space is already occupied:
         if self.tracks_occupied && x >= 0 && y >= 0 {
-            let idx = self.coords_to_idx(x as usize, y as usize);
-            if idx < self.occupied.len() && self.occupied[idx] > 0 {
-                return (true, None);
+            if let Some(idx) = self.coords_to_idx(x as usize, y as usize) {
+                return (self.occupied[idx] != 0, None);
             }
+        }
+        if !check_border {
+            return (false, None);
         }
 
         let mut x_correct = 0;
@@ -220,8 +244,12 @@ impl Field {
         }
     }
 
-    pub fn coords_to_idx(&self, x: usize, y: usize) -> usize {
-        x + y * self.movable_size.0
+    pub fn coords_to_idx(&self, x: usize, y: usize) -> Option<usize> {
+        if x >= self.mov_size().0 || y >= self.mov_size().1 {
+            None
+        } else {
+            Some(x + y * self.movable_size.0)
+        }
     }
 
     pub fn size(&self) -> (usize, usize) {
@@ -265,7 +293,7 @@ impl Field {
         for r in 0..self.movable_size.1 {
             let mut full_line = true;
             for c in 0..self.movable_size.0 {
-                full_line = full_line && self.occupied[self.coords_to_idx(c, r)] > 0
+                full_line = full_line && self.occupied[self.coords_to_idx(c, r).unwrap()] > 0
             }
             if full_line {
                 reval.push(r);
@@ -282,8 +310,7 @@ impl Field {
 
         for r in lines {
             for c in 0..self.movable_size.0 {
-                let idx = self.coords_to_idx(c, *r);
-                if idx < self.occupied.len() {
+                if let Some(idx) = self.coords_to_idx(c, *r) {
                     self.occupied[idx] = 0;
                 }
             }
@@ -293,8 +320,8 @@ impl Field {
     pub fn move_down_if_possible(&mut self) {
         for r in (0..self.mov_size().1 - 1).rev() {
             for c in 0..self.mov_size().0 {
-                let idx_up = self.coords_to_idx(c, r);
-                let idx_below = self.coords_to_idx(c, r + 1);
+                let idx_up = self.coords_to_idx(c, r).unwrap();
+                let idx_below = self.coords_to_idx(c, r + 1).unwrap();
                 if self.occupied[idx_up] > 0
                     && self.occupied[idx_up] < 100
                     && self.occupied[idx_below] == 0
@@ -310,7 +337,7 @@ impl Field {
         let mut reval = Vec::new();
         for r in 0..self.mov_size().1 {
             for c in 0..self.mov_size().0 {
-                let idx = self.coords_to_idx(c, r);
+                let idx = self.coords_to_idx(c, r).unwrap();
                 let tool: Result<Tool, _> = TryFrom::<i32>::try_from(self.occupied[idx]);
                 if let Ok(tool) = tool {
                     reval.push(tool);
