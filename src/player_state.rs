@@ -12,9 +12,9 @@ use crate::bodies::TetrisBricks;
 pub enum MoveDirection {
     #[default]
     Up = 1,
-    Down = 2,
-    Left = 3,
-    Right = 4,
+    Right = 2,
+    Down = 3,
+    Left = 4,
 }
 
 impl TryFrom<i32> for MoveDirection {
@@ -112,9 +112,9 @@ impl TryFrom<i32> for Tool {
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         match value {
             101 => Ok(Tool::Move(MoveDirection::Up)),
-            102 => Ok(Tool::Move(MoveDirection::Down)),
-            103 => Ok(Tool::Move(MoveDirection::Left)),
-            104 => Ok(Tool::Move(MoveDirection::Right)),
+            102 => Ok(Tool::Move(MoveDirection::Right)),
+            103 => Ok(Tool::Move(MoveDirection::Down)),
+            104 => Ok(Tool::Move(MoveDirection::Left)),
 
             201 => Ok(Tool::Rotate(RotateDirection::Left)),
             202 => Ok(Tool::Rotate(RotateDirection::Right)),
