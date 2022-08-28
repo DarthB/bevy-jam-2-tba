@@ -38,7 +38,7 @@ pub trait RenderableGrid {
 
     fn adapt_render_entities(&self, cb: &mut EntityCommands, r: usize, c: usize);
 
-    fn spawn_render_entities(&self, id: Entity, cb: &mut ChildBuilder, assets: &GameAssets) {
+    fn spawn_render_entities(&self, _id: Entity, cb: &mut ChildBuilder, assets: &GameAssets) {
         for r in 0..self.rows() {
             for c in 0..self.cols() {
                 let num = self.get_render_id(r as i32, c as i32);
@@ -97,6 +97,7 @@ pub trait RenderableGrid {
             .insert(Name::new("Origin Point"));
         }
 
+        #[cfg(feature = "debug")]
         if self.spawn_additional_debug() {
             cb.spawn_bundle(SpatialBundle::default())
                 .with_children(|cb| {
@@ -124,7 +125,7 @@ pub trait RenderableGrid {
                                 c: x as i32,
                                 r: y as i32,
                             })
-                            .insert(DebugOccupiedTag { parent: id });
+                            .insert(DebugOccupiedTag { parent: _id });
                         }
                     }
                 })
@@ -238,8 +239,11 @@ impl RenderableGrid for Field {
         if r < 0 || r >= self.mov_size().1 as i32 || c < 0 || c >= self.mov_size().0 as i32 {
             -1
         } else if self.tracks_occupied {
-            let idx = self.coords_to_idx(c as usize, r as usize);
-            self.occupied(idx).unwrap_or(0)
+            if let Some(idx) = self.coords_to_idx(c as usize, r as usize) {
+                self.occupied(idx).unwrap_or(0)
+            } else {
+                0
+            }
         } else {
             0
         }
@@ -304,7 +308,9 @@ pub fn update_field_debug(
             }
             //~
 
-            let idx = field.coords_to_idx(coord.c as usize, coord.r as usize);
+            let idx = field
+                .coords_to_idx(coord.c as usize, coord.r as usize)
+                .unwrap();
 
             sprite.color = match field.occupied(idx) {
                 Some(v) => {

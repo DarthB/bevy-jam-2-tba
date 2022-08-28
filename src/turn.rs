@@ -31,7 +31,7 @@ impl Turn {
             num_additional_bricks: 0,
             fac_id: None,
             prod_id: None,
-            pause: false,
+            pause: true,
             remove_line_turns_on_gravity: true,
         }
     }

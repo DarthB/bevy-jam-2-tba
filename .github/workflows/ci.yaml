@@ -70,7 +70,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --features bevy_jam_2_tba/debug
+          args: --features bevy_jam_2_disastris/debug
 
   # Run cargo clippy -- -D warnings
   clippy_check:

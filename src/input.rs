@@ -162,8 +162,8 @@ pub fn mouse_for_field_selection_and_tool_creation(
             // sprite is a cube so x test is enough
             if diff.length() < (PX_PER_TILE / 2.0) {
                 sprite.color = Color::WHITE;
-                let (x, y) = (coord.c, coord.r);
-                log::info!("Mouse over: Coordinate {x},{y}");
+                //let (x, y) = (coord.c, coord.r);
+                //log::info!("Mouse over: Coordinate {x},{y}");
                 player_state.tool_placement_coordinate = Some(*coord);
             }
         }
@@ -174,13 +174,40 @@ pub fn mouse_for_field_selection_and_tool_creation(
             player_state.selected_tool,
             player_state.tool_placement_coordinate,
         ) {
-            if tool != Tool::Play && tool != Tool::Stop {
-                log::info!("Place tool {:?} at ({},{})", tool, coord.c, coord.r);
-                field.mutate_at_coordinate((coord.c, coord.r), &move |field, _, idx| {
-                    field
-                        .set_occupied(idx, Into::<i32>::into(tool))
-                        .expect("wrong coordinate in set_occupied due to mouse click");
-                })
+            // first check if the coords are valid
+            if let Some(idx) = field.coords_to_idx(coord.c as usize, coord.r as usize) {
+                let placeable_tool =
+                    matches!(tool, Tool::Move(_) | Tool::Rotate(_) | Tool::Cutter(_));
+                let empty_place = field.occupied(idx).unwrap() == 0;
+                if empty_place && placeable_tool && player_state.num_in_inventory(tool) > 0 {
+                    player_state.add_to_inventory(tool, -1);
+
+                    log::info!("Place tool {:?} at ({},{})", tool, coord.c, coord.r);
+                    field.mutate_at_coordinate((coord.c, coord.r), &move |field, _, idx| {
+                        field.set_occupied(idx, Into::<i32>::into(tool)).expect(
+                            "should not happen: wrong coordinate in set_occupied due to mouse click",
+                        );
+                    })
+                } else if tool == Tool::Eraser {
+                    log::info!("Erase tool {:?} at ({},{})", tool, coord.c, coord.r);
+
+                    // idx, tool, tool, tool, tool -> how can this be simplified?
+                    let tool = field.occupied(idx);
+                    if let Some(tool) = tool {
+                        let tool: Result<Tool, _> = TryFrom::<i32>::try_from(tool);
+                        if let Ok(tool) = tool {
+                            // update inventory
+                            player_state.add_to_inventory(tool, 1);
+
+                            // remove from field
+                            field.mutate_at_coordinate((coord.c, coord.r), &move |field, _, idx| {
+                                field
+                                    .set_occupied(idx, 0)
+                                    .expect("should not happen: wrong coordinate in set_occupied due to mouse click");
+                            })
+                        }
+                    }
+                }
             }
         }
     }

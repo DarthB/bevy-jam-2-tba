@@ -25,9 +25,13 @@ pub struct GameAssets {
 
     pub normal_button_color: Color,
 
+    pub unavailable_button_color: Color,
+
     pub hover_button_color: Color,
 
     pub selected_button_color: Color,
+
+    pub selected_but_unavailable_button_color: Color,
 
     pub clicked_button_color: Color,
 
@@ -61,6 +65,10 @@ pub struct GameAssets {
 
     pub tool_cutter_stairs_r: Handle<Image>,
 
+    pub tool_eraser: Handle<Image>,
+
+    pub tool_erase_all: Handle<Image>,
+
     pub font: Handle<Font>,
 }
 
@@ -78,8 +86,10 @@ impl GameAssets {
             block_target_outline: asset_server.load("blocks/64/target_outline.png"),
             block_tetris_floor: asset_server.load("blocks/64/tetris_floor.png"),
             normal_button_color: Color::rgba(0.15, 0.15, 0.15, 0.25),
+            unavailable_button_color: Color::rgba(0.15, 0.15, 0.15, 0.9),
             hover_button_color: Color::rgba(0.25, 0.25, 0.25, 0.5),
             selected_button_color: Color::rgba(0.25, 0.55, 0.25, 0.5),
+            selected_but_unavailable_button_color: Color::rgba(0.25, 0.35, 0.25, 0.8),
             clicked_button_color: Color::rgba(0.35, 0.75, 0.35, 0.5),
             tool_move_left: asset_server.load("tools/tool_direction_l.png"),
             tool_move_right: asset_server.load("tools/tool_direction_r.png"),
@@ -96,6 +106,8 @@ impl GameAssets {
             tool_cutter_small_t: asset_server.load("tools/tool_tetris_t.png"),
             tool_cutter_stairs_l: asset_server.load("tools/tool_tetris_z_inv.png"),
             tool_cutter_stairs_r: asset_server.load("tools/tool_tetris_z.png"),
+            tool_eraser: asset_server.load("tools/tool_eraser.png"),
+            tool_erase_all: asset_server.load("tools/tool_erase_all.png"),
             font: asset_server.load("fonts/FiraMono-Medium.ttf"),
         }
     }
@@ -121,8 +133,10 @@ impl GameAssets {
                 TetrisBricks::StairsR => &self.tool_cutter_stairs_r,
                 TetrisBricks::SmallT => &self.tool_cutter_small_t,
             },
-            Tool::Play => &self.tool_play,
-            Tool::Stop => &self.tool_stop,
+            Tool::Simulate => &self.tool_play,
+            Tool::Reset => &self.tool_stop,
+            Tool::Eraser => &self.tool_eraser,
+            Tool::EraseAll => &self.tool_erase_all,
         }
     }
 }

@@ -2,9 +2,9 @@ use crate::prelude::*;
 use bevy::utils::HashMap;
 
 pub struct Level {
-    pub start_blob: Vec<i32>,
+    pub start_blob: (Vec<i32>, (i32, i32)),
 
-    pub target_figure: Vec<i32>,
+    pub target_figure: (Vec<i32>, (i32, i32)),
 
     pub applicable_tools: HashMap<Tool, usize>,
 }
@@ -12,9 +12,22 @@ pub struct Level {
 impl Level {
     pub fn new() -> Self {
         Level {
-            start_blob: prototype::gen_blob_body(),
-            target_figure: prototype::gen_target_body(),
+            start_blob: (prototype::gen_blob_body(), (3, -4)),
+            target_figure: (prototype::gen_target_body(), (3, -4)),
             applicable_tools: HashMap::new(),
+        }
+    }
+
+    pub fn level_01() -> Self {
+        let mut applicable_tools = HashMap::new();
+        applicable_tools.insert(Tool::Move(MoveDirection::default()), 2);
+        applicable_tools.insert(Tool::Rotate(RotateDirection::default()), 1);
+        applicable_tools.insert(Tool::Cutter(TetrisBricks::default()), 0);
+
+        Level {
+            start_blob: (prototype::gen_blob_body2(), (3, -4)),
+            target_figure: (prototype::gen_target_body2(), (5, 13)),
+            applicable_tools,
         }
     }
 }

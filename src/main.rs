@@ -1,5 +1,5 @@
-use bevy::{prelude::*, render::camera::ScalingMode, window::WindowMode};
-use bevy_jam_2_tba_lib::{game_assets::GameAssets, prelude::*, SECONDS_PER_ROUND};
+use bevy::{prelude::*, window::WindowMode};
+use bevy_jam_2_disastris_lib::{game_assets::GameAssets, prelude::*, SECONDS_PER_ROUND};
 use bevy_tweening::TweeningPlugin;
 
 #[cfg(feature = "debug")]
@@ -9,9 +9,9 @@ use {
         //        InspectorPlugin,
         WorldInspectorPlugin,
     },
-    bevy_jam_2_tba_lib::blob::{Blob, BlobGravity, Coordinate},
-    bevy_jam_2_tba_lib::field::Field,
-    bevy_jam_2_tba_lib::hud::{UITagHover, UITagImage},
+    bevy_jam_2_disastris_lib::blob::{Blob, BlobGravity, Coordinate},
+    bevy_jam_2_disastris_lib::field::Field,
+    bevy_jam_2_disastris_lib::hud::{UITagHover, UITagImage},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SystemLabel)]
@@ -28,7 +28,7 @@ fn main() {
         width: 1600.0,
         height: 1000.0,
         position: bevy::window::WindowPosition::Centered(MonitorSelection::Primary),
-        title: "bevy_jam_2_tba".into(),
+        title: "Disastris - A contribution to bevy-jam-2".into(),
         resizable: true,
         decorations: true,
         cursor_visible: true,
@@ -36,8 +36,7 @@ fn main() {
         mode: WindowMode::Windowed,
         transparent: false,
         ..Default::default()
-    })
-    .insert_resource(Turn::new(SECONDS_PER_ROUND));
+    });
 
     app.add_event::<BlobMoveEvent>()
         .add_event::<BlobTeleportEvent>()
@@ -73,7 +72,7 @@ fn main() {
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
                 .with_system(progress_turn)
-                .with_system(contiously_spawn_tetris_at_end)
+                //                .with_system(contiously_spawn_tetris_at_end)
                 .with_system(remove_field_lines)
                 .label(MySystems::EventHandling),
         )
@@ -93,6 +92,7 @@ fn main() {
                 .with_system(move_production_blobs_by_events)
                 .with_system(move_field_content_down_if_not_occupied)
                 .with_system(mouse_for_field_selection_and_tool_creation)
+                .with_system(check_win)
                 .label(MySystems::GameUpdates)
                 .after(MySystems::Input),
         )
@@ -100,12 +100,15 @@ fn main() {
             SystemSet::on_update(GameState::Ingame)
                 .with_system(grid_update_render_entities::<Blob>)
                 .with_system(grid_update_render_entities::<Field>)
-                .with_system(update_toolbar)
+                .with_system(update_toolbar_images)
+                .with_system(update_toolbar_inventory)
+                .with_system(update_toolbar_overlays)
                 .with_system(blob_update_transforms)
                 .with_system(update_field_debug)
                 .label(MySystems::RenderUpdates)
                 .after(MySystems::GameUpdates),
-        );
+        )
+        .add_system_set(SystemSet::on_exit(GameState::Ingame).with_system(clean_all));
 
     // Add an ingame inspector window
     #[cfg(feature = "debug")]
@@ -139,8 +142,15 @@ fn setup(
     //commands.insert_resource(WinitSettings::desktop_app());
     commands.insert_resource(GameAssets::new(&asset_server));
     commands.insert_resource(PlayerState::new());
-    commands.insert_resource(Level::new());
+    commands.insert_resource(Level::level_01());
+    commands.insert_resource(Turn::new(SECONDS_PER_ROUND));
 
     // Switch state
     app_state.overwrite_set(GameState::AnimationTest).unwrap();
+}
+
+pub fn clean_all(mut commands: Commands, query: Query<Entity>) {
+    for e in query.iter() {
+        commands.entity(e).despawn();
+    }
 }
