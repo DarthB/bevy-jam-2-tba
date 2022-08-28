@@ -21,7 +21,7 @@ pub const PX_PER_ICON: f32 = 64.0;
 pub const QUOTE1: &str = "You won and all you get is this damn quote: \"Back in my days they delivered the raw materials in clean 4-block packages!\" by Gereon Bartel - Senior Block Composer";
 pub const QUOTE2: &str = "You won and all you get is this damn quote: \"Rearranging ugly blobs into more elegant shapes is part of my daily routine!\" by Tim Janus - Fulltime Code Refactorer";
 pub const QUOTE3: &str =
-    "You won and all you get is this damn quote: \"I don't get it\" psi - Blockchain Expert";
+    "You won and all you get is this damn quote: \"look Ma, no javascript!\" by psi - obnoxious Rust fanboy";
 pub const TUTORIAL: &str = "Disassemble the useless input blob that was delivered and combine the parts to something beautiful! Select tools and place them in the factory. Choose between several tool variants with the mouse wheel and hit the simulate button when you're ready.";
 
 pub fn get_random_quote() -> String {

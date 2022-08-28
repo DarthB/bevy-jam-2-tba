@@ -68,18 +68,7 @@ pub fn spawn_world(
     );
     turn.prod_id = Some(pr_field);
 
-    let t_stone = spawn_blob(
-        &mut commands,
-        &assets.block_blob,
-        &assets,
-        level.start_blob.0.clone(),
-        "Fake Target Stone",
-        Some(level.start_blob.1.into()),
-        &|_| {},
-    );
-    //commands.entity(pr_field).push_children(&[t_stone]);
-
-    /*let t_stone = spawn_target(
+    let t_stone = spawn_target(
         &mut commands,
         &assets.block_target_outline,
         &assets,
@@ -87,8 +76,8 @@ pub fn spawn_world(
         "Target Stone",
         Some(level.target_figure.1.into()),
         &|_| {},
-    );*/
-    //commands.entity(pr_field).push_children(&[t_stone]);
+    );
+    commands.entity(pr_field).push_children(&[t_stone]);
 
     let pos = UiRect {
         top: Val::Percent(3.0),
@@ -136,17 +125,17 @@ pub fn check_win(
     mut commands: Commands,
     assets: Res<GameAssets>,
     query_field: Query<&Field, With<ProductionFieldTag>>,
-    query_blob: Query<&Blob, Without<RealBlob>>,
+    query_target: Query<&Target>,
     mut player_state: ResMut<PlayerState>,
 ) {
     if player_state.won {
         return;
     }
 
-    let target_blob = query_blob.single();
+    let target = query_target.single();
     let field = query_field.single();
 
-    let mut coords = target_blob.occupied_coordinates();
+    let mut coords = target.occupied_coordinates();
     coords = coords
         .iter()
         .map(|(c, r)| (*c - pivot_coord().0 as i32, *r - pivot_coord().1 as i32))
