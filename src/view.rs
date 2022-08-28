@@ -20,8 +20,10 @@ use leafwing_input_manager::{
 // Components I need from the game logic. These *Extra components should
 // later be merged into (or replaced with) the game logic components.
 
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, PartialEq, Clone, Reflect)]
 pub struct BlobExtra {
+    #[cfg_attr(feature = "debug", inspectable(ignore))]
     /// Blob's blocks. TODO: Currently redundant with parent-child stuff
     blocks: Vec<Entity>,
     /// Position of the Blob's pivot element within the field
@@ -55,8 +57,8 @@ pub enum ViewUpdate {
     BlobRotated(Entity, Rotation),
     /// A blob has been transferred from the factory to tetris arena
     BlobTransferred(Entity),
-    /// A blob was cutout from another blob
-    Cutout(Vec<Entity>),
+    /// A line of blocks was removed in the tetris field.
+    LineRemove(Vec<Entity>),
 }
 
 /// Configuration struct for integration into the rest of the project
@@ -109,7 +111,7 @@ pub struct BlockRenderState {
 
 fn coord_to_translation(coord: IVec2) -> Vec3 {
     Vec3::new(
-        -coord.x as f32 * PX_PER_TILE,
+        coord.x as f32 * PX_PER_TILE,
         -coord.y as f32 * PX_PER_TILE,
         0.0,
     )
@@ -188,11 +190,7 @@ fn handle_blob_spawned(
                     custom_size: Some(Vec2::ONE * PX_PER_TILE),
                     ..Default::default()
                 },
-                transform: Transform::from_xyz(
-                    blockdata.coordinate.x as f32 * -PX_PER_TILE,
-                    blockdata.coordinate.y as f32 * -PX_PER_TILE,
-                    0.0,
-                ),
+                transform: Transform::from_translation(coord_to_translation(blockdata.coordinate)),
                 texture: config.brick_image.clone(),
                 ..Default::default()
             });
@@ -281,7 +279,7 @@ fn handle_blob_transferred(
     }
 }
 
-fn handle_cutout(
+fn handle_line_remove(
     commands: &mut Commands,
     blocks: &Vec<Entity>,
     block_query: &Query<&BlockExtra>,
@@ -322,8 +320,8 @@ pub fn handle_view_updates(
             ViewUpdate::BlobTransferred(blob) => {
                 handle_blob_transferred(&mut commands, blob, &mut rendered_blobs, &config)
             }
-            ViewUpdate::Cutout(ref blocks) => {
-                handle_cutout(&mut commands, blocks, &block_query, &config)
+            ViewUpdate::LineRemove(ref blocks) => {
+                handle_line_remove(&mut commands, blocks, &block_query, &config)
             }
         }
     }
@@ -359,17 +357,6 @@ fn spawn_demo_blob(commands: &mut Commands) -> Entity {
         })
         .insert(Name::new("Test Blob"))
         .id()
-}
-
-fn rotate_demo_blob(
-    blobdata: &BlobExtra,
-    block_query: &mut Query<&mut BlockExtra>,
-    rotation: Rotation,
-) {
-    for &block in blobdata.blocks.iter() {
-        let mut blockdata = block_query.get_mut(block).unwrap();
-        blockdata.coordinate = rotate_coord(blockdata.coordinate, rotation);
-    }
 }
 
 pub fn setup_demo_system(
@@ -461,6 +448,17 @@ pub fn setup_demo_system(
     evt.send(ViewUpdate::BlobSpawned(blob));
 }
 
+fn rotate_demo_blob(
+    blobdata: &BlobExtra,
+    block_query: &mut Query<&mut BlockExtra>,
+    rotation: Rotation,
+) {
+    for &block in blobdata.blocks.iter() {
+        let mut blockdata = block_query.get_mut(block).unwrap();
+        blockdata.coordinate = rotate_coord(blockdata.coordinate, rotation);
+    }
+}
+
 fn lowest_blocks_of_testblob(
     block_query: &Query<&mut BlockExtra>,
     blob_query: &Query<&mut BlobExtra>,
@@ -536,12 +534,12 @@ pub fn demo_system(
             }
         }
         if s.just_pressed(TetrisActionsWASD::Left) {
-            bevy::log::info!("LEFT for cutout pressed!");
+            bevy::log::info!("LEFT for LineRemove pressed!");
             let to_remove = lowest_blocks_of_testblob(&block_query, &blob_query, &config);
             if let Some(test_blob) = config.test_blob {
                 if let Ok(mut blobdata) = blob_query.get_mut(test_blob) {
                     blobdata.blocks.retain(|x| !to_remove.contains(x));
-                    evt.send(ViewUpdate::Cutout(to_remove));
+                    evt.send(ViewUpdate::LineRemove(to_remove));
                 }
             }
         }

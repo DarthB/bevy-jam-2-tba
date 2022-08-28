@@ -1,6 +1,6 @@
 use bevy::{prelude::*, render::camera::ScalingMode, window::WindowMode};
-use bevy_tweening::TweeningPlugin;
 use bevy_jam_2_tba_lib::{game_assets::GameAssets, prelude::*, SECONDS_PER_ROUND};
+use bevy_tweening::TweeningPlugin;
 
 #[cfg(feature = "debug")]
 use {
@@ -113,6 +113,8 @@ fn main() {
         .register_inspectable::<Coordinate>()
         .register_inspectable::<BlobGravity>()
         .register_inspectable::<Blob>()
+        .register_inspectable::<crate::view::BlobExtra>()
+        .register_inspectable::<crate::view::BlockExtra>()
         .register_inspectable::<Field>()
         .register_inspectable::<UITagImage>()
         .register_inspectable::<UITagHover>()
