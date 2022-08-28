@@ -11,7 +11,7 @@ pub struct Level {
 
 impl Level {
     pub fn new() -> Self {
-        return Level::level_01();
+        Level::level_01()
     }
 
     pub fn level_01() -> Self {
