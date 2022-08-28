@@ -91,8 +91,6 @@ pub fn spawn_simple_rendering_entity<'w, 's, 'a>(
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, PartialEq, Clone, Reflect)]
 pub struct BlobRenderState {
-    /// Root entity of the blob visualization
-    root: Entity,
     /// Last known `pivot` from the game logic
     last_pivot: IVec2,
     /// Cumulative left rotations (0..3)
@@ -155,28 +153,14 @@ fn handle_blob_spawned(
         let transform = Transform::from_translation(
             config.factory_topleft + coord_to_translation(blobdata.pivot),
         );
-        let root = commands
-            .spawn_bundle(SpatialBundle::from(transform))
+        commands
+            .entity(blob)
+            .insert_bundle(SpatialBundle::from(transform))
+            .insert(BlobRenderState {
+                last_pivot: blobdata.pivot,
+                rotation_steps: 0,
+            })
             .with_children(|cb| {
-                for &block in blobdata.blocks.iter() {
-                    let blockdata = block_query.get(block).unwrap();
-
-                    cb.spawn_bundle(SpriteBundle {
-                        sprite: Sprite {
-                            color: Color::WHITE,
-                            custom_size: Some(Vec2::ONE * PX_PER_TILE),
-                            ..Default::default()
-                        },
-                        transform: Transform::from_xyz(
-                            blockdata.coordinate.x as f32 * -PX_PER_TILE,
-                            blockdata.coordinate.y as f32 * -PX_PER_TILE,
-                            0.0,
-                        ),
-                        texture: config.brick_image.clone(),
-                        ..Default::default()
-                    });
-                }
-
                 // Pivot
                 cb.spawn_bundle(SpriteBundle {
                     sprite: Sprite {
@@ -187,15 +171,32 @@ fn handle_blob_spawned(
                     transform: Transform::from_xyz(0.0, 0.0, crate::Z_OVERLAY),
                     texture: DEFAULT_IMAGE_HANDLE.typed(),
                     ..Default::default()
-                });
-            })
-            .id();
-        commands.entity(config.renderer_entity).add_child(root);
-        commands.entity(blob).insert(BlobRenderState {
-            root,
-            last_pivot: blobdata.pivot,
-            rotation_steps: 0,
-        });
+                })
+                .insert(Name::new("Pivot Debug"));
+            });
+        commands.entity(config.renderer_entity).add_child(blob);
+
+        for &block in blobdata.blocks.iter() {
+            let blockdata = block_query.get(block).unwrap();
+
+            // temporary hack until we can expect the game logic to do this for us
+            commands.entity(blob).add_child(block);
+
+            commands.entity(block).insert_bundle(SpriteBundle {
+                sprite: Sprite {
+                    color: Color::WHITE,
+                    custom_size: Some(Vec2::ONE * PX_PER_TILE),
+                    ..Default::default()
+                },
+                transform: Transform::from_xyz(
+                    blockdata.coordinate.x as f32 * -PX_PER_TILE,
+                    blockdata.coordinate.y as f32 * -PX_PER_TILE,
+                    0.0,
+                ),
+                texture: config.brick_image.clone(),
+                ..Default::default()
+            });
+        }
     }
 }
 
@@ -220,7 +221,7 @@ fn handle_blob_moved(
             config.anim_duration,
             TransformPositionLens { start, end },
         );
-        commands.entity(state.root).insert(Animator::new(tween));
+        commands.entity(blob).insert(Animator::new(tween));
         state.last_pivot = blobdata.pivot;
     }
 }
@@ -246,7 +247,7 @@ fn handle_blob_rotated(
             TransformRotateZLens { start, end },
         );
 
-        commands.entity(state.root).insert(Animator::new(tween));
+        commands.entity(blob).insert(Animator::new(tween));
 
         match rotation {
             Rotation::Left => {
@@ -275,7 +276,7 @@ fn handle_blob_transferred(
             config.anim_duration,
             TransformPositionLens { start, end },
         );
-        commands.entity(state.root).insert(Animator::new(tween));
+        commands.entity(blob).insert(Animator::new(tween));
         state.last_pivot = blobdata.pivot;
     }
 }
