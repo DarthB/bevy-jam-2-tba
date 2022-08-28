@@ -474,7 +474,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_jam_2_disastris"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
