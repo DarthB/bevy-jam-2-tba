@@ -1,4 +1,4 @@
-use crate::{blob::*, field::spawn_field, game_assets::GameAssets, prelude::*};
+use crate::{blob::*, field::spawn_field, game_assets::GameAssets, prelude::*, target::*};
 use bevy::prelude::*;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -70,14 +70,25 @@ pub fn spawn_world(
 
     let t_stone = spawn_blob(
         &mut commands,
+        &assets.block_blob,
+        &assets,
+        level.start_blob.0.clone(),
+        "Fake Target Stone",
+        Some(level.start_blob.1.into()),
+        &|_| {},
+    );
+    //commands.entity(pr_field).push_children(&[t_stone]);
+
+    /*let t_stone = spawn_target(
+        &mut commands,
         &assets.block_target_outline,
         &assets,
         level.target_figure.0.clone(),
         "Target Stone",
         Some(level.target_figure.1.into()),
         &|_| {},
-    );
-    commands.entity(pr_field).push_children(&[t_stone]);
+    );*/
+    //commands.entity(pr_field).push_children(&[t_stone]);
 
     let pos = UiRect {
         top: Val::Percent(3.0),

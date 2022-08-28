@@ -190,6 +190,62 @@ impl RenderableGrid for Blob {
     }
 }
 
+impl RenderableGrid for Target {
+    fn rows(&self) -> usize {
+        Target::size()
+    }
+
+    fn cols(&self) -> usize {
+        Target::size()
+    }
+
+    fn coords_to_px(&self, mut x: i32, mut y: i32) -> (f32, f32) {
+        if let Some(coord) = &self.coordinate {
+            x += coord.c;
+            y += coord.r;
+        }
+        coords_to_px(x, y, Target::size(), Target::size())
+    }
+
+    fn get_render_id(&self, r: i32, c: i32) -> i32 {
+        self.body[r as usize * Target::size() + c as usize]
+    }
+
+    fn spawn_pivot(&self) -> bool {
+        true
+    }
+
+    #[cfg(feature = "debug")]
+    fn spawn_origin(&self) -> bool {
+        true
+    }
+
+    fn get_sprite_info(&self, num: i32, _assets: &GameAssets) -> SpriteInfo {
+        let mut reval = if num == 1 {
+            SpriteInfo {
+                color: Color::default(),
+                z: Z_SOLID,
+                image: DEFAULT_IMAGE_HANDLE.typed(),
+            }
+        } else {
+            SpriteInfo {
+                color: Color::rgba(0.5, 0.5, 0.5, 0.25),
+                z: Z_TRANS,
+                image: DEFAULT_IMAGE_HANDLE.typed(),
+            }
+        };
+        reval.image = self.texture.clone();
+        reval
+    }
+
+    fn adapt_render_entities(&self, cb: &mut EntityCommands, r: usize, c: usize) {
+        cb.insert(Coordinate {
+            r: r as i32,
+            c: c as i32,
+        });
+    }
+}
+
 impl RenderableGrid for Field {
     fn rows(&self) -> usize {
         self.mov_size().1 + self.additional_grids.top + self.additional_grids.bottom

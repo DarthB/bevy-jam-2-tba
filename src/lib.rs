@@ -11,6 +11,7 @@ pub mod level;
 pub mod movement;
 pub mod player_state;
 pub mod render_old;
+pub mod target;
 pub mod turn;
 
 pub const PX_PER_TILE: f32 = 32.0;
@@ -48,6 +49,7 @@ pub mod prelude {
     pub use crate::movement::*;
     pub use crate::player_state::*;
     pub use crate::render_old::*;
+    pub use crate::target::*;
     pub use crate::turn::*;
 
     pub use crate::*;

@@ -11,11 +11,7 @@ pub struct Level {
 
 impl Level {
     pub fn new() -> Self {
-        Level {
-            start_blob: (prototype::gen_blob_body(), (3, -4)),
-            target_figure: (prototype::gen_target_body(), (3, -4)),
-            applicable_tools: HashMap::new(),
-        }
+        return Level::level_01();
     }
 
     pub fn level_01() -> Self {
@@ -25,8 +21,14 @@ impl Level {
         applicable_tools.insert(Tool::Cutter(TetrisBricks::default()), 0);
 
         Level {
-            start_blob: (prototype::gen_blob_body2(), (3, -4)),
-            target_figure: (prototype::gen_target_body2(), (5, 13)),
+            start_blob: (
+                prototype::gen_blob_body(1).expect("Couldn't generate start blob"),
+                (3, -4),
+            ),
+            target_figure: (
+                prototype::gen_target_body(1).expect("Couldn't generate target figure"),
+                (10, 12),
+            ),
             applicable_tools,
         }
     }
