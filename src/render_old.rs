@@ -168,13 +168,13 @@ impl RenderableGrid for Blob {
         let mut reval = if num == 1 {
             SpriteInfo {
                 color: Color::default(),
-                z: Z_SOLID,
+                z: Z_SOLID + 1.0,
                 image: DEFAULT_IMAGE_HANDLE.typed(),
             }
         } else {
             SpriteInfo {
                 color: Color::rgba(0.5, 0.5, 0.5, 0.25),
-                z: Z_TRANS,
+                z: Z_TRANS + 1.0,
                 image: DEFAULT_IMAGE_HANDLE.typed(),
             }
         };
@@ -224,13 +224,13 @@ impl RenderableGrid for Target {
         let mut reval = if num == 1 {
             SpriteInfo {
                 color: Color::default(),
-                z: Z_SOLID,
+                z: Z_SOLID+5.,
                 image: DEFAULT_IMAGE_HANDLE.typed(),
             }
         } else {
             SpriteInfo {
                 color: Color::rgba(0.5, 0.5, 0.5, 0.25),
-                z: Z_TRANS,
+                z: Z_TRANS+5.,
                 image: DEFAULT_IMAGE_HANDLE.typed(),
             }
         };
