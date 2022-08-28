@@ -99,13 +99,6 @@ pub struct BlobRenderState {
     rotation_steps: i32,
 }
 
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, PartialEq, Clone, Reflect)]
-pub struct BlockRenderState {
-    /// Root entity of the block visualization
-    root: Entity,
-}
-
 //----------------------------------------------------------------------
 // utility functions
 
