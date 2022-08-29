@@ -88,7 +88,7 @@ impl Blob {
         Blob::size().pow(2) / 2
     }
 
-    pub fn rotate_left<'a, I>(&mut self, block_iter: I)
+    pub fn rotate_left<'a, I>(&mut self, block_iter: &mut I)
         where I: Iterator<Item = Mut<'a, Block>> {
         self.relative_positions.clear();
         for mut block in block_iter {
@@ -107,8 +107,10 @@ impl Blob {
 
     /// the function calculates the occupied coordinates in the coordinate system of the
     /// parent (coordinate property)
-    pub fn occupied_coordinates(&self) -> Vec<(i32, i32)> {
-        unimplemented!();
+    pub fn coordinates_of_blocks(&self) -> Vec<IVec2> {
+        self.relative_positions.iter()
+            .map(|v| *v + self.coordinate)
+            .collect()
     }
 }
 
@@ -143,7 +145,7 @@ pub fn spawn_blob(
     blob.texture = texture.clone();
 
     // @todo borow checker and getting the ids into each other
-    blob.blocks = Block::spawn_blocks_of_blob(commands, body);
+    blob.blocks = Block::spawn_blocks_of_blob(commands, &body, &blob);
 
     let mut ec = commands.spawn_bundle(SpatialBundle {
         ..Default::default()
@@ -194,12 +196,12 @@ pub fn move_blob_by_player(
                 blob.coordinate.x += 1;
             }
         
-            let block_iter = query_block.iter_mut()
+            let mut block_iter = query_block.iter_mut()
                 .filter(|b| b.blob.is_some() && b.blob.unwrap() == blob_id);
             if s.pressed(TetrisActionsWASD::LRotate) {
-                blob.rotate_left(block_iter);
+                blob.rotate_left(&mut block_iter);
             } else if s.pressed(TetrisActionsWASD::RRotate) {
-                blob.rotate_right(block_iter);
+                blob.rotate_right(&mut block_iter);
             }
         });
     }
@@ -218,11 +220,15 @@ pub fn blob_update_transforms(
 }
 
 // Keep the blob id in the block entity correct as this has not been done during spawning
-pub fn stupid_block_update(blob_query: Query<(Entity, &Blob)>, mut block_query: Query<&mut Block>) {
-    for (blob_id, blob) in blob_query.iter() {
+pub fn stupid_block_update(
+    blob_query: Query<(Entity, &Parent, &Blob)>, 
+    mut block_query: Query<&mut Block>,
+) {
+    for (blob_id, parent, blob) in blob_query.iter() {
         for block_id in blob.blocks.iter() {
             if let Ok(mut block) = block_query.get_mut(*block_id) {
                 block.blob = Some(blob_id);
+                block.field = Some(parent.get());
             }
         }
     }

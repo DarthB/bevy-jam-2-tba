@@ -122,7 +122,7 @@ fn main() {
                 .with_system(update_toolbar_overlays)
                 .with_system(blob_update_transforms)
                 .with_system(update_field_debug)
-                //.with_system(crate::view::handle_view_updates)
+                .with_system(crate::view::handle_view_updates)
                 .label(MySystems::RenderUpdates)
                 .after(MySystems::PostGameUpdates),
         )

@@ -33,7 +33,7 @@ pub fn spawn_world(
         &assets,
         comp,
         "Factory Field",
-        Vec3::new(-200.0, 0.0, 0.0),
+        Vec3::new(-100.0, 0.0, 0.0),
         turn.use_old_rendering,
         &|ec| {
             ec.insert(FactoryFieldTag {});
@@ -64,7 +64,7 @@ pub fn spawn_world(
         &assets,
         Field::as_production_field(&assets),
         "Production Field",
-        Vec3::new(300.0, 0.0, 0.0),
+        Vec3::new(600.0, 0.0, 0.0),
         turn.use_old_rendering,
         &|ec| {
             ec.insert(ProductionFieldTag {});

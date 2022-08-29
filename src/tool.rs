@@ -6,7 +6,7 @@ use crate::prelude::*;
 pub struct ToolComponent {
     pub kind: Tool,
 
-    relative_positions: Option<Vec<IVec2>>,
+    pub relative_positions: Option<Vec<IVec2>>,
 }
 
 impl Default for ToolComponent {

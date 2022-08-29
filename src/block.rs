@@ -11,17 +11,23 @@ pub struct Block {
     pub position: IVec2,
 
     pub blob: Option<Entity>,
+
+    pub field: Option<Entity>,
 }
 
 impl Block {
-    pub fn spawn_blocks_of_blob(commands: &mut Commands, body: BlobBody) -> Vec<Entity> {
+    pub fn spawn_blocks_of_blob(commands: &mut Commands, body: &BlobBody, blob: &Blob) -> Vec<Entity> {
         let mut reval = vec![];
         for v in body.get_relative_positions() {
             let mut ec = commands.spawn();
             if v == IVec2::ZERO {
                 ec.insert(PivotTag{});
             }
-            let id = ec.insert(Block{ position: v, blob: None })
+            let id = ec.insert(Block{ 
+                    position: blob.coordinate + v, 
+                    blob: None,
+                    field: None,
+                })
                 .insert(Name::new(format!("Block {},{}", v.x, v.y)))
                 .id();
 

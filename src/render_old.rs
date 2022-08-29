@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use bevy::{ecs::system::EntityCommands, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
+use bevy::{ecs::system::EntityCommands, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE, log};
 
 pub struct SpriteInfo {
     pub image: Handle<Image>,
@@ -14,13 +14,23 @@ pub struct DebugOccupiedTag {
 }
 
 pub trait RenderableGrid {
-    fn rows(&self) -> usize;
+    fn bounds(&self) -> (IVec2, IVec2);
 
-    fn cols(&self) -> usize;
+    fn dimensions(&self) -> (usize, usize) {
+        let b = self.bounds();
+        (
+            (b.1.x - b.0.x) as usize,
+            (b.1.y - b.0.y) as usize,
+        )
+    }
 
     fn coords_to_px(&self, x: i32, y: i32) -> (f32, f32);
 
     fn get_render_id(&self, r: i32, c: i32) -> i32;
+
+    fn spawn_normal(&self) -> bool {
+        false
+    }
 
     fn spawn_pivot(&self) -> bool {
         false
@@ -36,31 +46,35 @@ pub trait RenderableGrid {
 
     fn get_sprite_info(&self, num: i32, assets: &GameAssets) -> SpriteInfo;
 
-    fn adapt_render_entities(&self, cb: &mut EntityCommands, r: usize, c: usize);
+    fn adapt_render_entities(&self, cb: &mut EntityCommands, r: i32, c: i32);
 
     fn spawn_render_entities(&self, _id: Entity, cb: &mut ChildBuilder, assets: &GameAssets) {
-        for r in 0..self.rows() {
-            for c in 0..self.cols() {
-                let num = self.get_render_id(r as i32, c as i32);
-                let info = self.get_sprite_info(num, assets);
+        if self.spawn_normal() {
+            let b = self.bounds();
+            for r in b.0.y..b.1.y {
+                for c in b.0.x..b.1.x {
+                    let num = self.get_render_id(r as i32, c as i32);
+                    let info = self.get_sprite_info(num, assets);
 
-                let (x, y) = coords_to_px(c as i32, r as i32, self.rows(), self.cols());
+                    let dims = self.dimensions();
+                    let (x, y) = coords_to_px(c as i32, r as i32, dims.0, dims.1);
 
-                let mut ec = cb.spawn_bundle(SpriteBundle {
-                    sprite: Sprite {
-                        color: info.color,
-                        custom_size: Some(Vec2::ONE * PX_PER_TILE - 2.0),
+                    let mut ec = cb.spawn_bundle(SpriteBundle {
+                        sprite: Sprite {
+                            color: info.color,
+                            custom_size: Some(Vec2::ONE * PX_PER_TILE - 2.0),
+                            ..Default::default()
+                        },
+                        transform: Transform {
+                            translation: Vec3::new(x, y, info.z),
+                            ..Default::default()
+                        },
+                        texture: info.image,
                         ..Default::default()
-                    },
-                    transform: Transform {
-                        translation: Vec3::new(x, y, info.z),
-                        ..Default::default()
-                    },
-                    texture: info.image,
-                    ..Default::default()
-                });
-                ec.insert(Name::new(format!("grid {}:{}", r, c)));
-                self.adapt_render_entities(&mut ec, r, c);
+                    });
+                    ec.insert(Name::new(format!("grid {}:{}", r, c)));
+                    self.adapt_render_entities(&mut ec, r as i32, c as i32);
+                }
             }
         }
 
@@ -101,8 +115,9 @@ pub trait RenderableGrid {
         if self.spawn_additional_debug() {
             cb.spawn_bundle(SpatialBundle::default())
                 .with_children(|cb| {
-                    for x in 0..self.cols() {
-                        for y in 0..self.rows() {
+                    let b = self.bounds();
+                    for x in b.0.x..b.1.x {
+                        for y in b.0.y..b.1.y {
                             if self.get_render_id(y as i32, x as i32) == -1 {
                                 continue;
                             }
@@ -135,12 +150,8 @@ pub trait RenderableGrid {
 }
 
 impl RenderableGrid for Blob {
-    fn rows(&self) -> usize {
-        Blob::size()
-    }
-
-    fn cols(&self) -> usize {
-        Blob::size()
+    fn bounds(&self) -> (IVec2, IVec2) {
+        (IVec2::ZERO, IVec2::splat(Blob::size() as i32))
     }
 
     fn coords_to_px(&self, x: i32, y: i32) -> (f32, f32) {
@@ -156,6 +167,10 @@ impl RenderableGrid for Blob {
         } else {
             0
         }
+    }
+
+    fn spawn_normal(&self) -> bool {
+        false
     }
 
     fn spawn_pivot(&self) -> bool {
@@ -185,21 +200,18 @@ impl RenderableGrid for Blob {
         reval
     }
 
-    fn adapt_render_entities(&self, cb: &mut EntityCommands, r: usize, c: usize) {
+    fn adapt_render_entities(&self, cb: &mut EntityCommands, r: i32, c: i32) {
         cb.insert(Coordinate {
-            r: r as i32,
-            c: c as i32,
+            r,
+            c,
         });
     }
 }
 
 impl RenderableGrid for Target {
-    fn rows(&self) -> usize {
-        Target::size()
-    }
-
-    fn cols(&self) -> usize {
-        Target::size()
+    
+    fn bounds(&self) -> (IVec2, IVec2) {
+        (IVec2::ZERO, IVec2::splat(Target::size() as i32))
     }
 
     fn coords_to_px(&self, mut x: i32, mut y: i32) -> (f32, f32) {
@@ -212,6 +224,10 @@ impl RenderableGrid for Target {
 
     fn get_render_id(&self, r: i32, c: i32) -> i32 {
         self.body[r as usize * Target::size() + c as usize]
+    }
+
+    fn spawn_normal(&self) -> bool {
+        false
     }
 
     fn spawn_pivot(&self) -> bool {
@@ -241,21 +257,24 @@ impl RenderableGrid for Target {
         reval
     }
 
-    fn adapt_render_entities(&self, cb: &mut EntityCommands, r: usize, c: usize) {
+    fn adapt_render_entities(&self, cb: &mut EntityCommands, r: i32, c: i32) {
         cb.insert(Coordinate {
-            r: r as i32,
-            c: c as i32,
+            r,
+            c,
         });
     }
 }
 
 impl RenderableGrid for Field {
-    fn rows(&self) -> usize {
-        self.mov_size().1 + self.additional_grids.top + self.additional_grids.bottom
-    }
+ 
+    fn bounds(&self) -> (IVec2, IVec2) {
+        
+        let top = self.allow_overlap.top as i32;
+        let left = self.allow_overlap.left as i32;
+        let bottom = (self.mov_size().1 + self.allow_overlap.bottom) as i32;
+        let right = (self.mov_size().0 + self.allow_overlap.right) as i32;
 
-    fn cols(&self) -> usize {
-        self.mov_size().0 + self.additional_grids.left + self.additional_grids.right
+        (IVec2::new(-left, -top), IVec2::new(right, bottom))
     }
 
     fn get_sprite_info(&self, num: i32, assets: &GameAssets) -> SpriteInfo {
@@ -269,6 +288,16 @@ impl RenderableGrid for Field {
                 color: Color::WHITE,
                 z: Z_SOLID,
                 image: self.brick_image.clone(),
+            },
+            2 => SpriteInfo {
+                image: DEFAULT_IMAGE_HANDLE.typed(),
+                color: Color::GRAY,
+                z: Z_SOLID,
+            },
+            3 => SpriteInfo {
+                image: DEFAULT_IMAGE_HANDLE.typed(),
+                color: Color::NAVY,
+                z: Z_SOLID,
             },
             _ => {
                 if let Ok(tool) = TryInto::<Tool>::try_into(num) {
@@ -294,21 +323,31 @@ impl RenderableGrid for Field {
     }
 
     fn get_render_id(&self, r: i32, c: i32) -> i32 {
-        if r < 0 || r >= self.mov_size().1 as i32 || c < 0 || c >= self.mov_size().0 as i32 {
-            return -1
+        let b = self.bounds();
+        if r < b.0.y || r >= b.1.y || c < b.0.x || c >= b.1.x {
+            //log::warn!("Shall not happen! Out of bounds");
+            return 3
         }
 
         let state = self.get_field_state();
         if let Some(element) = state.get_element(IVec2::new(c,r)) {
             match element.kind {
                 FieldElementKind::Empty => 0,
-                FieldElementKind::OutOfRegion => 0,
-                FieldElementKind::Block(_) => 1,
+                FieldElementKind::OutOfRegion => 2,
+                FieldElementKind::Block => 1,
                 FieldElementKind::Tool(t) => t.into(),
             }
+        } else if r < 0 || r >= self.mov_size().1 as i32 
+            || c<0 || c >= self.mov_size().0 as i32 {
+            log::warn!("Shall not happen, under mov.size");
+            2
         } else {
+            log::warn!("Shall not happen, ELSE Branch");
             0
         }
+    }
+    fn spawn_normal(&self) -> bool {
+        true
     }
 
     fn spawn_pivot(&self) -> bool {
@@ -324,12 +363,10 @@ impl RenderableGrid for Field {
         false
     }
 
-    fn adapt_render_entities(&self, cb: &mut EntityCommands, r: usize, c: usize) {
+    fn adapt_render_entities(&self, cb: &mut EntityCommands, r: i32, c: i32) {
         cb.insert(Coordinate {
-            r: r as i32 - self.additional_grids.top as i32,
-            c: c as i32 - self.additional_grids.left as i32,
-            //            r: r as i32,
-            //            c: c as i32,
+            r,
+            c,
         });
         cb.insert(FieldRenderTag {});
     }
@@ -368,7 +405,7 @@ pub fn update_field_debug(
             let field_state = field.get_field_state();
             sprite.color = if let Some(element) = field_state.get_element(IVec2::new(coord.c, coord.r)) {
                 match element.kind {
-                    FieldElementKind::Block(_) => Color::RED,
+                    FieldElementKind::Block => Color::RED,
                     _ => Color::WHITE,
                 }
             } else {

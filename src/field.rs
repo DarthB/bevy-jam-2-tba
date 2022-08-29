@@ -9,14 +9,13 @@ use crate::{game_assets::GameAssets, prelude::*};
 pub struct Field {
     pub movable_size: (usize, usize),
 
-    pub additional_grids: UiRect<usize>,
-
     pub allow_overlap: UiRect<usize>,
 
     pub movable_area_image: Handle<Image>,
 
     pub brick_image: Handle<Image>,
 
+    //#[cfg_attr(feature = "debug", inspectable(ignore))]
     field_state: FieldState,
 }
 
@@ -36,17 +35,11 @@ pub type FieldMutator = dyn Fn(&mut Field, (i32, i32), usize);
 
 impl Field {
     pub fn as_factory(assets: &GameAssets) -> Self {
-        let mut reval = Field {
+        let reval = Field {
             movable_size: (10, 18),
-            additional_grids: UiRect {
+            allow_overlap: UiRect {
                 left: 4,
                 right: 4,
-                top: 0,
-                bottom: 0,
-            },
-            allow_overlap: UiRect {
-                left: 10,
-                right: 0,
                 top: 4,
                 bottom: 9,
             },
@@ -55,12 +48,11 @@ impl Field {
             ..Default::default()
         };
 
-        let num = reval.movable_size.0 * reval.movable_size.1;
         reval
     }
 
     pub fn as_production_field(assets: &GameAssets) -> Self {
-        let mut reval = Field {
+        let reval = Field {
             allow_overlap: UiRect {
                 left: 0,
                 right: 0,
@@ -72,20 +64,18 @@ impl Field {
             ..Default::default()
         };
 
-        let num = reval.movable_size.0 * reval.movable_size.1;
-
         reval
     }
 
     pub fn bounds(&self) -> (IVec2, IVec2) {
         (
             IVec2::new(
-                -(self.additional_grids.top as i32), 
-                -(self.additional_grids.left as i32),
+                -(self.allow_overlap.top as i32), 
+                -(self.allow_overlap.left as i32),
             ),
             IVec2::new(
-                (self.mov_size().0 + self.additional_grids.right) as i32,
-                (self.mov_size().1 + self.additional_grids.bottom) as i32,
+                (self.mov_size().0 + self.allow_overlap.right) as i32,
+                (self.mov_size().1 + self.allow_overlap.bottom) as i32,
             )
         )
     }
@@ -103,12 +93,26 @@ impl Field {
     ) -> &FieldState {
         self.field_state = FieldState::new(self.bounds());
 
+        for x in self.bounds().0.x..self.bounds().1.x {
+            for y in self.bounds().0.y..self.bounds().1.y {
+                if x < 0 || y < 0 || x >= self.mov_size().0 as i32 || y >= self.mov_size().1 as i32 {
+                    let pos = IVec2::new(x,y);
+                    self.field_state.set_element(pos, FieldElement { 
+                        entity: None, 
+                        blob: None,
+                        kind: FieldElementKind::OutOfRegion,
+                        position: pos 
+                    });
+                }
+            }
+        }
+
         for (entity, block, opt_tool) in block_iter {
             let new_el = if let Some(blob) = block.blob {
                 FieldElement {
                     entity: Some(entity),
                     blob: Some(blob),
-                    kind: FieldElementKind::Block(entity),
+                    kind: FieldElementKind::Block,
                     position: block.position,
                 }
             } else if let Some(tool) = opt_tool {
@@ -118,48 +122,14 @@ impl Field {
                     kind: FieldElementKind::Tool(tool.kind),
                     position: block.position,
                 }
+            } else if let Some(old_el) = self.field_state.get_element(block.position) {
+                old_el
             } else {
                 FieldElement::default()
             };        
             self.field_state.set_element(block.position, new_el);
         }
         &self.field_state
-    }
-
-    pub fn mutate_at_coordinate(&mut self, coord: (i32, i32), mutator: &FieldMutator) {
-        self.mutate_at_coordinates(&vec![coord], mutator);
-    }
-
-    pub fn mutate_at_coordinates(&mut self, coords: &Vec<(i32, i32)>, mutator: &FieldMutator) {
-        for &(x, y) in coords {
-            if x < 0 || y < 0 {
-                continue;
-            }
-
-            if let Some(idx) = self.coords_to_idx(x as usize, y as usize) {
-                mutator(self, (x, y), idx);
-            } else {
-                log::warn!(
-                    "Tried to mutate something at ({x},{y}), although {} is the maximum idx for this field.",
-                    0//self.max_idx()
-                );
-            }
-        }
-    }
-
-    pub fn coords_to_idx(&self, x: usize, y: usize) -> Option<usize> {
-        if x >= self.mov_size().0 || y >= self.mov_size().1 {
-            None
-        } else {
-            Some(x + y * self.movable_size.0)
-        }
-    }
-
-    pub fn size(&self) -> (usize, usize) {
-        (
-            self.movable_size.0 + self.additional_grids.left + self.additional_grids.right,
-            self.movable_size.1 + self.additional_grids.top + self.additional_grids.bottom,
-        )
     }
 
     pub fn mov_size(&self) -> (usize, usize) {
@@ -259,12 +229,6 @@ impl Default for Field {
     fn default() -> Self {
         Self {
             movable_size: (10, 18),
-            additional_grids: UiRect {
-                left: 1,
-                right: 1,
-                top: 0,
-                bottom: 1,
-            },
             allow_overlap: UiRect {
                 left: 0,
                 right: 0,
@@ -279,11 +243,14 @@ impl Default for Field {
 }
 
 pub fn generate_field_states(
-    query_state: Query<(Entity, &mut Block, Option<&ToolComponent>)>, 
-    mut query_fields: Query<&mut Field>,
+    query_state: Query<(Entity, &mut Block, Option<&ToolComponent>)>,
+    mut query_field: Query<(Entity, &mut Field)>,
 ) {
-    for mut field in query_fields.iter_mut() {
-        field.generate_field_state(query_state.iter());
+    for (field_id, mut field) in query_field.iter_mut() {
+        let iter = query_state.iter().filter(|(_, block, _)| {
+            block.field.is_some() && block.field.unwrap() == field_id
+        });
+        field.generate_field_state(iter);
     }
 }
 

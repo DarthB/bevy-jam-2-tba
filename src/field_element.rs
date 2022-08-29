@@ -4,6 +4,8 @@ use crate::prelude::*;
 // chat log form psi architecture / refactor discussion
 
 /// Encapsules the game state of a game field.
+/// 
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct FieldState {
     // gives the start values and end values of coordinates in this field
@@ -61,7 +63,7 @@ impl FieldState {
 
     pub fn is_any_coordinate_occupied(
         &self,
-        coords: &Vec<(IVec2)>,
+        coords: &Vec<IVec2>,
     ) -> bool {
         for v in coords {
             let res = self.is_coordinate_occupied(*v);
@@ -137,7 +139,7 @@ pub enum FieldElementKind {
     #[default]
     Empty,
     OutOfRegion,
-    Block(Entity),
+    Block,
     Tool(Tool),
 }
 

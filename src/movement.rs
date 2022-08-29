@@ -67,24 +67,29 @@ pub fn move_factory_blobs_by_events(
                 //~
 
                 if let Some(element) = state.get_element(tv) {
+                    let mut block_iter = block_query.iter_mut()
+                        .filter(|block| block.blob.is_some() && block.blob.unwrap() == blob_id );
+
                     match element.kind {
-                        FieldElementKind::Empty => {
-                            blob.coordinate = IVec2::new(tc, tr);
-                            ev_view.send(ViewUpdate::BlobMoved(blob_id));
+                        // in the factory we can move out of region
+                        FieldElementKind::Empty | FieldElementKind::OutOfRegion => {
+                            move_blob(
+                                (blob_id, &mut blob),
+                                IVec2::new(ev.delta.0, ev.delta.1), 
+                                block_iter, 
+                                &mut ev_view);
                         },
                         FieldElementKind::Tool(tool) => {
                             let mut handled_by_tool = true;
-                        
+                            
                             match tool {
                                 Tool::Move(d) => {
                                     blob.movement = d.into();
                                 },
                                 Tool::Rotate(d) => {
-                                    let block_iter = block_query.iter_mut()
-                                        .filter(|block| block.blob.is_some() && block.blob.unwrap() == blob_id );
                                     match d {
-                                        RotateDirection::Left => blob.rotate_left(block_iter),
-                                        RotateDirection::Right => blob.rotate_right(block_iter),
+                                        RotateDirection::Left => blob.rotate_left(&mut block_iter),
+                                        RotateDirection::Right => blob.rotate_right(&mut block_iter),
                                     }
                                 },
                                 Tool::Cutter(_) => {
@@ -94,8 +99,12 @@ pub fn move_factory_blobs_by_events(
                             }
 
                             if handled_by_tool {
-                                blob.coordinate = IVec2::new(tc, tr);
-                                ev_view.send(ViewUpdate::BlobMoved(blob_id));
+                                move_blob(
+                                    (blob_id, &mut blob),
+                                    IVec2::new(ev.delta.0, ev.delta.1), 
+                                    block_iter, 
+                                    &mut ev_view);
+                                
                             }
                         },
                         _ => {
@@ -108,6 +117,24 @@ pub fn move_factory_blobs_by_events(
     }
 }
 
+fn move_blob<'a>(
+    (blob_id, blob): (Entity, &mut Blob),
+    delta: IVec2,
+    block_iter: impl Iterator<Item = Mut<'a, Block>>,
+    ev_view: &mut EventWriter<ViewUpdate>,
+) {
+    blob.coordinate = blob.coordinate + delta;
+    for mut block in block_iter {
+        if let Some(blob) = block.blob  {
+            if blob == blob_id {
+                block.position += delta;
+            }
+        }
+    }
+
+    ev_view.send(ViewUpdate::BlobMoved(blob_id));
+}
+
 pub fn move_production_blobs_by_events(
     mut commands: Commands,
     mut query: Query<(Entity, &Parent, &mut Blob)>,
@@ -118,25 +145,21 @@ pub fn move_production_blobs_by_events(
         if let Ok((id, p, mut blob)) = query.get_mut(ev.entity) {
             
             if let Ok(field) = parent_query.get_mut(p.get()) {
-                let occ_coords: Vec<(i32, i32)> = blob
-                    .occupied_coordinates()
+                let occ_coords: Vec<IVec2> = blob
+                    .coordinates_of_blocks()
                     .iter()
-                    .map(|(x, y)| (x - pivot_coord().0 as i32, y - pivot_coord().1 as i32))
+                    .map(|v| IVec2::new(v.x - pivot_coord().0 as i32, v.y - pivot_coord().1 as i32))
                     .collect();
 
                 // transform grid
                 let mut occ_coords_delta = occ_coords.clone();
                 for ch in &mut occ_coords_delta {
-                    ch.0 += ev.delta.0;
-                    ch.1 += ev.delta.1;
+                    ch.x += ev.delta.0;
+                    ch.y += ev.delta.1;
                 }
 
-                // test for occupied
-                let occ_coords_delta_ivec = occ_coords_delta.iter()
-                    .map(|(x, y)| IVec2::new(*x, *y))
-                    .collect();
                 let field_state = field.get_field_state();
-                let occupied = field_state.is_any_coordinate_occupied(&occ_coords_delta_ivec);
+                let occupied = field_state.is_any_coordinate_occupied(&occ_coords_delta);
 
                 if !occupied {
                     blob.coordinate.x += ev.delta.0;
@@ -168,6 +191,7 @@ pub fn teleport_blob_out_of_factory(
             commands.entity(fac).remove_children(&[ev.entity]);
             blob.coordinate.y = -3;
             commands.entity(prod).push_children(&[ev.entity]);
+            log::info!("Blob teleported!");
         }
     }
 }
