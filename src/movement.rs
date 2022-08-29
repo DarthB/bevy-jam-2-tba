@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use bevy::{log, prelude::*, ecs::query::QueryIter};
+use bevy::{log, prelude::*};
 
 pub struct BlobMoveEvent {
     delta: (i32, i32),
@@ -11,7 +11,7 @@ pub struct BlobTeleportEvent {
     entity: Entity,
 }
 
-pub fn move_blobs_by_gravity(
+pub fn generate_move_events_by_gravity(
     query_collector: Query<(Entity, &Blob)>,
     mut query: Query<(Entity, &Blob)>,
     turn: Res<Turn>,
@@ -43,11 +43,11 @@ pub fn move_factory_blobs_by_events(
     mut query: Query<(&Parent, Entity, &mut Blob)>,
     parent_query: Query<(Entity, &Field), With<FactoryFieldTag>>,
     mut block_query: Query<&mut Block>,
-    mut ev: EventReader<BlobMoveEvent>,
+    mut ev_move: EventReader<BlobMoveEvent>,
     mut ev_teleport: EventWriter<BlobTeleportEvent>,
-    mut evt: EventWriter<ViewUpdate>,
+    mut ev_view: EventWriter<ViewUpdate>,
 ) {
-    for ev in ev.iter() {
+    for ev in ev_move.iter() {
         if let Ok((p, blob_id, mut blob)) = query.get_mut(ev.entity) {
             let (entity, field) = parent_query.single();
             if entity != p.get() {
@@ -57,6 +57,8 @@ pub fn move_factory_blobs_by_events(
 
             if blob.active {
                 let (tc, tr) = (blob.coordinate.x + ev.delta.0, blob.coordinate.y + ev.delta.1);
+                let tv = IVec2::new(tc, tr);
+                let state = field.get_field_state();
 
                 if tr >= field.coordinate_limits().bottom {
                     ev_teleport.send(BlobTeleportEvent { entity: ev.entity });
@@ -64,48 +66,42 @@ pub fn move_factory_blobs_by_events(
                 }
                 //~
 
-                let (occupied, _) = field.is_coordinate_occupied(tc, tr, true);
-                if occupied && !(tc < 0 || tr < 0) {
-
-                    let num = field.occupied(field.coords_to_idx(tc as usize, tr as usize).unwrap());
-                    if num.is_none() {
-                        continue;
-                    }
-                    //~
-
-                    let mut handled_by_tool = false;
-                    let tool = TryInto::<Tool>::try_into(num.unwrap());
-                    if let Ok(tool) = tool {
-                        match tool {
-                            Tool::Move(d) => {
-                                blob.movement = d.into();
-                                handled_by_tool = true;
-                            }
-                            Tool::Rotate(d) => {
-                                let block_iter = block_query.iter_mut()
-                                    .filter(|block| block.blob.is_some() && block.blob.unwrap() == blob_id );
-                                match d {
-                                    RotateDirection::Left => blob.rotate_left(block_iter),
-                                    RotateDirection::Right => blob.rotate_right(block_iter),
+                if let Some(element) = state.get_element(tv) {
+                    match element.kind {
+                        FieldElementKind::Empty => {
+                            blob.coordinate = IVec2::new(tc, tr);
+                            ev_view.send(ViewUpdate::BlobMoved(blob_id));
+                        },
+                        FieldElementKind::Tool(tool) => {
+                            let mut handled_by_tool = true;
+                        
+                            match tool {
+                                Tool::Move(d) => {
+                                    blob.movement = d.into();
+                                },
+                                Tool::Rotate(d) => {
+                                    let block_iter = block_query.iter_mut()
+                                        .filter(|block| block.blob.is_some() && block.blob.unwrap() == blob_id );
+                                    match d {
+                                        RotateDirection::Left => blob.rotate_left(block_iter),
+                                        RotateDirection::Right => blob.rotate_right(block_iter),
+                                    }
+                                },
+                                Tool::Cutter(_) => {
+                                    // @todo implement cutter tool
                                 }
-                                handled_by_tool = true;
+                                _ => {handled_by_tool = false},
                             }
-                            Tool::Cutter(_) => {
-                                handled_by_tool = true;
+
+                            if handled_by_tool {
+                                blob.coordinate = IVec2::new(tc, tr);
+                                ev_view.send(ViewUpdate::BlobMoved(blob_id));
                             }
-                            _ => {}
+                        },
+                        _ => {
+                            bevy::log::warn!("Do nothing with target: {tc}, {tr} but stuck");
                         }
                     }
-
-                    if handled_by_tool {
-                        blob.coordinate = IVec2::new(tc, tr);
-                        evt.send(ViewUpdate::BlobMoved(blob_id));
-                    }
-                } else if !occupied {
-                    blob.coordinate = IVec2::new(tc, tr);
-                    evt.send(ViewUpdate::BlobMoved(blob_id));
-                } else {
-                    bevy::log::warn!("Do nothing with target: {tc}, {tr} but stuck");
                 }
             }
         }
@@ -120,7 +116,8 @@ pub fn move_production_blobs_by_events(
 ) {
     for ev in ev.iter() {
         if let Ok((id, p, mut blob)) = query.get_mut(ev.entity) {
-            if let Ok(mut field) = parent_query.get_mut(p.get()) {
+            
+            if let Ok(field) = parent_query.get_mut(p.get()) {
                 let occ_coords: Vec<(i32, i32)> = blob
                     .occupied_coordinates()
                     .iter()
@@ -135,7 +132,11 @@ pub fn move_production_blobs_by_events(
                 }
 
                 // test for occupied
-                let (occupied, _) = field.any_coordinates_occupied(&occ_coords_delta, true);
+                let occ_coords_delta_ivec = occ_coords_delta.iter()
+                    .map(|(x, y)| IVec2::new(*x, *y))
+                    .collect();
+                let field_state = field.get_field_state();
+                let occupied = field_state.is_any_coordinate_occupied(&occ_coords_delta_ivec);
 
                 if !occupied {
                     blob.coordinate.x += ev.delta.0;
@@ -143,7 +144,7 @@ pub fn move_production_blobs_by_events(
                 } else {
                     log::info!("Full Stop and occupy");
                     blob.active = false;
-                    field.occupy_coordinates(&occ_coords);
+                    //field.occupy_coordinates(&occ_coords);
 
                     commands.entity(id).despawn_recursive();
                 }
@@ -168,22 +169,5 @@ pub fn teleport_blob_out_of_factory(
             blob.coordinate.y = -3;
             commands.entity(prod).push_children(&[ev.entity]);
         }
-    }
-}
-
-pub fn move_field_content_down_if_not_occupied(
-    mut query_field: Query<&mut Field>,
-    turn: Res<Turn>,
-) {
-    if !turn.is_new_turn() {
-        return;
-    }
-    for mut field in query_field.iter_mut() {
-        if !field.tracks_occupied {
-            continue;
-        }
-        //~
-
-        field.move_down_if_possible();
     }
 }

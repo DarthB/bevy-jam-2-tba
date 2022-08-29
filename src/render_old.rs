@@ -261,7 +261,7 @@ impl RenderableGrid for Field {
     fn get_sprite_info(&self, num: i32, assets: &GameAssets) -> SpriteInfo {
         match num {
             -1 => SpriteInfo {
-                color: self.edge_color,
+                color: Color::BLACK,
                 z: Z_SOLID,
                 image: DEFAULT_IMAGE_HANDLE.typed(),
             },
@@ -290,18 +290,21 @@ impl RenderableGrid for Field {
 
     fn coords_to_px(&self, x: i32, y: i32) -> (f32, f32) {
         let woo = coords_to_px(x, y, self.movable_size.1, self.movable_size.0);
-        //let (ox, oy) = self.offset();
         (woo.0, woo.1)
     }
 
     fn get_render_id(&self, r: i32, c: i32) -> i32 {
         if r < 0 || r >= self.mov_size().1 as i32 || c < 0 || c >= self.mov_size().0 as i32 {
-            -1
-        } else if self.tracks_occupied {
-            if let Some(idx) = self.coords_to_idx(c as usize, r as usize) {
-                self.occupied(idx).unwrap_or(0)
-            } else {
-                0
+            return -1
+        }
+
+        let state = self.get_field_state();
+        if let Some(element) = state.get_element(IVec2::new(c,r)) {
+            match element.kind {
+                FieldElementKind::Empty => 0,
+                FieldElementKind::OutOfRegion => 0,
+                FieldElementKind::Block(_) => 1,
+                FieldElementKind::Tool(t) => t.into(),
             }
         } else {
             0
@@ -318,7 +321,7 @@ impl RenderableGrid for Field {
     }
 
     fn spawn_additional_debug(&self) -> bool {
-        self.tracks_occupied
+        false
     }
 
     fn adapt_render_entities(&self, cb: &mut EntityCommands, r: usize, c: usize) {
@@ -356,31 +359,21 @@ pub fn update_field_debug(
     mut query_sprite: Query<(&mut Sprite, &Coordinate), With<DebugOccupiedTag>>,
 ) {
     for field in query.iter() {
-        if !field.tracks_occupied() {
-            continue;
-        }
-        //~
-
         for (mut sprite, coord) in query_sprite.iter_mut() {
             if coord.c < 0 || coord.r < 0 {
                 continue;
             }
             //~
 
-            let idx = field
-                .coords_to_idx(coord.c as usize, coord.r as usize)
-                .unwrap();
-
-            sprite.color = match field.occupied(idx) {
-                Some(v) => {
-                    if v > 0 {
-                        Color::RED
-                    } else {
-                        Color::WHITE
-                    }
+            let field_state = field.get_field_state();
+            sprite.color = if let Some(element) = field_state.get_element(IVec2::new(coord.c, coord.r)) {
+                match element.kind {
+                    FieldElementKind::Block(_) => Color::RED,
+                    _ => Color::WHITE,
                 }
-                None => Color::WHITE,
-            };
+            } else {
+                Color::WHITE
+            }
         }
     }
 }

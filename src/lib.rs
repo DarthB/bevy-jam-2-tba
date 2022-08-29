@@ -14,6 +14,7 @@ pub mod movement;
 pub mod player_state;
 pub mod render_old;
 pub mod target;
+pub mod tool;
 pub mod turn;
 pub mod view;
 
@@ -55,6 +56,7 @@ pub mod prelude {
     pub use crate::player_state::*;
     pub use crate::render_old::*;
     pub use crate::target::*;
+    pub use crate::tool::*;
     pub use crate::turn::*;
     pub use crate::view::*;
 

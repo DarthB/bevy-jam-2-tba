@@ -2,32 +2,22 @@ use std::fmt::Debug;
 
 use bevy::{ecs::system::EntityCommands, log, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
 
-use itertools::Itertools;
-
 use crate::{game_assets::GameAssets, prelude::*};
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, PartialEq, Clone, Reflect)]
+#[derive(Component, Debug, PartialEq, Clone)]
 pub struct Field {
-    pub movable_area_color: Color,
-
-    pub edge_color: Color,
-
     pub movable_size: (usize, usize),
 
     pub additional_grids: UiRect<usize>,
 
     pub allow_overlap: UiRect<usize>,
 
-    occupied: Vec<i32>,
-
-    pub tracks_occupied: bool,
-
-    pub remove_full_lines: bool,
-
     pub movable_area_image: Handle<Image>,
 
     pub brick_image: Handle<Image>,
+
+    field_state: FieldState,
 }
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
@@ -42,21 +32,11 @@ pub struct ProductionFieldTag {}
 #[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
 pub struct FieldRenderTag {}
 
-pub struct FieldDeltaEvent {
-    pub conditional_y: i32,
-
-    pub delta_y: i32,
-
-    pub field_id: Entity,
-}
-
 pub type FieldMutator = dyn Fn(&mut Field, (i32, i32), usize);
 
 impl Field {
     pub fn as_factory(assets: &GameAssets) -> Self {
         let mut reval = Field {
-            movable_area_color: Color::MIDNIGHT_BLUE,
-            edge_color: Color::rgb(0.0, 0.2, 0.5),
             movable_size: (10, 18),
             additional_grids: UiRect {
                 left: 4,
@@ -70,65 +50,80 @@ impl Field {
                 top: 4,
                 bottom: 9,
             },
-            tracks_occupied: true,
             movable_area_image: assets.block_factory_floor.clone(),
             brick_image: assets.block_blob.clone(),
             ..Default::default()
         };
 
         let num = reval.movable_size.0 * reval.movable_size.1;
-        reval.occupied = vec![0; num];
         reval
     }
 
     pub fn as_production_field(assets: &GameAssets) -> Self {
         let mut reval = Field {
-            edge_color: Color::rgba(0.25, 0.0, 0.0, 1.0),
             allow_overlap: UiRect {
                 left: 0,
                 right: 0,
                 top: 10,
                 bottom: 0,
             },
-            tracks_occupied: true,
             movable_area_image: assets.block_tetris_floor.clone(),
             brick_image: assets.block_blob.clone(),
             ..Default::default()
         };
 
         let num = reval.movable_size.0 * reval.movable_size.1;
-        reval.occupied = vec![0; num];
 
         reval
     }
 
-    pub fn tracks_occupied(&self) -> bool {
-        self.tracks_occupied
+    pub fn bounds(&self) -> (IVec2, IVec2) {
+        (
+            IVec2::new(
+                -(self.additional_grids.top as i32), 
+                -(self.additional_grids.left as i32),
+            ),
+            IVec2::new(
+                (self.mov_size().0 + self.additional_grids.right) as i32,
+                (self.mov_size().1 + self.additional_grids.bottom) as i32,
+            )
+        )
     }
 
-    pub fn occupied(&self, idx: usize) -> Option<i32> {
-        if idx < self.occupied.len() {
-            Some(self.occupied[idx])
-        } else {
-            None
+    pub fn get_field_state(&self) -> &FieldState {
+        &self.field_state
+    }
+
+    /// This method can be called by systems to update the field state cache
+    /// This ensures that at some places where field state is queried a lot it is not regenerated
+    /// all the time (once per system should be fine)
+    pub fn generate_field_state<'a>(
+        &mut self, 
+        block_iter: impl Iterator<Item = (Entity, &'a Block, Option<&'a ToolComponent>)>,
+    ) -> &FieldState {
+        self.field_state = FieldState::new(self.bounds());
+
+        for (entity, block, opt_tool) in block_iter {
+            let new_el = if let Some(blob) = block.blob {
+                FieldElement {
+                    entity: Some(entity),
+                    blob: Some(blob),
+                    kind: FieldElementKind::Block(entity),
+                    position: block.position,
+                }
+            } else if let Some(tool) = opt_tool {
+                FieldElement {
+                    entity: Some(entity),
+                    blob: None,
+                    kind: FieldElementKind::Tool(tool.kind),
+                    position: block.position,
+                }
+            } else {
+                FieldElement::default()
+            };        
+            self.field_state.set_element(block.position, new_el);
         }
-    }
-
-    pub fn set_occupied(&mut self, idx: usize, val: i32) -> Result<(), String> {
-        if idx < self.occupied.len() {
-            self.occupied[idx] = val;
-            Ok(())
-        } else {
-            Err("occupied out of bounds".into())
-        }
-    }
-
-    pub fn is_idx_valid(&self, idx: usize) -> bool {
-        idx < self.occupied.len()
-    }
-
-    pub fn max_idx(&self) -> usize {
-        self.occupied.len() - 1
+        &self.field_state
     }
 
     pub fn mutate_at_coordinate(&mut self, coord: (i32, i32), mutator: &FieldMutator) {
@@ -146,101 +141,9 @@ impl Field {
             } else {
                 log::warn!(
                     "Tried to mutate something at ({x},{y}), although {} is the maximum idx for this field.",
-                    self.max_idx()
+                    0//self.max_idx()
                 );
             }
-        }
-    }
-
-    pub fn occupy_coordinates(&mut self, coords: &Vec<(i32, i32)>) {
-        self.mutate_at_coordinates(coords, &|field, _, idx| {
-            field.occupied[idx] = 1;
-        });
-    }
-
-    pub fn deoccupy_coordinates(&mut self, coords: &Vec<(i32, i32)>) {
-        self.mutate_at_coordinates(coords, &|field, _, idx| {
-            field.occupied[idx] = 0;
-        });
-    }
-
-    pub fn all_coordinates_occupied(&self, coords: &Vec<(i32, i32)>, check_border: bool) -> bool {
-        for (x, y) in coords {
-            let res = self.is_coordinate_occupied(*x, *y, check_border);
-            if !res.0 {
-                return false;
-            }
-        }
-        true
-    }
-
-    pub fn any_coordinates_occupied(
-        &self,
-        coords: &Vec<(i32, i32)>,
-        check_border: bool,
-    ) -> (bool, Option<(i32, i32)>) {
-        for (x, y) in coords {
-            let res = self.is_coordinate_occupied(*x, *y, check_border);
-            if res.0 {
-                return res;
-            }
-        }
-        (false, None)
-    }
-
-    pub fn num_occupied(&self) -> usize {
-        self.occupied.iter().filter(|v| **v != 0).count()
-    }
-
-    /// return true if the given coordinate can be occupied, otherwise provide
-    /// an information how the movement can be reduced such that the border is reached
-    pub fn is_coordinate_occupied(
-        &self,
-        x: i32,
-        y: i32,
-        check_border: bool,
-    ) -> (bool, Option<(i32, i32)>) {
-        // first check if the space is already occupied:
-        if self.tracks_occupied && x >= 0 && y >= 0 {
-            if let Some(idx) = self.coords_to_idx(x as usize, y as usize) {
-                return (self.occupied[idx] != 0, None);
-            }
-        }
-        if !check_border {
-            return (false, None);
-        }
-
-        let mut x_correct = 0;
-        let mut y_correct = 0;
-
-        let border = self.coordinate_limits();
-
-        let left_check = x < border.left;
-        if left_check {
-            x_correct = border.left - x;
-        }
-
-        let right_check = x >= border.right;
-        if right_check {
-            x_correct = border.right - x;
-        }
-
-        let up_check = y < border.top;
-        if up_check {
-            y_correct = border.top - y;
-        }
-
-        let down_check = y >= border.bottom;
-        if down_check {
-            y_correct = border.bottom - y;
-        }
-
-        let occupied_by_edge = left_check || right_check || up_check || down_check;
-
-        if x_correct != 0 || y_correct != 0 {
-            (occupied_by_edge, Some((x + x_correct, y + y_correct)))
-        } else {
-            (occupied_by_edge, None)
         }
     }
 
@@ -263,15 +166,6 @@ impl Field {
         self.movable_size
     }
 
-    /// Calculates the offset in pixels used to render to the movable area, if uneven edges are used.
-    pub fn offset(&self) -> (f32, f32) {
-        let f = PX_PER_TILE / 2.0;
-        (
-            self.additional_grids.right as f32 * f - self.additional_grids.left as f32 * f,
-            self.additional_grids.top as f32 * f - self.additional_grids.bottom as f32 * f,
-        )
-    }
-
     /// returns a rect that gives defines the limits of the corrdinates by respecting
     /// the allow_overlap property
     pub fn coordinate_limits(&self) -> UiRect<i32> {
@@ -283,6 +177,7 @@ impl Field {
         }
     }
 
+    /*
     pub fn full_lines(&self) -> Vec<usize> {
         let mut reval: Vec<usize> = Vec::new();
         if !self.tracks_occupied || !self.remove_full_lines {
@@ -302,8 +197,11 @@ impl Field {
 
         reval
     }
+    */
 
     pub fn deoccupy_lines(&mut self, lines: &Vec<usize>) {
+        unimplemented!()
+        /*
         if !self.tracks_occupied {
             return;
         }
@@ -315,9 +213,12 @@ impl Field {
                 }
             }
         }
+        */
     }
 
     pub fn move_down_if_possible(&mut self) {
+        unimplemented!()
+        /*
         for r in (0..self.mov_size().1 - 1).rev() {
             for c in 0..self.mov_size().0 {
                 let idx_up = self.coords_to_idx(c, r).unwrap();
@@ -331,10 +232,13 @@ impl Field {
                 }
             }
         }
+        */
     }
 
     pub fn remove_all_tools(&mut self) -> Vec<Tool> {
         let mut reval = Vec::new();
+        /*
+        
         for r in 0..self.mov_size().1 {
             for c in 0..self.mov_size().0 {
                 let idx = self.coords_to_idx(c, r).unwrap();
@@ -345,6 +249,7 @@ impl Field {
                 }
             }
         }
+        */
 
         reval
     }
@@ -353,8 +258,6 @@ impl Field {
 impl Default for Field {
     fn default() -> Self {
         Self {
-            movable_area_color: Color::GRAY,
-            edge_color: Color::DARK_GRAY,
             movable_size: (10, 18),
             additional_grids: UiRect {
                 left: 1,
@@ -368,12 +271,19 @@ impl Default for Field {
                 top: 5,
                 bottom: 0,
             },
-            occupied: Vec::new(),
-            tracks_occupied: false,
-            remove_full_lines: true,
             movable_area_image: DEFAULT_IMAGE_HANDLE.typed(),
             brick_image: DEFAULT_IMAGE_HANDLE.typed(),
+            field_state: FieldState::default()
         }
+    }
+}
+
+pub fn generate_field_states(
+    query_state: Query<(Entity, &mut Block, Option<&ToolComponent>)>, 
+    mut query_fields: Query<&mut Field>,
+) {
+    for mut field in query_fields.iter_mut() {
+        field.generate_field_state(query_state.iter());
     }
 }
 
@@ -408,6 +318,7 @@ pub fn spawn_field(
 }
 
 pub fn remove_field_lines(mut query_field: Query<&mut Field>) {
+    /*
     for mut field in query_field.iter_mut() {
         let fl: Vec<usize> = field.full_lines();
         if fl.is_empty() {
@@ -429,4 +340,5 @@ pub fn remove_field_lines(mut query_field: Query<&mut Field>) {
 
         field.deoccupy_lines(&fl);
     }
+    */
 }

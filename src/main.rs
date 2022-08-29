@@ -22,7 +22,9 @@ use {
 enum MySystems {
     EventHandling,
     Input,
+    PreGameUpdates,
     GameUpdates,
+    PostGameUpdates,
     RenderUpdates,
 }
 
@@ -86,20 +88,30 @@ fn main() {
                 .with_system(move_blob_by_player)
                 .with_system(toolbar_button_system)
                 .with_system(tool_switch_on_mouse_wheel)
-                .with_system(teleport_blob_out_of_factory)
                 .label(MySystems::Input)
                 .after(MySystems::EventHandling),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
-                .with_system(move_blobs_by_gravity)
+                .with_system(generate_field_states)
+                .with_system(generate_move_events_by_gravity)
+                .label(MySystems::PreGameUpdates)
+                .after(MySystems::Input)
+        )
+        .add_system_set(
+            SystemSet::on_update(GameState::Ingame)
                 .with_system(move_factory_blobs_by_events)
                 .with_system(move_production_blobs_by_events)
-                .with_system(move_field_content_down_if_not_occupied)
                 .with_system(mouse_for_field_selection_and_tool_creation)
                 .with_system(check_win)
                 .label(MySystems::GameUpdates)
-                .after(MySystems::Input),
+                .after(MySystems::PreGameUpdates),
+        )
+        .add_system_set(
+            SystemSet::on_update(GameState::Ingame)            
+                .with_system(teleport_blob_out_of_factory)
+                .label(MySystems::PostGameUpdates)
+                .after(MySystems::GameUpdates)
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
@@ -110,9 +122,9 @@ fn main() {
                 .with_system(update_toolbar_overlays)
                 .with_system(blob_update_transforms)
                 .with_system(update_field_debug)
-                .with_system(crate::view::handle_view_updates)
+                //.with_system(crate::view::handle_view_updates)
                 .label(MySystems::RenderUpdates)
-                .after(MySystems::GameUpdates),
+                .after(MySystems::PostGameUpdates),
         )
         .add_system_set(SystemSet::on_exit(GameState::Ingame).with_system(clean_all));
 

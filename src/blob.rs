@@ -1,4 +1,4 @@
-use bevy::{ecs::{system::EntityCommands, query::QueryIter}, prelude::*};
+use bevy::{ecs::{system::EntityCommands}, prelude::*};
 use leafwing_input_manager::prelude::*;
 
 use crate::{prelude::*};
@@ -194,7 +194,6 @@ pub fn move_blob_by_player(
                 blob.coordinate.x += 1;
             }
         
-
             let block_iter = query_block.iter_mut()
                 .filter(|b| b.blob.is_some() && b.blob.unwrap() == blob_id);
             if s.pressed(TetrisActionsWASD::LRotate) {

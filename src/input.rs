@@ -133,8 +133,11 @@ pub fn mouse_for_field_selection_and_tool_creation(
     windows: Res<Windows>,
     mut cursor_moved_events: EventReader<CursorMoved>,
     mouse_button_input: Res<Input<MouseButton>>,
+    // @todo remove sprites asap rendering is working
     mut sprites: Query<(&mut Sprite, &GlobalTransform, &Coordinate, &Parent), With<FieldRenderTag>>,
     mut field_query: Query<(Entity, &mut Field), With<FactoryFieldTag>>,
+    // @todo check if block query needed here
+    block_query: Query<(Entity, &mut Block, Option<&ToolComponent>)>,
     mut player_state: ResMut<PlayerState>,
 ) {
     let (field_id, mut field) = field_query.single_mut();
@@ -178,20 +181,26 @@ pub fn mouse_for_field_selection_and_tool_creation(
             if let Some(idx) = field.coords_to_idx(coord.x as usize, coord.y as usize) {
                 let placeable_tool =
                     matches!(tool, Tool::Move(_) | Tool::Rotate(_) | Tool::Cutter(_));
-                let empty_place = field.occupied(idx).unwrap() == 0;
+                let field_state = field.generate_field_state(block_query.iter());
+
+                let element = field_state.get_element(coord).unwrap();
+                let empty_place = element.entity.is_none();
                 if empty_place && placeable_tool && player_state.num_in_inventory(tool) > 0 {
                     player_state.add_to_inventory(tool, -1);
 
                     log::info!("Place tool {:?} at ({},{})", tool, coord.x, coord.y);
+                    /*
                     field.mutate_at_coordinate((coord.x, coord.y), &move |field, _, idx| {
                         field.set_occupied(idx, Into::<i32>::into(tool)).expect(
                             "should not happen: wrong coordinate in set_occupied due to mouse click",
                         );
                     })
+                    */
                 } else if tool == Tool::Eraser {
                     log::info!("Erase tool {:?} at ({},{})", tool, coord.x, coord.y);
 
                     // idx, tool, tool, tool, tool -> how can this be simplified?
+                    /*
                     let tool = field.occupied(idx);
                     if let Some(tool) = tool {
                         let tool: Result<Tool, _> = TryFrom::<i32>::try_from(tool);
@@ -200,13 +209,16 @@ pub fn mouse_for_field_selection_and_tool_creation(
                             player_state.add_to_inventory(tool, 1);
 
                             // remove from field
+                            /*
                             field.mutate_at_coordinate((coord.x, coord.y), &move |field, _, idx| {
                                 field
                                     .set_occupied(idx, 0)
                                     .expect("should not happen: wrong coordinate in set_occupied due to mouse click");
                             })
+                            */
                         }
                     }
+                    */
                 }
             }
         }

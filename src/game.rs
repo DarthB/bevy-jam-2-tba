@@ -126,8 +126,10 @@ pub fn contiously_spawn_tetris_at_end(
 pub fn check_win(
     mut commands: Commands,
     assets: Res<GameAssets>,
-    query_field: Query<&Field, With<ProductionFieldTag>>,
+    mut query_field: Query<&mut Field, With<ProductionFieldTag>>,
     query_target: Query<&Target>,
+    // @todo check if block query needed here
+    query_block: Query<(Entity, &mut Block, Option<&ToolComponent>)>,
     mut player_state: ResMut<PlayerState>,
 ) {
     if player_state.won {
@@ -135,15 +137,18 @@ pub fn check_win(
     }
 
     let target = query_target.single();
-    let field = query_field.single();
+    let mut field = query_field.single_mut();
+    let field_state = field.generate_field_state(query_block.iter());
 
-    let mut coords = target.occupied_coordinates();
-    coords = coords
+    let coords = target.occupied_coordinates();
+    let coords = coords
         .iter()
-        .map(|(c, r)| (*c - pivot_coord().0 as i32, *r - pivot_coord().1 as i32))
+        .map(|(c, r)| IVec2::new(*c - pivot_coord().0 as i32, *r - pivot_coord().1 as i32))
         .collect();
-    let cond = field.all_coordinates_occupied(&coords, false);
-    if coords.len() == field.num_occupied() && cond {
+    let cond = field_state.are_all_coordinates_occupied(&coords) 
+        //&& coords.len() == field.num_occupied()
+        ;
+    if cond {
         player_state.won = true;
         let pos = UiRect {
             top: Val::Percent(3.0),
