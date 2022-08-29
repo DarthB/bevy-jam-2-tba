@@ -116,6 +116,11 @@ pub fn spawn_blob(
         ..Default::default()
     });
     let id = ec.id();
+    
+    if !use_old_rendering {
+        ec.insert(BlobExtra { blocks: blob.blocks.clone(), pivot: IVec2::ZERO, transferred: false });
+    }
+
     ec.with_children(|cb| {
         if use_old_rendering {
             blob.spawn_render_entities(id, cb, assets);
@@ -125,6 +130,7 @@ pub fn spawn_blob(
     .insert(Name::new(name.to_string()));
     adapter(&mut ec);
 
+    // @todo use this over insert of BlobExtra
     Block::spawn_blocks_of_blob(commands, id, body);
 
     id

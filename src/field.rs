@@ -397,6 +397,8 @@ pub fn spawn_field(
     ec.with_children(|cb| {
         if use_old_rendering {
             field.spawn_render_entities(id, cb, assets);
+        } else {
+            // no info from view yet
         }
     })
     .insert(Name::new(name.to_string()))

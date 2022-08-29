@@ -25,11 +25,11 @@ use leafwing_input_manager::{
 pub struct BlobExtra {
     #[cfg_attr(feature = "debug", inspectable(ignore))]
     /// Blob's blocks. TODO: Currently redundant with parent-child stuff
-    blocks: Vec<Entity>,
+    pub blocks: Vec<Entity>,
     /// Position of the Blob's pivot element within the field
-    pivot: IVec2,
+    pub pivot: IVec2,
     /// Transferred: is it on the tetris field?
-    transferred: bool,
+    pub transferred: bool,
 }
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
