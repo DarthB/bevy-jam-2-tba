@@ -1,6 +1,6 @@
 [package]
 name = "bevy_jam_2_disastris"
-version = "0.2.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Disassemble the useless input blob that was delivered and combine the parts to something beautiful!"

@@ -138,7 +138,7 @@ pub fn check_win(
     let mut coords = target.occupied_coordinates();
     coords = coords
         .iter()
-        .map(|(c, r)| (*c - pivot_coord().0 as i32, *r - pivot_coord().1 as i32))
+        .map(|(c, r)| (*c - 10, *r - 6 as i32))
         .collect();
     let cond = field.all_coordinates_occupied(&coords, false);
     if coords.len() == field.num_occupied() && cond {
