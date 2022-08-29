@@ -15,6 +15,7 @@ pub mod player_state;
 pub mod render_old;
 pub mod target;
 pub mod turn;
+pub mod view;
 
 pub const PX_PER_TILE: f32 = 32.0;
 pub const SECONDS_PER_ROUND: f32 = 0.5;
