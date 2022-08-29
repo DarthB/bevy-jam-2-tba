@@ -1,5 +1,5 @@
 use bevy::{prelude::*, window::WindowMode};
-use bevy_jam_2_disastris_lib::{game_assets::GameAssets, prelude::*, SECONDS_PER_ROUND};
+use bevy_jam_2_disastris_lib::prelude::*;
 
 #[cfg(feature = "debug")]
 use {
@@ -8,9 +8,11 @@ use {
         //        InspectorPlugin,
         WorldInspectorPlugin,
     },
-    bevy_jam_2_disastris_lib::blob::{Blob, BlobGravity, Coordinate},
+    bevy_jam_2_disastris_lib::block::Block,
+    bevy_jam_2_disastris_lib::blob::Blob,
+    bevy_jam_2_disastris_lib::target::{Coordinate, Target},
     bevy_jam_2_disastris_lib::field::Field,
-    bevy_jam_2_disastris_lib::hud::{UITagHover, UITagImage},
+    bevy_jam_2_disastris_lib::hud::{UITagHover, UITagImage, UITagInventory},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SystemLabel)]
@@ -102,11 +104,14 @@ fn main() {
     #[cfg(feature = "debug")]
     app.add_plugin(WorldInspectorPlugin::new())
         .register_inspectable::<Coordinate>()
-        .register_inspectable::<BlobGravity>()
         .register_inspectable::<Blob>()
+        .register_inspectable::<Block>()
+        .register_inspectable::<Coordinate>()
+        .register_inspectable::<Target>()
         .register_inspectable::<Field>()
         .register_inspectable::<UITagImage>()
         .register_inspectable::<UITagHover>()
+        .register_inspectable::<UITagInventory>()
         .register_type::<Interaction>();
     app.run();
 }

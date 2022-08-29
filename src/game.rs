@@ -40,18 +40,14 @@ pub fn spawn_world(
         &mut commands,
         &assets.block_blob,
         &assets,
-        level.start_blob.0.clone(),
+        BlobBody::new(level.start_blob.0.clone()),
         "L Stone",
-        Some(level.start_blob.1.into()),
+        level.start_blob.1.into(),
         &|ec| {
             #[cfg(feature = "debug")]
             add_tetris_control(ec);
 
             ec.insert(RealBlob {});
-            ec.insert(BlobGravity {
-                gravity: (0, 1),
-                active: true,
-            });
         },
     );
     commands.entity(fac_field).push_children(&[l_stone]);
@@ -90,7 +86,7 @@ pub fn spawn_world(
 pub fn contiously_spawn_tetris_at_end(
     mut commands: Commands,
     assets: Res<GameAssets>,
-    query_active: Query<&BlobGravity>,
+    query_active: Query<&Blob>,
     mut turn: ResMut<Turn>,
 ) {
     if let Some(prod_ent) = turn.prod_id {
@@ -101,16 +97,12 @@ pub fn contiously_spawn_tetris_at_end(
                 &mut commands,
                 &assets.block_blob,
                 &assets,
-                body,
+                BlobBody::new(body),
                 format!("{}. Additional Tetris Brick", turn.num_additional_bricks).as_str(),
-                Some(Coordinate { r: -3, c: 3 }),
+                IVec2 { x: -3, y: 3 },
                 &|ec| {
                     add_tetris_control(ec);
                     ec.insert(RealBlob {});
-                    ec.insert(BlobGravity {
-                        gravity: (0, 1),
-                        active: true,
-                    });
                 },
             );
             turn.num_additional_bricks += 1;

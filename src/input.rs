@@ -164,7 +164,7 @@ pub fn mouse_for_field_selection_and_tool_creation(
                 sprite.color = Color::WHITE;
                 //let (x, y) = (coord.c, coord.r);
                 //log::info!("Mouse over: Coordinate {x},{y}");
-                player_state.tool_placement_coordinate = Some(*coord);
+                player_state.tool_placement_coordinate = Some(IVec2::new(coord.c, coord.r));
             }
         }
     }
@@ -175,21 +175,21 @@ pub fn mouse_for_field_selection_and_tool_creation(
             player_state.tool_placement_coordinate,
         ) {
             // first check if the coords are valid
-            if let Some(idx) = field.coords_to_idx(coord.c as usize, coord.r as usize) {
+            if let Some(idx) = field.coords_to_idx(coord.x as usize, coord.y as usize) {
                 let placeable_tool =
                     matches!(tool, Tool::Move(_) | Tool::Rotate(_) | Tool::Cutter(_));
                 let empty_place = field.occupied(idx).unwrap() == 0;
                 if empty_place && placeable_tool && player_state.num_in_inventory(tool) > 0 {
                     player_state.add_to_inventory(tool, -1);
 
-                    log::info!("Place tool {:?} at ({},{})", tool, coord.c, coord.r);
-                    field.mutate_at_coordinate((coord.c, coord.r), &move |field, _, idx| {
+                    log::info!("Place tool {:?} at ({},{})", tool, coord.x, coord.y);
+                    field.mutate_at_coordinate((coord.x, coord.y), &move |field, _, idx| {
                         field.set_occupied(idx, Into::<i32>::into(tool)).expect(
                             "should not happen: wrong coordinate in set_occupied due to mouse click",
                         );
                     })
                 } else if tool == Tool::Eraser {
-                    log::info!("Erase tool {:?} at ({},{})", tool, coord.c, coord.r);
+                    log::info!("Erase tool {:?} at ({},{})", tool, coord.x, coord.y);
 
                     // idx, tool, tool, tool, tool -> how can this be simplified?
                     let tool = field.occupied(idx);
@@ -200,7 +200,7 @@ pub fn mouse_for_field_selection_and_tool_creation(
                             player_state.add_to_inventory(tool, 1);
 
                             // remove from field
-                            field.mutate_at_coordinate((coord.c, coord.r), &move |field, _, idx| {
+                            field.mutate_at_coordinate((coord.x, coord.y), &move |field, _, idx| {
                                 field
                                     .set_occupied(idx, 0)
                                     .expect("should not happen: wrong coordinate in set_occupied due to mouse click");

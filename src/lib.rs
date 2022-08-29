@@ -1,8 +1,10 @@
 use rand::Rng;
 
 pub mod blob;
+pub mod block;
 pub mod bodies;
 pub mod field;
+pub mod field_element;
 pub mod game;
 pub mod game_assets;
 pub mod hud;
@@ -39,8 +41,10 @@ pub const Z_OVERLAY: f32 = 30.0;
 
 pub mod prelude {
     pub use crate::blob::*;
+    pub use crate::block::*;
     pub use crate::bodies::*;
     pub use crate::field::*;
+    pub use crate::field_element::*;
     pub use crate::game::*;
     pub use crate::game_assets::*;
     pub use crate::hud::*;
