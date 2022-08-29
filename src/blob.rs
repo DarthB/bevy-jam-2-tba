@@ -15,6 +15,8 @@ pub struct Blob {
     #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub blocks: Vec<Entity>,
 
+    pub relative_positions: Vec<IVec2>,
+
     pub texture: Handle<Image>,
 }
 
@@ -34,16 +36,34 @@ impl BlobBody {
             pivot: (4,4),
         }
     }
+
+    pub fn get_relative_positions(&self) -> Vec<IVec2> {
+        let mut reval = vec![];
+
+        for idx in 0..self.block_positions.len() {
+            let num = self.block_positions[idx];
+            if num == 0 {continue;}
+            //~
+
+            let x = (idx as i32 % self.size.0 as i32) - self.pivot.0 as i32;
+            let y = (idx as i32 / self.size.1 as i32) - self.pivot.1 as i32;
+            
+            reval.push(IVec2 {x, y});
+        }
+
+        reval
+    }
 }
 
 impl Blob {
-    pub fn new(position: IVec2) -> Self {
+    pub fn new(position: IVec2, body: &BlobBody) -> Self {
         Blob {
             coordinate: position,
             movement: IVec2::new(0, 1),
             active: true,
             blocks: vec![],
             texture: Handle::default(),
+            relative_positions: body.get_relative_positions(),
         }
     }
 
@@ -107,16 +127,20 @@ pub fn spawn_blob(
     use_old_rendering: bool,
     adapter: &dyn Fn(&mut EntityCommands),
 ) -> Entity {
-    let mut blob = Blob::new(coord);
+    let mut blob = Blob::new(coord, &body);
     
     // @todo replace with psi rendering
     blob.texture = texture.clone();
+
+    // @todo borow checker and getting the ids into each other
+    blob.blocks = Block::spawn_blocks_of_blob(commands, body);
 
     let mut ec = commands.spawn_bundle(SpatialBundle {
         ..Default::default()
     });
     let id = ec.id();
     
+    // @todo clarify if that is needed
     if !use_old_rendering {
         ec.insert(BlobExtra { blocks: blob.blocks.clone(), pivot: IVec2::ZERO, transferred: false });
     }
@@ -129,9 +153,6 @@ pub fn spawn_blob(
     .insert(blob)
     .insert(Name::new(name.to_string()));
     adapter(&mut ec);
-
-    // @todo use this over insert of BlobExtra
-    Block::spawn_blocks_of_blob(commands, id, body);
 
     id
 }
@@ -181,6 +202,17 @@ pub fn blob_update_transforms(
         if let Ok(field) = parent_query.get(parent.get()) {
             let (x, y) = field.coords_to_px(blob.coordinate.x, blob.coordinate.y);
             transform.translation = Vec3::new(x, y, transform.translation.z);
+        }
+    }
+}
+
+// Keep the blob id in the block entity correct as this has not been done during spawning
+pub fn stupid_block_update(blob_query: Query<(Entity, &Blob)>, mut block_query: Query<&mut Block>) {
+    for (blob_id, blob) in blob_query.iter() {
+        for block_id in blob.blocks.iter() {
+            if let Ok(mut block) = block_query.get_mut(*block_id) {
+                block.blob = Some(blob_id);
+            }
         }
     }
 }

@@ -78,6 +78,7 @@ fn main() {
                 .with_system(progress_turn)
                 //                .with_system(contiously_spawn_tetris_at_end)
                 .with_system(remove_field_lines)
+                .with_system(stupid_block_update)
                 .label(MySystems::EventHandling),
         )
         .add_system_set(

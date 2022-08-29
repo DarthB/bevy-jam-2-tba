@@ -143,19 +143,19 @@ impl RenderableGrid for Blob {
         Blob::size()
     }
 
-    fn coords_to_px(&self, mut x: i32, mut y: i32) -> (f32, f32) {
-        /*
-        if let Some(coord) = &self.coordinate {
-            x += coord.x;
-            y += coord.y;
-        }
-        */
-        coords_to_px(x, y, Blob::size(), Blob::size())
+    fn coords_to_px(&self, x: i32, y: i32) -> (f32, f32) {
+        coords_to_px(x + self.coordinate.x, y + self.coordinate.y, Blob::size(), Blob::size())
     }
 
     fn get_render_id(&self, r: i32, c: i32) -> i32 {
-        //self.body[r as usize * Blob::size() + c as usize]
-        0
+        let abs_pos: Vec<IVec2> = self.relative_positions.iter()
+            .map(|v| *v + IVec2::new(4,4))
+            .collect();
+        if abs_pos.contains(&IVec2{x:c, y:r}) {
+            1
+        } else {
+            0
+        }
     }
 
     fn spawn_pivot(&self) -> bool {
