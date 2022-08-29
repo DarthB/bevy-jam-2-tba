@@ -1,4 +1,4 @@
-use bevy::{ecs::system::EntityCommands, prelude::*};
+use bevy::{ecs::{system::EntityCommands, query::QueryIter}, prelude::*};
 use leafwing_input_manager::prelude::*;
 
 use crate::{prelude::*};
@@ -15,6 +15,7 @@ pub struct Blob {
     #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub blocks: Vec<Entity>,
 
+    /// this is a hack
     pub relative_positions: Vec<IVec2>,
 
     pub texture: Handle<Image>,
@@ -87,12 +88,21 @@ impl Blob {
         Blob::size().pow(2) / 2
     }
 
-    pub fn rotate_left(&mut self) {
-        unimplemented!()
+    pub fn rotate_left<'a, I>(&mut self, block_iter: I)
+        where I: Iterator<Item = Mut<'a, Block>> {
+        self.relative_positions.clear();
+        for mut block in block_iter {
+            block.position = IVec2::new(block.position.y, -block.position.x);
+            self.relative_positions.push(block.position);
+        }
     }
 
-    pub fn rotate_right(&mut self) {
-        unimplemented!()
+    pub fn rotate_right<'a>(&mut self, block_iter: impl Iterator<Item = Mut<'a, Block>>) {
+        self.relative_positions.clear();
+        for mut block in block_iter {
+            block.position = IVec2::new(-block.position.y, block.position.x);
+            self.relative_positions.push(block.position);
+        }
     }
 
     /// the function calculates the occupied coordinates in the coordinate system of the
@@ -159,13 +169,15 @@ pub fn spawn_blob(
 
 /// Example of system that maps actions to movements on a controlled entity:
 pub fn move_blob_by_player(
-    mut query: Query<(&ActionState<TetrisActionsWASD>, &mut Blob)>, // get every entity, that has these three components
+    mut query: Query<(&ActionState<TetrisActionsWASD>, &mut Blob, Entity)>,
+    mut query_block: Query<&mut Block>, // get every entity, that has these three components
     turn: Res<Turn>, // get a bevy-internal resource that represents the time
 ) {
     // continue here
     // check if we are in a turn change...
     if turn.is_new_turn() {
-        query.for_each_mut(|(s, mut blob)| {
+        query.for_each_mut(|(s, mut blob, blob_id)| {
+            
             if s.pressed(TetrisActionsWASD::Up) {
                 blob.coordinate.y -= 1;
             }
@@ -183,12 +195,12 @@ pub fn move_blob_by_player(
             }
         
 
+            let block_iter = query_block.iter_mut()
+                .filter(|b| b.blob.is_some() && b.blob.unwrap() == blob_id);
             if s.pressed(TetrisActionsWASD::LRotate) {
-                blob.rotate_left();
-            }
-
-            if s.pressed(TetrisActionsWASD::RRotate) {
-                blob.rotate_right();
+                blob.rotate_left(block_iter);
+            } else if s.pressed(TetrisActionsWASD::RRotate) {
+                blob.rotate_right(block_iter);
             }
         });
     }

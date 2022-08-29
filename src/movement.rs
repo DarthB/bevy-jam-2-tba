@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use bevy::{log, prelude::*};
+use bevy::{log, prelude::*, ecs::query::QueryIter};
 
 pub struct BlobMoveEvent {
     delta: (i32, i32),
@@ -42,6 +42,7 @@ pub fn move_blobs_by_gravity(
 pub fn move_factory_blobs_by_events(
     mut query: Query<(&Parent, Entity, &mut Blob)>,
     parent_query: Query<(Entity, &Field), With<FactoryFieldTag>>,
+    mut block_query: Query<&mut Block>,
     mut ev: EventReader<BlobMoveEvent>,
     mut ev_teleport: EventWriter<BlobTeleportEvent>,
     mut evt: EventWriter<ViewUpdate>,
@@ -81,9 +82,11 @@ pub fn move_factory_blobs_by_events(
                                 handled_by_tool = true;
                             }
                             Tool::Rotate(d) => {
+                                let block_iter = block_query.iter_mut()
+                                    .filter(|block| block.blob.is_some() && block.blob.unwrap() == blob_id );
                                 match d {
-                                    RotateDirection::Left => blob.rotate_left(),
-                                    RotateDirection::Right => blob.rotate_right(),
+                                    RotateDirection::Left => blob.rotate_left(block_iter),
+                                    RotateDirection::Right => blob.rotate_right(block_iter),
                                 }
                                 handled_by_tool = true;
                             }
