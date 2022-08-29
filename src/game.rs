@@ -136,10 +136,7 @@ pub fn check_win(
     let field = query_field.single();
 
     let mut coords = target.occupied_coordinates();
-    coords = coords
-        .iter()
-        .map(|(c, r)| (*c - 10, *r - 6 as i32))
-        .collect();
+    coords = coords.iter().map(|(c, r)| (*c - 10, *r - 6_i32)).collect();
     let cond = field.all_coordinates_occupied(&coords, false);
     if coords.len() == field.num_occupied() && cond {
         player_state.won = true;

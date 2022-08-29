@@ -57,7 +57,7 @@ impl Target {
         if self.coordinate.is_some() {
             for r in 0..12 {
                 for c in 0..10 {
-                    if self.body[ coords_to_idx(r, c, 10)] != 0 {
+                    if self.body[coords_to_idx(r, c, 10)] != 0 {
                         if let Some(coord) = &self.coordinate {
                             reval.push((c as i32 + coord.c, r as i32 + coord.r));
                         }
