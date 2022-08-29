@@ -22,7 +22,7 @@ impl Level {
 
         Level {
             start_blob: (
-                prototype::gen_blob_body(1).expect("Couldn't generate start blob"),
+                prototype::gen_blob_body(0).expect("Couldn't generate start blob"),
                 (3, -4),
             ),
             target_figure: (

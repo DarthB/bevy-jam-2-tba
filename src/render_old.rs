@@ -192,11 +192,39 @@ impl RenderableGrid for Blob {
 
 impl RenderableGrid for Target {
     fn rows(&self) -> usize {
-        Target::size()
+        12
     }
 
     fn cols(&self) -> usize {
-        Target::size()
+        10
+    }
+
+    fn spawn_render_entities(&self, _id: Entity, cb: &mut ChildBuilder, assets: &GameAssets) {
+        for r in 0..self.rows() {
+            for c in 0..self.cols() {
+                let num = self.get_render_id(r as i32, c as i32);
+                let info = self.get_sprite_info(num, assets);
+
+                let (x, mut y) = coords_to_px(c as i32, r as i32, self.rows(), self.cols());
+                y -= 80.0;
+
+                let mut ec = cb.spawn_bundle(SpriteBundle {
+                    sprite: Sprite {
+                        color: info.color,
+                        custom_size: Some(Vec2::ONE * PX_PER_TILE - 2.0),
+                        ..Default::default()
+                    },
+                    transform: Transform {
+                        translation: Vec3::new(x, y, info.z),
+                        ..Default::default()
+                    },
+                    texture: info.image,
+                    ..Default::default()
+                });
+                ec.insert(Name::new(format!("grid {}:{}", r, c)));
+                self.adapt_render_entities(&mut ec, r, c);
+            }
+        }
     }
 
     fn coords_to_px(&self, mut x: i32, mut y: i32) -> (f32, f32) {

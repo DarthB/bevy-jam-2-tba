@@ -55,8 +55,8 @@ impl Target {
     pub fn occupied_coordinates(&self) -> Vec<(i32, i32)> {
         let mut reval = Vec::new();
         if self.coordinate.is_some() {
-            for r in 0..Target::size() {
-                for c in 0..Target::size() {
+            for r in 0..12 {
+                for c in 0..10 {
                     if self.body[ coords_to_idx(r, c, Target::size())] != 0 {
                         if let Some(coord) = &self.coordinate {
                             reval.push((c as i32 + coord.c, r as i32 + coord.r));
