@@ -40,7 +40,7 @@ impl Blob {
     pub fn new(position: IVec2) -> Self {
         Blob {
             coordinate: position,
-            movement: IVec2::default(),
+            movement: IVec2::new(0, 1),
             active: true,
             blocks: vec![],
             texture: Handle::default(),
@@ -104,10 +104,9 @@ pub fn spawn_blob(
     body: BlobBody,
     name: &str,
     coord: IVec2, // @todo later work with coordinates and parent tetris-field
+    use_old_rendering: bool,
     adapter: &dyn Fn(&mut EntityCommands),
 ) -> Entity {
-
-
     let mut blob = Blob::new(coord);
     
     // @todo replace with psi rendering
@@ -118,7 +117,9 @@ pub fn spawn_blob(
     });
     let id = ec.id();
     ec.with_children(|cb| {
-        blob.spawn_render_entities(id, cb, assets);
+        if use_old_rendering {
+            blob.spawn_render_entities(id, cb, assets);
+        }
     })
     .insert(blob)
     .insert(Name::new(name.to_string()));

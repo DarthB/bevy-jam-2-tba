@@ -23,6 +23,7 @@ pub fn spawn_world(
     mut turn: ResMut<Turn>,
     level: Res<Level>,
     mut player_state: ResMut<PlayerState>,
+    mut evt: EventWriter<ViewUpdate>,
 ) {
     player_state.applicable_tools = level.applicable_tools.clone();
 
@@ -33,19 +34,21 @@ pub fn spawn_world(
         comp,
         "Factory Field",
         Vec3::new(-200.0, 0.0, 0.0),
+        turn.use_old_rendering,
         &|ec| {
             ec.insert(FactoryFieldTag {});
         },
     );
     turn.fac_id = Some(fac_field);
 
-    let l_stone = spawn_blob(
+    let start_blob = spawn_blob(
         &mut commands,
         &assets.block_blob,
         &assets,
         BlobBody::new(level.start_blob.0.clone()),
         "L Stone",
         level.start_blob.1.into(),
+        turn.use_old_rendering,
         &|ec| {
             #[cfg(feature = "debug")]
             add_tetris_control(ec);
@@ -53,7 +56,8 @@ pub fn spawn_world(
             ec.insert(RealBlob {});
         },
     );
-    commands.entity(fac_field).push_children(&[l_stone]);
+    evt.send(ViewUpdate::BlobSpawned(start_blob));
+    commands.entity(fac_field).push_children(&[start_blob]);
 
     let pr_field = spawn_field(
         &mut commands,
@@ -61,13 +65,14 @@ pub fn spawn_world(
         Field::as_production_field(&assets),
         "Production Field",
         Vec3::new(300.0, 0.0, 0.0),
+        turn.use_old_rendering,
         &|ec| {
             ec.insert(ProductionFieldTag {});
         },
     );
     turn.prod_id = Some(pr_field);
 
-    let t_stone = spawn_target(
+    let target_stone = spawn_target(
         &mut commands,
         &assets.block_target_outline,
         &assets,
@@ -76,7 +81,8 @@ pub fn spawn_world(
         Some(level.target_figure.1.into()),
         &|_| {},
     );
-    commands.entity(pr_field).push_children(&[t_stone]);
+    evt.send(ViewUpdate::BlobSpawned(target_stone));
+    commands.entity(pr_field).push_children(&[target_stone]);
 
     let pos = UiRect {
         top: Val::Percent(3.0),
@@ -103,6 +109,7 @@ pub fn contiously_spawn_tetris_at_end(
                 BlobBody::new(body),
                 format!("{}. Additional Tetris Brick", turn.num_additional_bricks).as_str(),
                 IVec2 { x: -3, y: 3 },
+                turn.use_old_rendering,
                 &|ec| {
                     add_tetris_control(ec);
                     ec.insert(RealBlob {});

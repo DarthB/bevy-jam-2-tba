@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::{prelude::*, window::WindowMode};
 use bevy_jam_2_disastris_lib::prelude::*;
 use bevy_tweening::TweeningPlugin;
@@ -107,6 +109,7 @@ fn main() {
                 .with_system(update_toolbar_overlays)
                 .with_system(blob_update_transforms)
                 .with_system(update_field_debug)
+                .with_system(crate::view::handle_view_updates)
                 .label(MySystems::RenderUpdates)
                 .after(MySystems::GameUpdates),
         )
@@ -145,13 +148,24 @@ fn setup(
     });
 
     //commands.insert_resource(WinitSettings::desktop_app());
-    commands.insert_resource(GameAssets::new(&asset_server));
     commands.insert_resource(PlayerState::new());
     commands.insert_resource(Level::level_01());
     commands.insert_resource(Turn::new(SECONDS_PER_ROUND));
 
+    let id =  spawn_simple_rendering_entity(&mut commands).id();
+    let assets = GameAssets::new(&asset_server);
+    commands.insert_resource(ViewConfig {
+        renderer_entity: id,
+        factory_topleft: Vec3::new(-200., 0., 0.),
+        tetris_topleft: Vec3::new(300., 0., 0.),
+        anim_duration: Duration::from_millis(200),
+        brick_image: assets.block_blob.clone(),
+        test_blob: None,
+    });
+    commands.insert_resource(assets);
+
     // Switch state
-    app_state.overwrite_set(GameState::AnimationTest).unwrap();
+    app_state.overwrite_set(GameState::Ingame).unwrap();
 }
 
 pub fn clean_all(mut commands: Commands, query: Query<Entity>) {

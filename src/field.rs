@@ -383,6 +383,7 @@ pub fn spawn_field(
     field: Field,
     name: &str,
     trans: Vec3,
+    use_old_rendering: bool,
     adapter: &dyn Fn(&mut EntityCommands),
 ) -> Entity {
     let mut ec = commands.spawn_bundle(SpatialBundle {
@@ -394,7 +395,9 @@ pub fn spawn_field(
     });
     let id = ec.id();
     ec.with_children(|cb| {
-        field.spawn_render_entities(id, cb, assets);
+        if use_old_rendering {
+            field.spawn_render_entities(id, cb, assets);
+        }
     })
     .insert(Name::new(name.to_string()))
     .insert(field);

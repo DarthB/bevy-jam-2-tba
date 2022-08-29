@@ -13,7 +13,7 @@ pub struct BlobTeleportEvent {
 
 pub fn move_blobs_by_gravity(
     query_collector: Query<(Entity, &Blob)>,
-    mut query: Query<(Entity, &mut Transform, &Blob)>,
+    mut query: Query<(Entity, &Blob)>,
     turn: Res<Turn>,
     mut ev: EventWriter<BlobMoveEvent>,
 ) {
@@ -26,7 +26,7 @@ pub fn move_blobs_by_gravity(
         vec.sort_by(|left, right| left.1.cmp(&right.1));
 
         for (id, _) in vec {
-            if let Ok((e, mut t, blob)) = query.get_mut(id) {
+            if let Ok((e, blob)) = query.get_mut(id) {
                 if blob.active {
                     // events are afterwards read in order!
                     ev.send(BlobMoveEvent {
@@ -40,13 +40,14 @@ pub fn move_blobs_by_gravity(
 }
 
 pub fn move_factory_blobs_by_events(
-    mut query: Query<(&Parent, &mut Blob)>,
+    mut query: Query<(&Parent, Entity, &mut Blob)>,
     parent_query: Query<(Entity, &Field), With<FactoryFieldTag>>,
     mut ev: EventReader<BlobMoveEvent>,
     mut ev_teleport: EventWriter<BlobTeleportEvent>,
+    mut evt: EventWriter<ViewUpdate>,
 ) {
     for ev in ev.iter() {
-        if let Ok((p, mut blob)) = query.get_mut(ev.entity) {
+        if let Ok((p, blob_id, mut blob)) = query.get_mut(ev.entity) {
             let (entity, field) = parent_query.single();
             if entity != p.get() {
                 continue;
@@ -95,9 +96,11 @@ pub fn move_factory_blobs_by_events(
 
                     if handled_by_tool {
                         blob.coordinate = IVec2::new(tc, tr);
+                        evt.send(ViewUpdate::BlobMoved(blob_id));
                     }
                 } else if !occupied {
                     blob.coordinate = IVec2::new(tc, tr);
+                    evt.send(ViewUpdate::BlobMoved(blob_id));
                 } else {
                     bevy::log::warn!("Do nothing with target: {tc}, {tr} but stuck");
                 }

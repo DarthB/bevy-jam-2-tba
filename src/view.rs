@@ -65,18 +65,18 @@ pub enum ViewUpdate {
 pub struct ViewConfig {
     /// Global renderer entity just for making the entity tree a bit cleaner.
     /// Create a basic one via `spawn_simple_rendering_entity`.
-    renderer_entity: Entity,
+    pub renderer_entity: Entity,
     /// Global translation to the factory fields's (0,0) block
-    factory_topleft: Vec3,
+    pub factory_topleft: Vec3,
     /// Global translation to the tetris fields's (0,0) block
-    tetris_topleft: Vec3,
+    pub tetris_topleft: Vec3,
     /// Animation duration
-    anim_duration: Duration,
+    pub anim_duration: Duration,
 
-    brick_image: Handle<Image>,
+    pub brick_image: Handle<Image>,
 
     /// Used by the demo system (can be ignored)
-    test_blob: Option<Entity>,
+    pub test_blob: Option<Entity>,
 }
 
 pub fn spawn_simple_rendering_entity<'w, 's, 'a>(

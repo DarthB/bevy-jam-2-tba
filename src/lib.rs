@@ -56,6 +56,7 @@ pub mod prelude {
     pub use crate::render_old::*;
     pub use crate::target::*;
     pub use crate::turn::*;
+    pub use crate::view::*;
 
     pub use crate::*;
 }
