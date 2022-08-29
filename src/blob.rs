@@ -96,8 +96,8 @@ impl Blob {
         for mut block in block_iter {
             block.position -= self.coordinate;
             block.position = IVec2::new(block.position.y, -block.position.x);
-            block.position += self.coordinate;
             self.relative_positions.push(block.position);
+            block.position += self.coordinate;
         }
     }
 
@@ -106,18 +106,23 @@ impl Blob {
         for mut block in block_iter {
             block.position -= self.coordinate;
             block.position = IVec2::new(-block.position.y, block.position.x);
-            block.position += self.coordinate;
             self.relative_positions.push(block.position);
+            block.position += self.coordinate;
         }
     }
 
     /// the function calculates the occupied coordinates in the coordinate system of the
     /// parent (coordinate property)
-    pub fn coordinates_of_blocks(&self) -> Vec<IVec2> {
-        self.relative_positions.iter()
-            .map(|v| *v + self.coordinate)
-            .collect()
-    }
+    pub fn coordinates_of_blocks(&self, relative: bool) -> Vec<IVec2> {
+        if relative {
+            self.relative_positions.clone()
+        } else {
+            self.relative_positions.iter()
+                .map(|v| *v + self.coordinate)
+                .collect()
+
+            }
+        }
 }
 
 pub fn pivot_coord() -> (usize, usize) {
@@ -178,37 +183,51 @@ pub fn spawn_blob(
 /// Example of system that maps actions to movements on a controlled entity:
 pub fn move_blob_by_player(
     mut query: Query<(&ActionState<TetrisActionsWASD>, &mut Blob, Entity)>,
-    mut query_block: Query<&mut Block>, // get every entity, that has these three components
-    turn: Res<Turn>, // get a bevy-internal resource that represents the time
+    mut query_block: Query<(Entity, &mut Block)>,
+    mut ev_view: EventWriter<ViewUpdate>,
+    turn: Res<Turn>,
 ) {
     // continue here
     // check if we are in a turn change...
     if turn.is_new_turn() {
         query.for_each_mut(|(s, mut blob, blob_id)| {
             
+            let mut delta = IVec2::ZERO;
             if s.pressed(TetrisActionsWASD::Up) {
-                blob.coordinate.y -= 1;
+                delta.y -= 1;
             }
 
             if s.pressed(TetrisActionsWASD::Down) {
-                blob.coordinate.y += 1;
+                delta.y += 1;
             }
 
             if s.pressed(TetrisActionsWASD::Left) {
-                blob.coordinate.x -= 1;
+                delta.x -= 1;
             }
 
             if s.pressed(TetrisActionsWASD::Right) {
-                blob.coordinate.x += 1;
+                delta.x += 1;
             }
         
-            let mut block_iter = query_block.iter_mut()
-                .filter(|b| b.blob.is_some() && b.blob.unwrap() == blob_id);
-            if s.pressed(TetrisActionsWASD::LRotate) {
-                blob.rotate_left(&mut block_iter);
-            } else if s.pressed(TetrisActionsWASD::RRotate) {
-                blob.rotate_right(&mut block_iter);
+            {
+                let mut block_iter = query_block.iter_mut()
+                    .map(|(_,block)| block)
+                    .filter(|block| block.blob.is_some() && block.blob.unwrap() == blob_id);
+                if s.pressed(TetrisActionsWASD::LRotate) {
+                    blob.rotate_left(&mut block_iter);
+                } else if s.pressed(TetrisActionsWASD::RRotate) {
+                    blob.rotate_right(&mut block_iter);
+                }
             }
+
+            let block_iter = query_block.iter_mut()
+                .filter(|(_,block)| block.blob.is_some() && block.blob.unwrap() == blob_id);
+
+            move_blob(
+                (blob_id, &mut blob),
+                delta, 
+                block_iter, 
+                &mut ev_view);
         });
     }
 }

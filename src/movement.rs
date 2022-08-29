@@ -42,7 +42,7 @@ pub fn generate_move_events_by_gravity(
 pub fn move_factory_blobs_by_events(
     mut query: Query<(&Parent, Entity, &mut Blob)>,
     parent_query: Query<(Entity, &Field), With<FactoryFieldTag>>,
-    mut block_query: Query<&mut Block>,
+    mut block_query: Query<(Entity, &mut Block)>,
     mut ev_move: EventReader<BlobMoveEvent>,
     mut ev_teleport: EventWriter<BlobTeleportEvent>,
     mut ev_view: EventWriter<ViewUpdate>,
@@ -67,26 +67,25 @@ pub fn move_factory_blobs_by_events(
                 //~
 
                 if let Some(element) = state.get_element(tv) {
-                    let mut block_iter = block_query.iter_mut()
-                        .filter(|block| block.blob.is_some() && block.blob.unwrap() == blob_id );
-
+                    let mut do_move = false;
                     match element.kind {
                         // in the factory we can move out of region
-                        FieldElementKind::Empty | FieldElementKind::OutOfRegion => {
-                            move_blob(
-                                (blob_id, &mut blob),
-                                IVec2::new(ev.delta.0, ev.delta.1), 
-                                block_iter, 
-                                &mut ev_view);
+                        FieldElementKind::Empty => {
+                            do_move = true;
                         },
+                        FieldElementKind::OutOfMovableRegion => {
+                            do_move = !(tv.x < 0 || tv.x >= field.mov_size().0 as i32);
+                        }
                         FieldElementKind::Tool(tool) => {
-                            let mut handled_by_tool = true;
-                            
+                            do_move = true;
                             match tool {
                                 Tool::Move(d) => {
                                     blob.movement = d.into();
                                 },
                                 Tool::Rotate(d) => {
+                                    let mut block_iter = block_query.iter_mut()
+                                        .map(|(_, block)| block)
+                                        .filter(|block| block.blob.is_some() && block.blob.unwrap() == blob_id );
                                     match d {
                                         RotateDirection::Left => blob.rotate_left(&mut block_iter),
                                         RotateDirection::Right => blob.rotate_right(&mut block_iter),
@@ -95,21 +94,23 @@ pub fn move_factory_blobs_by_events(
                                 Tool::Cutter(_) => {
                                     // @todo implement cutter tool
                                 }
-                                _ => {handled_by_tool = false},
-                            }
-
-                            if handled_by_tool {
-                                move_blob(
-                                    (blob_id, &mut blob),
-                                    IVec2::new(ev.delta.0, ev.delta.1), 
-                                    block_iter, 
-                                    &mut ev_view);
-                                
+                                _ => {},
                             }
                         },
                         _ => {
                             bevy::log::warn!("Do nothing with target: {tc}, {tr} but stuck");
                         }
+                    }
+                    if do_move {
+                        let block_iter = block_query.iter_mut()
+                            .filter(|(_, block)| block.blob.is_some() && block.blob.unwrap() == blob_id );
+
+                        move_blob(
+                            (blob_id, &mut blob),
+                            IVec2::new(ev.delta.0, ev.delta.1), 
+                            block_iter, 
+                            &mut ev_view);
+                        
                     }
                 }
             }
@@ -117,17 +118,18 @@ pub fn move_factory_blobs_by_events(
     }
 }
 
-fn move_blob<'a>(
+pub fn move_blob<'a>(
     (blob_id, blob): (Entity, &mut Blob),
     delta: IVec2,
-    block_iter: impl Iterator<Item = Mut<'a, Block>>,
+    block_iter: impl Iterator<Item = (Entity, Mut<'a, Block>)>,
     ev_view: &mut EventWriter<ViewUpdate>,
 ) {
     blob.coordinate = blob.coordinate + delta;
-    for mut block in block_iter {
+    for (id, mut block) in block_iter {
         if let Some(blob) = block.blob  {
             if blob == blob_id {
                 block.position += delta;
+                ev_view.send(ViewUpdate::BlobMoved(id));
             }
         }
     }
@@ -138,18 +140,19 @@ fn move_blob<'a>(
 pub fn move_production_blobs_by_events(
     mut commands: Commands,
     mut query: Query<(Entity, &Parent, &mut Blob)>,
+    mut query_block: Query<(Entity, &mut Block)>,
     mut parent_query: Query<&mut Field, With<ProductionFieldTag>>,
     mut ev: EventReader<BlobMoveEvent>,
+    mut ev_view: EventWriter<ViewUpdate>,
 ) {
     for ev in ev.iter() {
-        if let Ok((id, p, mut blob)) = query.get_mut(ev.entity) {
+        if let Ok((blob_id, p, mut blob)) = query.get_mut(ev.entity) {
             
             if let Ok(field) = parent_query.get_mut(p.get()) {
-                let occ_coords: Vec<IVec2> = blob
-                    .coordinates_of_blocks()
-                    .iter()
-                    .map(|v| IVec2::new(v.x - pivot_coord().0 as i32, v.y - pivot_coord().1 as i32))
-                    .collect();
+                let occ_coords: Vec<IVec2> = query_block.iter_mut()
+                        .filter(|(_, block)| block.blob.is_some() && block.blob.unwrap() == blob_id)
+                        .map(|(_, block)| block.position)
+                        .collect(); 
 
                 // transform grid
                 let mut occ_coords_delta = occ_coords.clone();
@@ -159,17 +162,24 @@ pub fn move_production_blobs_by_events(
                 }
 
                 let field_state = field.get_field_state();
-                let occupied = field_state.is_any_coordinate_occupied(&occ_coords_delta);
+                log::info!("Target by move:\n{:?}", occ_coords_delta);
+                let occupied = field_state.is_any_coordinate_occupied(
+                    &occ_coords_delta, 
+                    Some(&occ_coords),
+                    &|el| el.kind != FieldElementKind::Empty && el.kind != FieldElementKind::OutOfMovableRegion,
+                );
 
                 if !occupied {
-                    blob.coordinate.x += ev.delta.0;
-                    blob.coordinate.y += ev.delta.1;
+                    let block_iter = query_block.iter_mut()
+                        .filter(|(_, block)| block.blob.is_some() && block.blob.unwrap() == blob_id);
+                    let delta = IVec2::new(ev.delta.0, ev.delta.1);
+                    move_blob((blob_id, &mut blob), delta, block_iter, &mut ev_view);
+
                 } else {
                     log::info!("Full Stop and occupy");
-                    blob.active = false;
-                    //field.occupy_coordinates(&occ_coords);
+                    //blob.active = false;
 
-                    commands.entity(id).despawn_recursive();
+                    //commands.entity(blob_id).despawn_recursive();
                 }
             }
         }
@@ -180,16 +190,29 @@ pub fn teleport_blob_out_of_factory(
     mut commands: Commands,
     query_fac: Query<Entity, With<FactoryFieldTag>>,
     query_prod: Query<Entity, With<ProductionFieldTag>>,
-    mut query_blob: Query<&mut Blob>,
+    mut query_blob: Query<(Entity, &Parent, &mut Blob)>,
+    mut query_block: Query<(Entity, &mut Block)>,
     mut ev: EventReader<BlobTeleportEvent>,
+    mut ev_view: EventWriter<ViewUpdate>
 ) {
     for ev in ev.iter() {
-        if let Ok(blob) = &mut query_blob.get_mut(ev.entity) {
+        if let Ok((blob_id, parent, blob)) = &mut query_blob.get_mut(ev.entity) {
             let fac = query_fac.single();
             let prod = query_prod.single();
+            // we only teleport from the factory to the production
+            if parent.get() != fac {
+                continue;
+            }
+            //~ 
 
+            let target = IVec2::new(blob.coordinate.x,-3);
+            let delta = target - blob.coordinate;
+            let block_iter = query_block.iter_mut()
+                .filter(|(_, block)| block.blob.is_some() && block.blob.unwrap() == *blob_id);
+            move_blob((*blob_id, blob), delta, block_iter, &mut ev_view);
+
+            // @todo remove the hiearchy asap rendering is working
             commands.entity(fac).remove_children(&[ev.entity]);
-            blob.coordinate.y = -3;
             commands.entity(prod).push_children(&[ev.entity]);
             log::info!("Blob teleported!");
         }

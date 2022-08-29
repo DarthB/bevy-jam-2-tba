@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, log};
 use crate::prelude::*;
 
 // chat log form psi architecture / refactor discussion
@@ -22,10 +22,21 @@ impl FieldState {
         }
 
         let len = len_from_bounds(bounds);
-        FieldState { 
+        let mut reval = FieldState { 
             bounds, 
             elements: vec![FieldElement::default(); len.0*len.1], 
+        };
+        
+        for x in bounds.0.x..bounds.1.x {
+            for y in bounds.0.y..bounds.1.y {
+                let pos = IVec2::new(x,y);
+                let mut el = reval.get_element(pos).unwrap();
+                el.position = pos;
+                reval.set_element(pos, el);
+            }
         }
+        
+        reval
     }
 
     pub fn len(&self) -> (usize, usize) {
@@ -51,10 +62,28 @@ impl FieldState {
         }
     }
 
-    pub fn are_all_coordinates_occupied(&self, coords: &Vec<IVec2>) -> bool {
+    pub fn get_occupied_coordinates(&self) -> Vec<IVec2> {
+        let mut reval = vec![];
+        for el in self.into_iter() {
+            match el.kind {
+                FieldElementKind::OutOfMovableRegion | FieldElementKind::Block => {
+                    reval.push(el.position);
+                },
+                _ => {}
+            }
+        }
+        reval
+    }
+
+    pub fn are_all_coordinates_occupied(
+        &self, 
+        coords: &Vec<IVec2>,
+        exceptions: Option<&Vec<IVec2>>, 
+        predicate: &dyn Fn(&FieldElement)->bool,
+    ) -> bool {
         for v in coords {
-            let res = self.is_coordinate_occupied(*v);
-            if res == FieldElementKind::Empty {
+            let res = self.predicate_at_coordinate(*v, exceptions, predicate);
+            if !res {
                 return false;
             }
         }
@@ -64,21 +93,33 @@ impl FieldState {
     pub fn is_any_coordinate_occupied(
         &self,
         coords: &Vec<IVec2>,
+        exceptions: Option<&Vec<IVec2>>,
+        predicate: &dyn Fn(&FieldElement)->bool,
     ) -> bool {
         for v in coords {
-            let res = self.is_coordinate_occupied(*v);
-            if res != FieldElementKind::Empty {
+            let res = self.predicate_at_coordinate(*v, exceptions, predicate);
+            if res {
                 return true;
             }
         }
         false
     }
 
-    pub fn is_coordinate_occupied(&self, coord: IVec2) -> FieldElementKind {
+    pub fn predicate_at_coordinate(
+        &self, 
+        coord: IVec2, 
+        exceptions: Option<&Vec<IVec2>>,
+        predicate: &dyn Fn(&FieldElement)->bool,
+    ) -> bool {
+        if let Some(exceptions) = exceptions {
+            if exceptions.contains(&coord) {
+                return true;
+            }
+        }
         if let Some(element) = self.get_element(coord) {
-            element.kind
+            predicate(&element)
         } else {
-            FieldElementKind::OutOfRegion
+            false
         }
     }
 
@@ -123,7 +164,7 @@ impl<'a> Iterator for FieldElementIterator<'a> {
     type Item = FieldElement;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let res = if self.field_state.elements.len() < self.index {
+        let res = if self.index < self.field_state.elements.len() {
             Some(self.field_state.elements[self.index])
         } else {
             None
@@ -138,7 +179,8 @@ impl<'a> Iterator for FieldElementIterator<'a> {
 pub enum FieldElementKind {
     #[default]
     Empty,
-    OutOfRegion,
+    OutOfMovableRegion,
+    OutOfValidRegion,
     Block,
     Tool(Tool),
 }

@@ -70,8 +70,8 @@ impl Field {
     pub fn bounds(&self) -> (IVec2, IVec2) {
         (
             IVec2::new(
-                -(self.allow_overlap.top as i32), 
-                -(self.allow_overlap.left as i32),
+                -(self.allow_overlap.left as i32), 
+                -(self.allow_overlap.top as i32),
             ),
             IVec2::new(
                 (self.mov_size().0 + self.allow_overlap.right) as i32,
@@ -100,7 +100,7 @@ impl Field {
                     self.field_state.set_element(pos, FieldElement { 
                         entity: None, 
                         blob: None,
-                        kind: FieldElementKind::OutOfRegion,
+                        kind: FieldElementKind::OutOfMovableRegion,
                         position: pos 
                     });
                 }
@@ -248,8 +248,13 @@ pub fn generate_field_states(
 ) {
     for (field_id, mut field) in query_field.iter_mut() {
         let iter = query_state.iter().filter(|(_, block, _)| {
-            block.field.is_some() && block.field.unwrap() == field_id
+            if let Some(id) = block.field {
+                id == field_id
+            } else {
+                false
+            }
         });
+        //log::info!("Blocks on Field {:?} = {}", field_id, iter.count());
         field.generate_field_state(iter);
     }
 }

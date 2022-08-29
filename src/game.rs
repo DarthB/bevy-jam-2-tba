@@ -33,7 +33,7 @@ pub fn spawn_world(
         &assets,
         comp,
         "Factory Field",
-        Vec3::new(-100.0, 0.0, 0.0),
+        Vec3::new(120.0, 64.0, 0.0),
         turn.use_old_rendering,
         &|ec| {
             ec.insert(FactoryFieldTag {});
@@ -82,7 +82,7 @@ pub fn spawn_world(
         &|_| {},
     );
     evt.send(ViewUpdate::BlobSpawned(target_stone));
-    commands.entity(pr_field).push_children(&[target_stone]);
+    //commands.entity(pr_field).push_children(&[target_stone]);
 
     let pos = UiRect {
         top: Val::Percent(3.0),
@@ -128,8 +128,6 @@ pub fn check_win(
     assets: Res<GameAssets>,
     mut query_field: Query<&mut Field, With<ProductionFieldTag>>,
     query_target: Query<&Target>,
-    // @todo check if block query needed here
-    query_block: Query<(Entity, &mut Block, Option<&ToolComponent>)>,
     mut player_state: ResMut<PlayerState>,
 ) {
     if player_state.won {
@@ -137,15 +135,20 @@ pub fn check_win(
     }
 
     let target = query_target.single();
-    let mut field = query_field.single_mut();
-    let field_state = field.generate_field_state(query_block.iter());
+    let field = query_field.single_mut();
+    let field_state = field.get_field_state();
 
     let coords = target.occupied_coordinates();
-    let coords = coords
+    let transformed_coords = coords
         .iter()
-        .map(|(c, r)| IVec2::new(*c - pivot_coord().0 as i32, *r - pivot_coord().1 as i32))
+        .map(|(c, r)| IVec2::new(*c, *r + 6)) // as the production field 6 tiles larger in y direction
         .collect();
-    let cond = field_state.are_all_coordinates_occupied(&coords) 
+
+    let cond = field_state.are_all_coordinates_occupied(
+        &transformed_coords, 
+        None, 
+        &|el| el.kind != FieldElementKind::Empty,
+    ) 
         //&& coords.len() == field.num_occupied()
         ;
     if cond {

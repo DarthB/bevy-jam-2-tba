@@ -55,12 +55,10 @@ impl Target {
     pub fn occupied_coordinates(&self) -> Vec<(i32, i32)> {
         let mut reval = Vec::new();
         if self.coordinate.is_some() {
-            for r in 0..Target::size() {
-                for c in 0..Target::size() {
-                    if self.body[ coords_to_idx(r, c, Target::size())] != 0 {
-                        if let Some(coord) = &self.coordinate {
-                            reval.push((c as i32 + coord.c, r as i32 + coord.r));
-                        }
+            for r in 0..self.dimensions().1 {
+                for c in 0..self.dimensions().0 {
+                    if self.body[ coords_to_idx(r, c, self.dimensions().0)] != 0 {
+                        reval.push((c as i32, r as i32));
                     }
                 }
             }
@@ -96,6 +94,7 @@ pub fn spawn_target(
     };
 
     let mut ec = commands.spawn_bundle(SpatialBundle {
+        transform: Transform::from_translation(Vec3::new(344.0, -192.0, 0.0)),
         ..Default::default()
     });
     let id = ec.id();

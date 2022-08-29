@@ -72,8 +72,28 @@ pub trait RenderableGrid {
                         texture: info.image,
                         ..Default::default()
                     });
+                    ec.insert(FieldRenderTag{});
                     ec.insert(Name::new(format!("grid {}:{}", r, c)));
                     self.adapt_render_entities(&mut ec, r as i32, c as i32);
+
+                    
+                    if r == 0 && c == 0 {
+                        cb.spawn_bundle(SpriteBundle {
+                            sprite: Sprite {
+                                color: Color::YELLOW,
+                                custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
+                                ..Default::default()
+                            },
+                            transform: Transform {
+                                translation: Vec3::new(x, y - PX_PER_TILE / 4.0, Z_OVERLAY),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        })
+                        .insert(Coordinate{r:y as i32, c:x as i32})
+                        .insert(PivotTag{});
+                    }
+                    
                 }
             }
         }
@@ -158,6 +178,10 @@ impl RenderableGrid for Blob {
         coords_to_px(x + self.coordinate.x, y + self.coordinate.y, Blob::size(), Blob::size())
     }
 
+    fn spawn_render_entities(&self, _id: Entity, _: &mut ChildBuilder, _: &GameAssets) {
+        
+    }
+
     fn get_render_id(&self, r: i32, c: i32) -> i32 {
         let abs_pos: Vec<IVec2> = self.relative_positions.iter()
             .map(|v| *v + IVec2::new(4,4))
@@ -174,12 +198,12 @@ impl RenderableGrid for Blob {
     }
 
     fn spawn_pivot(&self) -> bool {
-        true
+        false
     }
 
     #[cfg(feature = "debug")]
     fn spawn_origin(&self) -> bool {
-        true
+        false
     }
 
     fn get_sprite_info(&self, num: i32, _assets: &GameAssets) -> SpriteInfo {
@@ -210,8 +234,15 @@ impl RenderableGrid for Blob {
 
 impl RenderableGrid for Target {
     
+    fn dimensions(&self) -> (usize, usize) {
+        (10, 12)
+    }
+
     fn bounds(&self) -> (IVec2, IVec2) {
-        (IVec2::ZERO, IVec2::splat(Target::size() as i32))
+        (IVec2::ZERO, IVec2::new(
+            self.dimensions().0 as i32, 
+            self.dimensions().1 as i32,
+        ))
     }
 
     fn coords_to_px(&self, mut x: i32, mut y: i32) -> (f32, f32) {
@@ -227,16 +258,16 @@ impl RenderableGrid for Target {
     }
 
     fn spawn_normal(&self) -> bool {
-        false
+        true
     }
 
     fn spawn_pivot(&self) -> bool {
-        true
+        false
     }
 
     #[cfg(feature = "debug")]
     fn spawn_origin(&self) -> bool {
-        true
+        false
     }
 
     fn get_sprite_info(&self, num: i32, _assets: &GameAssets) -> SpriteInfo {
@@ -333,16 +364,17 @@ impl RenderableGrid for Field {
         if let Some(element) = state.get_element(IVec2::new(c,r)) {
             match element.kind {
                 FieldElementKind::Empty => 0,
-                FieldElementKind::OutOfRegion => 2,
+                FieldElementKind::OutOfMovableRegion => 2,
+                FieldElementKind::OutOfValidRegion => -1,
                 FieldElementKind::Block => 1,
                 FieldElementKind::Tool(t) => t.into(),
             }
         } else if r < 0 || r >= self.mov_size().1 as i32 
             || c<0 || c >= self.mov_size().0 as i32 {
-            log::warn!("Shall not happen, under mov.size");
+            //log::warn!("Shall not happen, under mov.size");
             2
         } else {
-            log::warn!("Shall not happen, ELSE Branch");
+            //log::warn!("Shall not happen, ELSE Branch");
             0
         }
     }
@@ -374,16 +406,19 @@ impl RenderableGrid for Field {
 
 pub fn grid_update_render_entities<T: Component + RenderableGrid>(
     query_top: Query<(&Children, &T)>,
-    mut query: Query<(&mut Sprite, &mut Transform, &mut Handle<Image>, &Coordinate)>,
+    mut query: Query<(&mut Sprite, &mut Transform, &mut Handle<Image>, &Coordinate, Option<&PivotTag>), With<FieldRenderTag>>,
     assets: Res<GameAssets>,
 ) {
     for (children, renderable_grid) in query_top.iter() {
         for &child in children.iter() {
-            if let Ok((mut sprite, mut t, mut texture, coord)) = query.get_mut(child) {
+            if let Ok((mut sprite, mut t, mut texture, coord, pivot)) = query.get_mut(child) {
                 let num = renderable_grid.get_render_id(coord.r, coord.c);
                 let info = renderable_grid.get_sprite_info(num, &assets);
 
                 sprite.color = info.color;
+                if pivot.is_some() {
+                    sprite.color = Color::YELLOW;
+                }
                 *texture = info.image;
                 t.translation.z = info.z;
             }

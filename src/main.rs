@@ -103,18 +103,19 @@ fn main() {
                 .with_system(move_factory_blobs_by_events)
                 .with_system(move_production_blobs_by_events)
                 .with_system(mouse_for_field_selection_and_tool_creation)
-                .with_system(check_win)
                 .label(MySystems::GameUpdates)
                 .after(MySystems::PreGameUpdates),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)            
                 .with_system(teleport_blob_out_of_factory)
+                .with_system(generate_field_states)
                 .label(MySystems::PostGameUpdates)
                 .after(MySystems::GameUpdates)
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
+                .with_system(check_win)
                 .with_system(grid_update_render_entities::<Blob>)
                 .with_system(grid_update_render_entities::<Field>)
                 .with_system(update_toolbar_images)
@@ -122,7 +123,7 @@ fn main() {
                 .with_system(update_toolbar_overlays)
                 .with_system(blob_update_transforms)
                 .with_system(update_field_debug)
-                .with_system(crate::view::handle_view_updates)
+                //.with_system(crate::view::handle_view_updates)
                 .label(MySystems::RenderUpdates)
                 .after(MySystems::PostGameUpdates),
         )

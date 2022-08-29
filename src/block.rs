@@ -28,6 +28,9 @@ impl Block {
                     blob: None,
                     field: None,
                 })
+                .insert(BlockExtra {
+                    coordinate: v - IVec2::splat(-4),
+                })
                 .insert(Name::new(format!("Block {},{}", v.x, v.y)))
                 .id();
 

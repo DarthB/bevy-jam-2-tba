@@ -36,7 +36,7 @@ pub struct BlobExtra {
 #[derive(Component, Debug, PartialEq, Clone, Reflect)]
 pub struct BlockExtra {
     /// Position relative to its Blob's pivot
-    coordinate: IVec2,
+    pub coordinate: IVec2,
 }
 
 //----------------------------------------------------------------------
