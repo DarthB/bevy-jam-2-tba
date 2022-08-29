@@ -21,6 +21,8 @@ pub struct Blob {
     pub texture: Handle<Image>,
 }
 
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct BlobBody {
     pub block_positions: Vec<i32>,
 
@@ -90,9 +92,11 @@ impl Blob {
 
     pub fn rotate_left<'a, I>(&mut self, block_iter: &mut I)
         where I: Iterator<Item = Mut<'a, Block>> {
-        self.relative_positions.clear();
+            self.relative_positions.clear();
         for mut block in block_iter {
+            block.position -= self.coordinate;
             block.position = IVec2::new(block.position.y, -block.position.x);
+            block.position += self.coordinate;
             self.relative_positions.push(block.position);
         }
     }
@@ -100,7 +104,9 @@ impl Blob {
     pub fn rotate_right<'a>(&mut self, block_iter: impl Iterator<Item = Mut<'a, Block>>) {
         self.relative_positions.clear();
         for mut block in block_iter {
+            block.position -= self.coordinate;
             block.position = IVec2::new(-block.position.y, block.position.x);
+            block.position += self.coordinate;
             self.relative_positions.push(block.position);
         }
     }
