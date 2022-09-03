@@ -6,7 +6,11 @@
 use std::{collections::HashMap, time::Duration};
 
 use crate::{blob::Blob, game_assets::GameAssets, input::TetrisActionsWASD, PX_PER_TILE};
-use bevy::{ecs::system::EntityCommands, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
+use bevy::{
+    ecs::{schedule::StateData, system::EntityCommands},
+    prelude::*,
+    render::texture::DEFAULT_IMAGE_HANDLE,
+};
 use bevy_tweening::{
     lens::{SpriteColorLens, TransformPositionLens, TransformRotateZLens},
     Animator, EaseFunction, Tween, TweeningType,
@@ -358,6 +362,40 @@ pub fn handle_view_updates(
 
 //----------------------------------------------------------------------
 // Code for demoing the rendering module
+
+#[derive(SystemLabel)]
+enum DemoSystemLabels {
+    EventHandling,
+    GameLogic,
+}
+
+/// Registers the animation demo
+pub fn register_animation_demo(app: &mut App, game_state: impl StateData) {
+    app.add_event::<ViewUpdate>();
+    app.add_system_set(SystemSet::on_enter(game_state.clone()).with_system(setup_demo_system))
+        .add_system_set(
+            SystemSet::on_update(game_state.clone())
+                .with_system(demo_system)
+                .label(DemoSystemLabels::GameLogic),
+        )
+        .add_system_set(
+            SystemSet::on_update(game_state.clone())
+                .with_system(handle_view_updates)
+                .label(DemoSystemLabels::EventHandling)
+                // Run the ViewHandling BEFORE the game logic. The game logic spawnes new entites
+                // with components and publishes events referring these new entities. Because
+                // these `Commands` are only visible in the next cycle, the view handling logic
+                // cannot be executed after the game logic in the same cycle.
+                .before(DemoSystemLabels::GameLogic),
+        );
+
+    #[cfg(feature = "debug")]
+    use bevy_inspector_egui::RegisterInspectable;
+
+    #[cfg(feature = "debug")]
+    app.register_inspectable::<BlobExtra>()
+        .register_inspectable::<BlockExtra>();
+}
 
 fn spawn_demo_blob(commands: &mut Commands) -> Entity {
     let body = crate::bodies::prototype::gen_target_body2();

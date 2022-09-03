@@ -20,9 +20,6 @@ enum MySystems {
     Input,
     GameUpdates,
     RenderUpdates,
-    // labels for ordering the animation demo sytems
-    ViewEventHandling,
-    ViewGameLogic,
 }
 
 fn main() {
@@ -42,8 +39,7 @@ fn main() {
     });
 
     app.add_event::<BlobMoveEvent>()
-        .add_event::<BlobTeleportEvent>()
-        .add_event::<crate::view::ViewUpdate>();
+        .add_event::<BlobTeleportEvent>();
 
     // Use default pluign and show own plugin for input mapping
     app.add_plugins(DefaultPlugins)
@@ -58,25 +54,6 @@ fn main() {
         // pitfals for fixed-time run criterias, see:
         // https://bevy-cheatbook.github.io/programming/states.html
         .add_system_set(SystemSet::on_enter(GameState::Starting).with_system(setup))
-        .add_system_set(
-            SystemSet::on_enter(GameState::AnimationTest)
-                .with_system(crate::view::setup_demo_system),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::AnimationTest)
-                .with_system(crate::view::demo_system)
-                .label(MySystems::ViewGameLogic),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::AnimationTest)
-                .with_system(crate::view::handle_view_updates)
-                .label(MySystems::ViewEventHandling)
-                // Run the ViewHandling BEFORE the game logic. The game logic spawnes new entites
-                // with components and publishes events referring these new entities. Because
-                // these `Commands` are only visible in the next cycle, the view handling logic
-                // cannot be executed after the game logic in the same cycle.
-                .before(MySystems::ViewGameLogic),
-        )
         .add_system_set(
             SystemSet::on_enter(GameState::Ingame)
                 .with_system(spawn_world)
@@ -129,12 +106,14 @@ fn main() {
         .register_inspectable::<Coordinate>()
         .register_inspectable::<BlobGravity>()
         .register_inspectable::<Blob>()
-        .register_inspectable::<crate::view::BlobExtra>()
-        .register_inspectable::<crate::view::BlockExtra>()
         .register_inspectable::<Field>()
         .register_inspectable::<UITagImage>()
         .register_inspectable::<UITagHover>()
         .register_type::<Interaction>();
+
+    // Setup animation demo
+    crate::view::register_animation_demo(&mut app, GameState::AnimationTest);
+
     app.run();
 }
 
