@@ -3,7 +3,7 @@
 //!
 //!
 
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use crate::{blob::Blob, game_assets::GameAssets, input::TetrisActionsWASD, PX_PER_TILE};
 use bevy::{ecs::system::EntityCommands, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
@@ -55,6 +55,9 @@ pub enum ViewUpdate {
     BlobMoved(Entity),
     /// A blob has been rotated
     BlobRotated(Entity, Rotation),
+    /// A new blob `entity` has been cutout. The new blob `entity` must have the
+    /// blocks that originally were part of the original blob.
+    BlobCutout(Entity),
     /// A blob has been transferred from the factory to tetris arena
     BlobTransferred(Entity),
     /// A line of blocks was removed in the tetris field.
@@ -143,51 +146,49 @@ fn handle_blob_spawned(
     block_query: &Query<&BlockExtra>,
     config: &Res<ViewConfig>,
 ) {
-    if let Ok(blobdata) = blob_query.get(blob) {
-        assert!(!blobdata.transferred);
-        let transform = Transform::from_translation(
-            config.factory_topleft + coord_to_translation(blobdata.pivot),
-        );
-        commands
-            .entity(blob)
-            .insert_bundle(SpatialBundle::from(transform))
-            .insert(BlobRenderState {
-                last_pivot: blobdata.pivot,
-                rotation_steps: 0,
-            })
-            .with_children(|cb| {
-                // Pivot
-                cb.spawn_bundle(SpriteBundle {
-                    sprite: Sprite {
-                        color: Color::RED,
-                        custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
-                        ..Default::default()
-                    },
-                    transform: Transform::from_xyz(0.0, 0.0, crate::Z_OVERLAY),
-                    texture: DEFAULT_IMAGE_HANDLE.typed(),
-                    ..Default::default()
-                })
-                .insert(Name::new("Pivot Debug"));
-            });
-        commands.entity(config.renderer_entity).add_child(blob);
-
-        for &block in blobdata.blocks.iter() {
-            let blockdata = block_query.get(block).unwrap();
-
-            // temporary hack until we can expect the game logic to do this for us
-            commands.entity(blob).add_child(block);
-
-            commands.entity(block).insert_bundle(SpriteBundle {
+    let blobdata = blob_query.get(blob).unwrap();
+    assert!(!blobdata.transferred);
+    let transform =
+        Transform::from_translation(config.factory_topleft + coord_to_translation(blobdata.pivot));
+    commands
+        .entity(blob)
+        .insert_bundle(SpatialBundle::from(transform))
+        .insert(BlobRenderState {
+            last_pivot: blobdata.pivot,
+            rotation_steps: 0,
+        })
+        .with_children(|cb| {
+            // Pivot
+            cb.spawn_bundle(SpriteBundle {
                 sprite: Sprite {
-                    color: Color::WHITE,
-                    custom_size: Some(Vec2::ONE * PX_PER_TILE),
+                    color: Color::RED,
+                    custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
                     ..Default::default()
                 },
-                transform: Transform::from_translation(coord_to_translation(blockdata.coordinate)),
-                texture: config.brick_image.clone(),
+                transform: Transform::from_xyz(0.0, 0.0, crate::Z_OVERLAY),
+                texture: DEFAULT_IMAGE_HANDLE.typed(),
                 ..Default::default()
-            });
-        }
+            })
+            .insert(Name::new("Pivot Debug"));
+        });
+    commands.entity(config.renderer_entity).add_child(blob);
+
+    for &block in blobdata.blocks.iter() {
+        let blockdata = block_query.get(block).unwrap();
+
+        // temporary hack until we can expect the game logic to do this for us
+        commands.entity(blob).add_child(block);
+
+        commands.entity(block).insert_bundle(SpriteBundle {
+            sprite: Sprite {
+                color: Color::WHITE,
+                custom_size: Some(Vec2::ONE * PX_PER_TILE),
+                ..Default::default()
+            },
+            transform: Transform::from_translation(coord_to_translation(blockdata.coordinate)),
+            texture: config.brick_image.clone(),
+            ..Default::default()
+        });
     }
 }
 
@@ -251,6 +252,38 @@ fn handle_blob_rotated(
     }
 }
 
+fn handle_blob_cutout(
+    commands: &mut Commands,
+    newblob: Entity,
+    blob_query: &Query<&BlobExtra>,
+    block_query: &Query<&BlockExtra>,
+    config: &Res<ViewConfig>,
+) {
+    handle_blob_spawned(commands, newblob, blob_query, block_query, config);
+    let blobdata = blob_query.get(newblob).unwrap();
+    for &block in blobdata.blocks.iter() {
+        let tween = Tween::new(
+            EaseFunction::BounceInOut,
+            TweeningType::Once,
+            config.anim_duration,
+            SpriteColorLens {
+                start: Color::WHITE,
+                end: Color::BLUE,
+            },
+        )
+        .then(Tween::new(
+            EaseFunction::BounceInOut,
+            TweeningType::Once,
+            config.anim_duration,
+            SpriteColorLens {
+                start: Color::BLUE,
+                end: Color::GRAY,
+            },
+        ));
+        commands.entity(block).insert(Animator::new(tween));
+    }
+}
+
 fn handle_blob_transferred(
     commands: &mut Commands,
     blob: Entity,
@@ -309,6 +342,9 @@ pub fn handle_view_updates(
             }
             ViewUpdate::BlobRotated(blob, rotation) => {
                 handle_blob_rotated(&mut commands, blob, rotation, &mut rendered_blobs, &config)
+            }
+            ViewUpdate::BlobCutout(newblob) => {
+                handle_blob_cutout(&mut commands, newblob, &blob_query, &block_query, &config)
             }
             ViewUpdate::BlobTransferred(blob) => {
                 handle_blob_transferred(&mut commands, blob, &mut rendered_blobs, &config)
@@ -481,7 +517,59 @@ fn lowest_blocks_of_testblob(
         .collect()
 }
 
+/// Tries to cutout a triangle from `blob` by
+/// - finding 3 block entities from the test blob forming a triangle
+/// - spawn a new blob entity and reattaches above blocks to the new blob entity
+///   and set the new blob's pivot coordinate accordingly
+/// - returns the new blob entity.
+fn cutout_triangle_from_blob(
+    commands: &mut Commands,
+    blob: Entity,
+    blob_query: &mut Query<&mut BlobExtra>,
+    block_query: &mut Query<&mut BlockExtra>,
+) -> Option<Entity> {
+    let mut blobdata = blob_query.get_mut(blob).unwrap();
+    let coordinates = blobdata
+        .blocks
+        .iter()
+        .map(|&block| {
+            let blockdata = block_query.get(block).unwrap();
+            (blockdata.coordinate, block)
+        })
+        .collect::<HashMap<IVec2, Entity>>();
+    let triangle_blocks = coordinates.iter().find_map(|(coord, &block)| {
+        let a = coordinates.get(&IVec2::new(coord.x + 1, coord.y));
+        let b = coordinates.get(&IVec2::new(coord.x, coord.y + 1));
+        match (a, b) {
+            (Some(&a), Some(&b)) => Some((block, a, b)),
+            _ => None,
+        }
+    });
+    if let Some((a, b, c)) = triangle_blocks {
+        let pivot_block_coordinate = block_query.get(a).unwrap().coordinate;
+        let pivot = pivot_block_coordinate + blobdata.pivot;
+        let blocks = vec![a, b, c];
+        blobdata.blocks.retain(|x| !blocks.contains(x));
+        for &block in blocks.iter() {
+            block_query.get_mut(block).unwrap().coordinate -= pivot_block_coordinate;
+        }
+        let newblob = commands
+            .spawn()
+            .insert_children(0, &blocks[..])
+            .insert(BlobExtra {
+                blocks,
+                pivot,
+                transferred: false,
+            })
+            .id();
+        Some(newblob)
+    } else {
+        None
+    }
+}
+
 pub fn demo_system(
+    mut commands: Commands,
     config: Res<ViewConfig>,
     mut blob_query: Query<&mut BlobExtra>,
     mut block_query: Query<&mut BlockExtra>,
@@ -533,6 +621,19 @@ pub fn demo_system(
                 if let Ok(mut blobdata) = blob_query.get_mut(test_blob) {
                     blobdata.blocks.retain(|x| !to_remove.contains(x));
                     evt.send(ViewUpdate::LineRemove(to_remove));
+                }
+            }
+        }
+        if s.just_pressed(TetrisActionsWASD::Right) {
+            bevy::log::info!("RIGHT for Cutout pressed!");
+            if let Some(test_blob) = config.test_blob {
+                if let Some(newblob) = cutout_triangle_from_blob(
+                    &mut commands,
+                    test_blob,
+                    &mut blob_query,
+                    &mut block_query,
+                ) {
+                    evt.send(ViewUpdate::BlobCutout(newblob));
                 }
             }
         }
