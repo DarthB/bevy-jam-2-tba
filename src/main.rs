@@ -20,6 +20,9 @@ enum MySystems {
     Input,
     GameUpdates,
     RenderUpdates,
+    // labels for ordering the animation demo sytems
+    ViewEventHandling,
+    ViewGameLogic,
 }
 
 fn main() {
@@ -62,7 +65,17 @@ fn main() {
         .add_system_set(
             SystemSet::on_update(GameState::AnimationTest)
                 .with_system(crate::view::demo_system)
-                .with_system(crate::view::handle_view_updates),
+                .label(MySystems::ViewGameLogic),
+        )
+        .add_system_set(
+            SystemSet::on_update(GameState::AnimationTest)
+                .with_system(crate::view::handle_view_updates)
+                .label(MySystems::ViewEventHandling)
+                // Run the ViewHandling BEFORE the game logic. The game logic spawnes new entites
+                // with components and publishes events referring these new entities. Because
+                // these `Commands` are only visible in the next cycle, the view handling logic
+                // cannot be executed after the game logic in the same cycle.
+                .before(MySystems::ViewGameLogic),
         )
         .add_system_set(
             SystemSet::on_enter(GameState::Ingame)
