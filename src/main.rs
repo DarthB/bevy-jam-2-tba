@@ -81,6 +81,7 @@ fn main() {
                 //                .with_system(contiously_spawn_tetris_at_end)
                 .with_system(remove_field_lines)
                 .with_system(stupid_block_update)
+                .with_system(crate::view::handle_view_updates)
                 .label(MySystems::EventHandling),
         )
         .add_system_set(
@@ -122,7 +123,6 @@ fn main() {
                 .with_system(update_toolbar_overlays)
                 .with_system(blob_update_transforms)
                 .with_system(update_field_debug)
-                .with_system(crate::view::handle_view_updates)
                 .label(MySystems::RenderUpdates)
                 .after(MySystems::PostGameUpdates),
         )

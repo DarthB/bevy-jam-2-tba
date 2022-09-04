@@ -148,6 +148,8 @@ fn handle_blob_spawned(
         let transform = Transform::from_translation(
             config.factory_topleft + coord_to_translation(blobdata.pivot),
         );
+
+        
         commands
             .entity(blob)
             .insert_bundle(SpatialBundle::from(transform))
@@ -170,7 +172,8 @@ fn handle_blob_spawned(
                 .insert(Name::new("Pivot Debug"));
             });
         commands.entity(config.renderer_entity).add_child(blob);
-
+        
+        
         for &block in blobdata.blocks.iter() {
             let blockdata = block_query.get(block).unwrap();
 
@@ -188,6 +191,7 @@ fn handle_blob_spawned(
                 ..Default::default()
             });
         }
+        
     }
 }
 

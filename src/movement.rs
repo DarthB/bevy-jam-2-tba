@@ -58,7 +58,7 @@ pub fn move_factory_blobs_by_events(
                     //.filter(|data| data.field.is_some() && data.field.unwrap() == field_id)
                     ;
                 for block in iter {
-                    log::info!("Block field{:?} != factory field{:?}",
+                    log::info!("Block field{:?} = factory field{:?} ???",
                         block.field.unwrap(), field_id);
                 }
                 false
@@ -149,7 +149,7 @@ pub fn move_production_blobs_by_events(
                         //.filter(|data| data.field.is_some() && data.field.unwrap() == field_id)
                         ;
                     for block in iter {
-                        log::info!("Block field{:?} != factory field{:?}",
+                        log::info!("Block field{:?} = factory field{:?} ???",
                             block.field.unwrap(), field_id);
                     }
                     //block::blocks_are_on_field(field_id, iter)

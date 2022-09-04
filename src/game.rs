@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::{blob::*, field::spawn_field, game_assets::GameAssets, prelude::*, target::*};
-use bevy::prelude::*;
+use bevy::{prelude::*, log};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum GameState {
@@ -45,6 +45,7 @@ pub fn spawn_world(
         },
     );
     turn.fac_id = Some(fac_field_id);
+    log::info!("Factory field spawned with id: {:?}", fac_field_id);
 
     let start_blob = spawn_blob(
         &mut commands,
@@ -61,7 +62,6 @@ pub fn spawn_world(
         },
     );
     evt.send(ViewUpdate::BlobSpawned(start_blob));
-    //commands.entity(fac_field).push_children(&[start_blob]);
 
     let field_info = Field::as_production_field(&assets);
     let root_production_field = Vec3::new(300.0, 0.0, 0.0);
@@ -78,6 +78,7 @@ pub fn spawn_world(
         },
     );
     turn.prod_id = Some(pr_field);
+    log::info!("Production field with id: {:?} is spawned.", pr_field);
 
     let id =  spawn_simple_rendering_entity(&mut commands).id();
     commands.insert_resource(ViewConfig {
@@ -99,7 +100,6 @@ pub fn spawn_world(
         &|_| {},
     );
     evt.send(ViewUpdate::BlobSpawned(target_stone));
-    //commands.entity(pr_field).push_children(&[target_stone]);
 
     let pos = UiRect {
         top: Val::Percent(3.0),
