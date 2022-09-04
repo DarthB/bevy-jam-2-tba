@@ -31,14 +31,14 @@ opt-level = 3
 # debug = false
 
 [dependencies.bevy]
-version = "0.8"
+version = "0.8.1"
 # See https://github.com/bevyengine/bevy/blob/main/docs/cargo_features.md for a list of features
 default-features = false
 features = ["render", "bevy_asset", "bevy_winit", "png"]
 
 # Dependencies for native only.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.bevy]
-version = "0.8"
+version = "0.8.1"
 default-features = false
 features = ["x11"]
 
