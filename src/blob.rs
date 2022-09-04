@@ -19,6 +19,8 @@ pub struct Blob {
     pub relative_positions: Vec<IVec2>,
 
     pub texture: Handle<Image>,
+
+    pub transferred: bool,
 }
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
@@ -66,6 +68,7 @@ impl Blob {
             active: true,
             blocks: vec![],
             texture: Handle::default(),
+            transferred: false,
             relative_positions: body.get_relative_positions(),
         }
     }
@@ -90,7 +93,7 @@ impl Blob {
         Blob::size().pow(2) / 2
     }
 
-    pub fn rotate_left<'a, I>(&mut self, block_iter: &mut I)
+    pub fn rotate_left<'a, I>(&mut self, block_iter: &mut I, ev_view: &mut EventWriter<ViewUpdate>, id: Entity)
         where I: Iterator<Item = Mut<'a, Block>> {
             self.relative_positions.clear();
         for mut block in block_iter {
@@ -99,9 +102,11 @@ impl Blob {
             self.relative_positions.push(block.position);
             block.position += self.coordinate;
         }
+
+        ev_view.send(ViewUpdate::BlobRotated(id, Rotation::Left))
     }
 
-    pub fn rotate_right<'a>(&mut self, block_iter: impl Iterator<Item = Mut<'a, Block>>) {
+    pub fn rotate_right<'a>(&mut self, block_iter: impl Iterator<Item = Mut<'a, Block>>, ev_view: &mut EventWriter<ViewUpdate>, id: Entity) {
         self.relative_positions.clear();
         for mut block in block_iter {
             block.position -= self.coordinate;
@@ -109,6 +114,9 @@ impl Blob {
             self.relative_positions.push(block.position);
             block.position += self.coordinate;
         }
+
+        
+        ev_view.send(ViewUpdate::BlobRotated(id, Rotation::Right))
     }
 
     /// the function calculates the occupied coordinates in the coordinate system of the
@@ -143,20 +151,19 @@ pub fn coords_to_px(x: i32, y: i32, rs: usize, cs: usize) -> (f32, f32) {
 pub fn spawn_blob(
     commands: &mut Commands,
     texture: &Handle<Image>,
-    assets: &GameAssets,
     body: BlobBody,
     name: &str,
-    coord: IVec2, // @todo later work with coordinates and parent tetris-field
-    use_old_rendering: bool,
+    field: Entity,
+    position: IVec2, // @todo later work with coordinates and parent tetris-field
     adapter: &dyn Fn(&mut EntityCommands),
 ) -> Entity {
-    let mut blob = Blob::new(coord, &body);
+    let mut blob = Blob::new(position, &body);
     
     // @todo replace with psi rendering
     blob.texture = texture.clone();
 
     // @todo borow checker and getting the ids into each other
-    blob.blocks = Block::spawn_blocks_of_blob(commands, &body, &blob);
+    blob.blocks = Block::spawn_blocks_of_blob(commands, &body, &blob, field);
 
     let mut ec = commands.spawn_bundle(SpatialBundle {
         ..Default::default()
@@ -164,17 +171,9 @@ pub fn spawn_blob(
     let id = ec.id();
     
     // @todo clarify if that is needed
-    if !use_old_rendering {
-        ec.insert(BlobExtra { blocks: blob.blocks.clone(), pivot: IVec2::ZERO, transferred: false });
-    }
-
-    ec.with_children(|cb| {
-        if use_old_rendering {
-            blob.spawn_render_entities(id, cb, assets);
-        }
-    })
-    .insert(blob)
-    .insert(Name::new(name.to_string()));
+    ec.insert(BlobExtra { blocks: blob.blocks.clone(), pivot: IVec2::ZERO, transferred: false })
+        .insert(blob)
+        .insert(Name::new(name.to_string()));
     adapter(&mut ec);
 
     id
@@ -182,7 +181,7 @@ pub fn spawn_blob(
 
 /// Example of system that maps actions to movements on a controlled entity:
 pub fn move_blob_by_player(
-    mut query: Query<(&ActionState<TetrisActionsWASD>, &mut Blob, Entity)>,
+    mut query: Query<(&ActionState<TetrisActionsWASD>, &mut Blob, &mut BlobExtra, Entity)>,
     mut query_block: Query<(Entity, &mut Block)>,
     mut ev_view: EventWriter<ViewUpdate>,
     turn: Res<Turn>,
@@ -190,7 +189,7 @@ pub fn move_blob_by_player(
     // continue here
     // check if we are in a turn change...
     if turn.is_new_turn() {
-        query.for_each_mut(|(s, mut blob, blob_id)| {
+        query.for_each_mut(|(s, mut blob, mut extra, blob_id)| {
             
             let mut delta = IVec2::ZERO;
             if s.pressed(TetrisActionsWASD::Up) {
@@ -214,20 +213,24 @@ pub fn move_blob_by_player(
                     .map(|(_,block)| block)
                     .filter(|block| block.blob.is_some() && block.blob.unwrap() == blob_id);
                 if s.pressed(TetrisActionsWASD::LRotate) {
-                    blob.rotate_left(&mut block_iter);
+                    blob.rotate_left(&mut block_iter, &mut ev_view, blob_id);
                 } else if s.pressed(TetrisActionsWASD::RRotate) {
-                    blob.rotate_right(&mut block_iter);
+                    blob.rotate_right(&mut block_iter, &mut ev_view, blob_id);
                 }
             }
 
             let block_iter = query_block.iter_mut()
                 .filter(|(_,block)| block.blob.is_some() && block.blob.unwrap() == blob_id);
 
-            move_blob(
-                (blob_id, &mut blob),
-                delta, 
-                block_iter, 
-                &mut ev_view);
+            if delta != IVec2::ZERO {
+                move_blob(
+                    blob_id, 
+                    &mut blob,
+                    &mut extra,
+                    delta, 
+                    block_iter, 
+                    &mut ev_view);
+            }
         });
     }
 }

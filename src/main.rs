@@ -116,14 +116,13 @@ fn main() {
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
                 .with_system(check_win)
-                .with_system(grid_update_render_entities::<Blob>)
                 .with_system(grid_update_render_entities::<Field>)
                 .with_system(update_toolbar_images)
                 .with_system(update_toolbar_inventory)
                 .with_system(update_toolbar_overlays)
                 .with_system(blob_update_transforms)
                 .with_system(update_field_debug)
-                //.with_system(crate::view::handle_view_updates)
+                .with_system(crate::view::handle_view_updates)
                 .label(MySystems::RenderUpdates)
                 .after(MySystems::PostGameUpdates),
         )
@@ -172,16 +171,7 @@ fn setup(
     commands.insert_resource(Level::level_01());
     commands.insert_resource(Turn::new(SECONDS_PER_ROUND));
 
-    let id =  spawn_simple_rendering_entity(&mut commands).id();
     let assets = GameAssets::new(&asset_server);
-    commands.insert_resource(ViewConfig {
-        renderer_entity: id,
-        factory_topleft: Vec3::new(-200., 0., 0.),
-        tetris_topleft: Vec3::new(300., 0., 0.),
-        anim_duration: Duration::from_millis(200),
-        brick_image: assets.block_blob.clone(),
-        test_blob: None,
-    });
     commands.insert_resource(assets);
 
     // Switch state

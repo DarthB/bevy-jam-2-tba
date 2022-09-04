@@ -35,7 +35,7 @@ impl Turn {
             prod_id: None,
             pause: true,
             remove_line_turns_on_gravity: true,
-            use_old_rendering: true,
+            use_old_rendering: false,
         }
     }
 

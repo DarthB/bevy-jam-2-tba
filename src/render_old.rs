@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use bevy::{ecs::system::EntityCommands, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE, log};
+use bevy::{ecs::system::EntityCommands, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
 
 pub struct SpriteInfo {
     pub image: Handle<Image>,
@@ -24,20 +24,23 @@ pub trait RenderableGrid {
         )
     }
 
+    fn pivot(&self) -> (i32, i32) {
+        ((
+            self.dimensions().0 as i32 + self.bounds().0.x) / 2, 
+            (self.dimensions().1 as i32 + self.bounds().0.y) / 2
+        )
+    }
+
     fn coords_to_px(&self, x: i32, y: i32) -> (f32, f32);
 
     fn get_render_id(&self, r: i32, c: i32) -> i32;
 
-    fn spawn_normal(&self) -> bool {
-        false
-    }
-
     fn spawn_pivot(&self) -> bool {
-        false
+        true
     }
 
     fn spawn_origin(&self) -> bool {
-        false
+        true
     }
 
     fn spawn_additional_debug(&self) -> bool {
@@ -49,86 +52,85 @@ pub trait RenderableGrid {
     fn adapt_render_entities(&self, cb: &mut EntityCommands, r: i32, c: i32);
 
     fn spawn_render_entities(&self, _id: Entity, cb: &mut ChildBuilder, assets: &GameAssets) {
-        if self.spawn_normal() {
-            let b = self.bounds();
-            for r in b.0.y..b.1.y {
-                for c in b.0.x..b.1.x {
-                    let num = self.get_render_id(r as i32, c as i32);
-                    let info = self.get_sprite_info(num, assets);
+    
+        #[cfg(feature = "debug")]
+        cb.spawn_bundle(SpriteBundle {
+            sprite: Sprite {
+                color: Color::BLACK,
+                custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
+                ..Default::default()
+            },
+            transform: Transform {
+                translation: Vec3::new(0., 0.0, Z_OVERLAY),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(Name::new("NOTRANSLATION"));
 
-                    let dims = self.dimensions();
-                    let (x, y) = coords_to_px(c as i32, r as i32, dims.0, dims.1);
+        let b = self.bounds();
+        for r in b.0.y..b.1.y {
+            for c in b.0.x..b.1.x {
+                let num = self.get_render_id(r as i32, c as i32);
+                let info = self.get_sprite_info(num, assets);
 
-                    let mut ec = cb.spawn_bundle(SpriteBundle {
+                let (x, y) = self.coords_to_px(c, r);
+
+                let mut ec = cb.spawn_bundle(SpriteBundle {
+                    sprite: Sprite {
+                        color: info.color,
+                        custom_size: Some(Vec2::ONE * PX_PER_TILE - 2.0),
+                        ..Default::default()
+                    },
+                    transform: Transform {
+                        translation: Vec3::new(x, y, info.z),
+                        ..Default::default()
+                    },
+                    texture: info.image,
+                    ..Default::default()
+                });
+                ec.insert(FieldRenderTag{});
+                ec.insert(Name::new(format!("grid {}:{}", r, c)));
+                self.adapt_render_entities(&mut ec, r as i32, c as i32);
+
+                if self.spawn_origin() && r == 0 && c == 0 {
+                    cb.spawn_bundle(SpriteBundle {
                         sprite: Sprite {
-                            color: info.color,
-                            custom_size: Some(Vec2::ONE * PX_PER_TILE - 2.0),
+                            color: Color::GREEN,
+                            custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
                             ..Default::default()
                         },
                         transform: Transform {
-                            translation: Vec3::new(x, y, info.z),
+                            translation: Vec3::new(x, y - PX_PER_TILE / 4.0, Z_OVERLAY),
                             ..Default::default()
                         },
-                        texture: info.image,
                         ..Default::default()
-                    });
-                    ec.insert(FieldRenderTag{});
-                    ec.insert(Name::new(format!("grid {}:{}", r, c)));
-                    self.adapt_render_entities(&mut ec, r as i32, c as i32);
-
-                    
-                    if r == 0 && c == 0 {
-                        cb.spawn_bundle(SpriteBundle {
-                            sprite: Sprite {
-                                color: Color::YELLOW,
-                                custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
-                                ..Default::default()
-                            },
-                            transform: Transform {
-                                translation: Vec3::new(x, y - PX_PER_TILE / 4.0, Z_OVERLAY),
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        })
-                        .insert(Coordinate{r:y as i32, c:x as i32})
-                        .insert(PivotTag{});
-                    }
-                    
+                    })
+                    .insert(Coordinate{r, c})
+                    .insert(OriginTag{})
+                    .insert(Name::new("Origin"));
                 }
+                
+                let (pc, pr) = self.pivot(); 
+                if r == pr as i32 && c == pc as i32 && self.spawn_pivot() {
+                    cb.spawn_bundle(SpriteBundle {
+                        sprite: Sprite {
+                            color: Color::RED,
+                            custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
+                            ..Default::default()
+                        },
+                        transform: Transform {
+                            translation: Vec3::new(x, y, Z_OVERLAY),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    })
+                    .insert(Coordinate{r, c})
+                    .insert(PivotTag{})
+                    .insert(Name::new("Pivot Point"));
+                }
+        
             }
-        }
-
-        if self.spawn_pivot() {
-            cb.spawn_bundle(SpriteBundle {
-                sprite: Sprite {
-                    color: Color::YELLOW,
-                    custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
-                    ..Default::default()
-                },
-                transform: Transform {
-                    translation: Vec3::new(0.0, 0.0, Z_OVERLAY),
-                    ..Default::default()
-                },
-                ..Default::default()
-            })
-            .insert(Name::new("Pivot Point"));
-        }
-
-        if self.spawn_origin() {
-            let (x, y) = self.coords_to_px(0, 0);
-            cb.spawn_bundle(SpriteBundle {
-                sprite: Sprite {
-                    color: Color::GREEN,
-                    custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
-                    ..Default::default()
-                },
-                transform: Transform {
-                    translation: Vec3::new(x, y, Z_OVERLAY),
-                    ..Default::default()
-                },
-                ..Default::default()
-            })
-            .insert(Name::new("Origin Point"));
         }
 
         #[cfg(feature = "debug")]
@@ -166,133 +168,6 @@ pub trait RenderableGrid {
                 })
                 .insert(Name::new("Debug occupied"));
         }
-    }
-}
-
-impl RenderableGrid for Blob {
-    fn bounds(&self) -> (IVec2, IVec2) {
-        (IVec2::ZERO, IVec2::splat(Blob::size() as i32))
-    }
-
-    fn coords_to_px(&self, x: i32, y: i32) -> (f32, f32) {
-        coords_to_px(x + self.coordinate.x, y + self.coordinate.y, Blob::size(), Blob::size())
-    }
-
-    fn spawn_render_entities(&self, _id: Entity, _: &mut ChildBuilder, _: &GameAssets) {
-        
-    }
-
-    fn get_render_id(&self, r: i32, c: i32) -> i32 {
-        let abs_pos: Vec<IVec2> = self.relative_positions.iter()
-            .map(|v| *v + IVec2::new(4,4))
-            .collect();
-        if abs_pos.contains(&IVec2{x:c, y:r}) {
-            1
-        } else {
-            0
-        }
-    }
-
-    fn spawn_normal(&self) -> bool {
-        false
-    }
-
-    fn spawn_pivot(&self) -> bool {
-        false
-    }
-
-    #[cfg(feature = "debug")]
-    fn spawn_origin(&self) -> bool {
-        false
-    }
-
-    fn get_sprite_info(&self, num: i32, _assets: &GameAssets) -> SpriteInfo {
-        let mut reval = if num == 1 {
-            SpriteInfo {
-                color: Color::default(),
-                z: Z_SOLID + 1.0,
-                image: DEFAULT_IMAGE_HANDLE.typed(),
-            }
-        } else {
-            SpriteInfo {
-                color: Color::rgba(0.5, 0.5, 0.5, 0.25),
-                z: Z_TRANS + 1.0,
-                image: DEFAULT_IMAGE_HANDLE.typed(),
-            }
-        };
-        reval.image = self.texture.clone();
-        reval
-    }
-
-    fn adapt_render_entities(&self, cb: &mut EntityCommands, r: i32, c: i32) {
-        cb.insert(Coordinate {
-            r,
-            c,
-        });
-    }
-}
-
-impl RenderableGrid for Target {
-    
-    fn dimensions(&self) -> (usize, usize) {
-        (10, 12)
-    }
-
-    fn bounds(&self) -> (IVec2, IVec2) {
-        (IVec2::ZERO, IVec2::new(
-            self.dimensions().0 as i32, 
-            self.dimensions().1 as i32,
-        ))
-    }
-
-    fn coords_to_px(&self, mut x: i32, mut y: i32) -> (f32, f32) {
-        if let Some(coord) = &self.coordinate {
-            x += coord.c;
-            y += coord.r;
-        }
-        coords_to_px(x, y, Target::size(), Target::size())
-    }
-
-    fn get_render_id(&self, r: i32, c: i32) -> i32 {
-        self.body[r as usize * Target::size() + c as usize]
-    }
-
-    fn spawn_normal(&self) -> bool {
-        true
-    }
-
-    fn spawn_pivot(&self) -> bool {
-        false
-    }
-
-    #[cfg(feature = "debug")]
-    fn spawn_origin(&self) -> bool {
-        false
-    }
-
-    fn get_sprite_info(&self, num: i32, _assets: &GameAssets) -> SpriteInfo {
-        let mut reval = if num == 1 {
-            SpriteInfo {
-                color: Color::default(),
-                z: Z_SOLID+5.,
-                image: DEFAULT_IMAGE_HANDLE.typed(),
-            }
-        } else {
-            SpriteInfo {
-                color: Color::rgba(0.5, 0.5, 0.5, 0.25),
-                z: Z_TRANS+5.,
-                image: DEFAULT_IMAGE_HANDLE.typed(),
-            }
-        };
-        reval.image = self.texture.clone();
-        reval
-    }
-
-    fn adapt_render_entities(&self, cb: &mut EntityCommands, r: i32, c: i32) {
-        cb.insert(Coordinate {
-            r,
-            c,
-        });
     }
 }
 
@@ -356,8 +231,7 @@ impl RenderableGrid for Field {
     fn get_render_id(&self, r: i32, c: i32) -> i32 {
         let b = self.bounds();
         if r < b.0.y || r >= b.1.y || c < b.0.x || c >= b.1.x {
-            //log::warn!("Shall not happen! Out of bounds");
-            return 3
+            panic!("Shall not happen! r and c for get_render_id out of bounds");
         }
 
         let state = self.get_field_state();
@@ -371,22 +245,19 @@ impl RenderableGrid for Field {
             }
         } else if r < 0 || r >= self.mov_size().1 as i32 
             || c<0 || c >= self.mov_size().0 as i32 {
-            //log::warn!("Shall not happen, under mov.size");
+            // render the outside grid in gray
             2
         } else {
-            //log::warn!("Shall not happen, ELSE Branch");
+            // no field element kind found (e.g. during spawning)
             0
         }
     }
-    fn spawn_normal(&self) -> bool {
-        true
-    }
+
 
     fn spawn_pivot(&self) -> bool {
         true
     }
 
-    #[cfg(feature = "debug")]
     fn spawn_origin(&self) -> bool {
         true
     }

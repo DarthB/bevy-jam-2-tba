@@ -5,7 +5,7 @@
 
 use std::time::Duration;
 
-use crate::{blob::Blob, game_assets::GameAssets, input::TetrisActionsWASD, PX_PER_TILE};
+use crate::{blob::Blob, game_assets::GameAssets, input::TetrisActionsWASD, PX_PER_TILE, Z_SOLID};
 use bevy::{ecs::system::EntityCommands, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
 use bevy_tweening::{
     lens::{SpriteColorLens, TransformPositionLens, TransformRotateZLens},
@@ -106,7 +106,7 @@ fn coord_to_translation(coord: IVec2) -> Vec3 {
     Vec3::new(
         coord.x as f32 * PX_PER_TILE,
         -coord.y as f32 * PX_PER_TILE,
-        0.0,
+        Z_SOLID,
     )
 }
 

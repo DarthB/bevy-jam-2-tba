@@ -55,6 +55,7 @@ impl Target {
     pub fn occupied_coordinates(&self) -> Vec<(i32, i32)> {
         let mut reval = Vec::new();
         if self.coordinate.is_some() {
+            /*
             for r in 0..self.dimensions().1 {
                 for c in 0..self.dimensions().0 {
                     if self.body[ coords_to_idx(r, c, self.dimensions().0)] != 0 {
@@ -62,6 +63,7 @@ impl Target {
                     }
                 }
             }
+             */
         }
         reval
     }
@@ -99,7 +101,7 @@ pub fn spawn_target(
     });
     let id = ec.id();
     ec.with_children(|cb| {
-        target.spawn_render_entities(id, cb, assets);
+    //    target.spawn_render_entities(id, cb, assets);
     })
     .insert(target)
     .insert(Name::new(name.to_string()));

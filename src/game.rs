@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{blob::*, field::spawn_field, game_assets::GameAssets, prelude::*, target::*};
 use bevy::prelude::*;
 
@@ -27,28 +29,30 @@ pub fn spawn_world(
 ) {
     player_state.applicable_tools = level.applicable_tools.clone();
 
-    let comp = Field::as_factory(&assets);
-    let fac_field = spawn_field(
+    let factory_field_struct = Field::as_factory(&assets);
+    let root_factory_field = Vec3::new(-200.0, 64.0, 0.0);
+    let (px, py) = factory_field_struct.coords_to_px(0, 0);
+    let origin_factory = Vec3::new(px, py, 0.0) + root_factory_field;
+    
+    let fac_field_id = spawn_field(
         &mut commands,
         &assets,
-        comp,
+        factory_field_struct,
         "Factory Field",
-        Vec3::new(120.0, 64.0, 0.0),
-        turn.use_old_rendering,
+        root_factory_field,
         &|ec| {
             ec.insert(FactoryFieldTag {});
         },
     );
-    turn.fac_id = Some(fac_field);
+    turn.fac_id = Some(fac_field_id);
 
     let start_blob = spawn_blob(
         &mut commands,
         &assets.block_blob,
-        &assets,
         BlobBody::new(level.start_blob.0.clone()),
         "L Stone",
+        fac_field_id,
         level.start_blob.1.into(),
-        turn.use_old_rendering,
         &|ec| {
             #[cfg(feature = "debug")]
             add_tetris_control(ec);
@@ -57,20 +61,33 @@ pub fn spawn_world(
         },
     );
     evt.send(ViewUpdate::BlobSpawned(start_blob));
-    commands.entity(fac_field).push_children(&[start_blob]);
+    //commands.entity(fac_field).push_children(&[start_blob]);
 
+    let field_info = Field::as_production_field(&assets);
+    let root_production_field = Vec3::new(300.0, 0.0, 0.0);
+    let (px, py) = field_info.coords_to_px(0, 0);
+    let origin_production = Vec3::new(px, py, 0.0) + root_factory_field; 
     let pr_field = spawn_field(
         &mut commands,
         &assets,
-        Field::as_production_field(&assets),
+        field_info,
         "Production Field",
-        Vec3::new(600.0, 0.0, 0.0),
-        turn.use_old_rendering,
+        root_production_field,
         &|ec| {
             ec.insert(ProductionFieldTag {});
         },
     );
     turn.prod_id = Some(pr_field);
+
+    let id =  spawn_simple_rendering_entity(&mut commands).id();
+    commands.insert_resource(ViewConfig {
+        renderer_entity: id,
+        factory_topleft: origin_factory,
+        tetris_topleft: origin_production,
+        anim_duration: Duration::from_millis(200),
+        brick_image: assets.block_blob.clone(),
+        test_blob: None,
+    });
 
     let target_stone = spawn_target(
         &mut commands,
@@ -105,11 +122,10 @@ pub fn contiously_spawn_tetris_at_end(
             let new_id = spawn_blob(
                 &mut commands,
                 &assets.block_blob,
-                &assets,
                 BlobBody::new(body),
                 format!("{}. Additional Tetris Brick", turn.num_additional_bricks).as_str(),
+                prod_ent,
                 IVec2 { x: -3, y: 3 },
-                turn.use_old_rendering,
                 &|ec| {
                     add_tetris_control(ec);
                     ec.insert(RealBlob {});

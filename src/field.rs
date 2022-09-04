@@ -265,7 +265,6 @@ pub fn spawn_field(
     field: Field,
     name: &str,
     trans: Vec3,
-    use_old_rendering: bool,
     adapter: &dyn Fn(&mut EntityCommands),
 ) -> Entity {
     let mut ec = commands.spawn_bundle(SpatialBundle {
@@ -275,18 +274,17 @@ pub fn spawn_field(
         },
         ..Default::default()
     });
+
     let id = ec.id();
+    
     ec.with_children(|cb| {
-        if use_old_rendering {
-            field.spawn_render_entities(id, cb, assets);
-        } else {
-            // no info from view yet
-        }
+        field.spawn_render_entities(id, cb, assets);
     })
     .insert(Name::new(name.to_string()))
     .insert(field);
     adapter(&mut ec);
-    ec.id()
+    
+    id
 }
 
 pub fn remove_field_lines(mut query_field: Query<&mut Field>) {
