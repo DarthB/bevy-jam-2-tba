@@ -45,8 +45,7 @@ fn main() {
     });
 
     app.add_event::<BlobMoveEvent>()
-        .add_event::<BlobTeleportEvent>()
-        .add_event::<crate::view::ViewUpdate>();
+        .add_event::<BlobTeleportEvent>();
 
     // Use default pluign and show own plugin for input mapping
     app.add_plugins(DefaultPlugins)
@@ -62,15 +61,6 @@ fn main() {
         // https://bevy-cheatbook.github.io/programming/states.html
         .add_system_set(SystemSet::on_enter(GameState::Starting).with_system(setup))
         .add_system_set(
-            SystemSet::on_enter(GameState::AnimationTest)
-                .with_system(crate::view::setup_demo_system),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::AnimationTest)
-                .with_system(crate::view::demo_system)
-                .with_system(crate::view::handle_view_updates),
-        )
-        .add_system_set(
             SystemSet::on_enter(GameState::Ingame)
                 .with_system(spawn_world)
                 .with_system(spawn_hud),
@@ -79,7 +69,7 @@ fn main() {
             SystemSet::on_update(GameState::Ingame)
                 .with_system(progress_turn)
                 //                .with_system(contiously_spawn_tetris_at_end)
-                .with_system(remove_field_lines)
+                //.with_system(remove_field_lines)
                 .with_system(stupid_block_update)
                 .with_system(crate::view::handle_view_updates)
                 .label(MySystems::EventHandling),
@@ -133,8 +123,6 @@ fn main() {
     app.add_plugin(WorldInspectorPlugin::new())
         .register_inspectable::<Coordinate>()
         .register_inspectable::<Blob>()
-        .register_inspectable::<crate::view::BlobExtra>()
-        .register_inspectable::<crate::view::BlockExtra>()
         .register_inspectable::<Block>()
         .register_inspectable::<Coordinate>()
         .register_inspectable::<Target>()
@@ -149,6 +137,10 @@ fn main() {
         .register_inspectable::<UITagHover>()
         .register_inspectable::<UITagInventory>()
         .register_type::<Interaction>();
+
+    // Setup animation demo
+    crate::view::register_animation_demo(&mut app, GameState::AnimationTest);
+
     app.run();
 }
 

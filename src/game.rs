@@ -99,7 +99,7 @@ pub fn spawn_world(
         Some(level.target_figure.1.into()),
         &|_| {},
     );
-    evt.send(ViewUpdate::BlobSpawned(target_stone));
+    //evt.send(ViewUpdate::BlobSpawned(target_stone));
 
     let pos = UiRect {
         top: Val::Percent(3.0),
