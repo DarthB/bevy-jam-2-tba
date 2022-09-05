@@ -1,5 +1,5 @@
-use bevy::{prelude::*, log};
 use crate::prelude::*;
+use bevy::{log, prelude::*};
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
@@ -28,8 +28,8 @@ pub struct Block {
 
 impl Block {
     pub fn spawn_blocks_of_blob(
-        commands: &mut Commands, 
-        body: &BlobBody, 
+        commands: &mut Commands,
+        body: &BlobBody,
         blob: &Blob,
         blob_id: Entity,
         field: Entity,
@@ -38,10 +38,11 @@ impl Block {
         for v in body.get_relative_positions() {
             let mut ec = commands.spawn();
             if v == IVec2::ZERO {
-                ec.insert(PivotTag{});
+                ec.insert(PivotTag {});
             }
-            let id = ec.insert(Block{ 
-                    position: blob.pivot + v, 
+            let id = ec
+                .insert(Block {
+                    position: blob.pivot + v,
                     blob: Some(blob_id),
                     relative_position: Some(v),
                     field,
@@ -56,15 +57,12 @@ impl Block {
     }
 }
 
-pub fn blocks_are_on_field<'a>(
-    field_id: Entity, 
-    iter: impl Iterator<Item = &'a Block>,
-) -> bool {
+pub fn blocks_are_on_field<'a>(field_id: Entity, iter: impl Iterator<Item = &'a Block>) -> bool {
     let mut at_least_one = false;
     for block in iter {
         at_least_one = true;
         if block.field != field_id {
-            return false
+            return false;
         }
     }
     at_least_one

@@ -129,22 +129,13 @@ pub fn tool_switch_on_mouse_wheel(
     }
 }
 
-// @todo simplify this function, idea: separate mouse hover detection and click into tool creation in
-// seperate systems.
-pub fn mouse_for_field_selection_and_tool_creation(
-    mut commands: Commands,
+pub fn mouse_for_field_selection(
     windows: Res<Windows>,
     mut cursor_moved_events: EventReader<CursorMoved>,
-    mouse_button_input: Res<Input<MouseButton>>,
     // @todo remove sprites asap rendering is working
     mut sprites: Query<(&GlobalTransform, &Coordinate), With<FieldRenderTag>>,
-    mut field_query: Query<(Entity, &mut Field), With<FactoryFieldTag>>,
-    query_on_tool_clicked: Query<&ToolComponent>,
     mut player_state: ResMut<PlayerState>,
-    assets: Res<GameAssets>,
 ) {
-    let (field_id, field) = field_query.single_mut();
-
     let ev = cursor_moved_events.iter().last();
     if let (Some(moved), Some(window)) = (ev, windows.get_primary()) {
         let half_window = Vec2::new(window.width() / 2.0, window.height() / 2.0);
@@ -176,6 +167,17 @@ pub fn mouse_for_field_selection_and_tool_creation(
             }
         }
     }
+}
+
+pub fn mouse_for_tool_creation(
+    mut commands: Commands,
+    mut field_query: Query<(Entity, &mut Field), With<FactoryFieldTag>>,
+    query_on_tool_clicked: Query<&ToolComponent>,
+    mouse_button_input: Res<Input<MouseButton>>,
+    assets: Res<GameAssets>,
+    mut player_state: ResMut<PlayerState>,
+) {
+    let (field_id, field) = field_query.single_mut();
 
     if mouse_button_input.just_pressed(MouseButton::Left) {
         if let (Some(tool), Some(coord)) = (
@@ -187,10 +189,15 @@ pub fn mouse_for_field_selection_and_tool_creation(
             let field_state = field.get_field_state();
 
             if let Some(element) = field_state.get_element(coord) {
-                let valid_place = matches!(element.kind, 
-                        FieldElementKind::Empty | FieldElementKind::Tool(_) | FieldElementKind::Block(_));
+                let valid_place = matches!(
+                    element.kind,
+                    FieldElementKind::Empty
+                        | FieldElementKind::Tool(_)
+                        | FieldElementKind::Block(_)
+                );
 
-                if valid_place && placeable_tool_selected && player_state.num_in_inventory(tool) > 0 {
+                if valid_place && placeable_tool_selected && player_state.num_in_inventory(tool) > 0
+                {
                     player_state.add_to_inventory(tool, -1);
 
                     log::info!("Place tool {:?} at ({},{})", tool, coord.x, coord.y);
@@ -200,9 +207,8 @@ pub fn mouse_for_field_selection_and_tool_creation(
                             commands.entity(entity).despawn_recursive();
                         }
                     }
-                    
-                    spawn_tool(&mut commands, tool, coord, field_id, &field, &assets);
 
+                    spawn_tool(&mut commands, tool, coord, field_id, &field, &assets);
                 } else if tool == Tool::Eraser {
                     log::info!("Erase tool {:?} at ({},{})", tool, coord.x, coord.y);
 

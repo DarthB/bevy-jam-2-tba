@@ -1,6 +1,6 @@
 use bevy::{ecs::system::EntityCommands, prelude::*};
 
-use crate::{prelude::*};
+use crate::prelude::*;
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
@@ -44,11 +44,9 @@ impl Target {
         }
     }
 
-    
     pub fn coords_to_idx(r: usize, c: usize) -> usize {
         coords_to_idx(r, c, Target::dimensions().0)
     }
-    
 
     pub fn dimensions() -> (usize, usize) {
         (10, 12)
@@ -59,10 +57,9 @@ impl Target {
     pub fn occupied_coordinates(&self) -> Vec<(i32, i32)> {
         let mut reval = Vec::new();
         if self.coordinate.is_some() {
-            
             for r in 0..Target::dimensions().1 {
                 for c in 0..Target::dimensions().0 {
-                    if self.body[ Target::coords_to_idx(r, c)] != 0 {
+                    if self.body[Target::coords_to_idx(r, c)] != 0 {
                         reval.push((c as i32, r as i32));
                     }
                 }
@@ -102,9 +99,8 @@ pub fn spawn_target(
         ..Default::default()
     });
     let id = ec.id();
-    ec.insert(target)
-        .insert(Name::new(name.to_string()));
+    ec.insert(target).insert(Name::new(name.to_string()));
     adapter(&mut ec);
-    
+
     id
 }
