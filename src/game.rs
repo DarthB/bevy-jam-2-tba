@@ -49,7 +49,6 @@ pub fn spawn_world(
 
     let start_blob = spawn_blob(
         &mut commands,
-        &assets.block_blob,
         BlobBody::new(level.start_blob.0.clone()),
         "Start Blob",
         fac_field_id,
@@ -90,10 +89,9 @@ pub fn spawn_world(
         test_blob: None,
     });
 
-    let target_stone = spawn_target(
+    let _target_stone = spawn_target(
         &mut commands,
         &assets.block_target_outline,
-        &assets,
         level.target_figure.0.clone(),
         "Target Stone",
         Some(level.target_figure.1.into()),
@@ -111,7 +109,6 @@ pub fn spawn_world(
 
 pub fn contiously_spawn_tetris_at_end(
     mut commands: Commands,
-    assets: Res<GameAssets>,
     query_active: Query<&Blob>,
     mut turn: ResMut<Turn>,
 ) {
@@ -119,9 +116,8 @@ pub fn contiously_spawn_tetris_at_end(
         if turn.is_new_turn() && query_active.iter().filter(|g| g.active).count() == 0 {
             let body = gen_random_tetris_body();
 
-            let new_id = spawn_blob(
+            let _new_id = spawn_blob(
                 &mut commands,
-                &assets.block_blob,
                 BlobBody::new(body),
                 format!("{}. Additional Tetris Brick", turn.num_additional_bricks).as_str(),
                 prod_ent,
@@ -132,6 +128,7 @@ pub fn contiously_spawn_tetris_at_end(
                 },
             );
             turn.num_additional_bricks += 1;
+            unimplemented!("continiously spawn tetris at end needs to send events for renderer");
             //commands.entity(prod_ent).push_children(&[new_id]);
         }
     } else {

@@ -129,13 +129,15 @@ pub fn tool_switch_on_mouse_wheel(
     }
 }
 
+// @todo simplify this function, idea: separate mouse hover detection and click into tool creation in
+// seperate systems.
 pub fn mouse_for_field_selection_and_tool_creation(
     mut commands: Commands,
     windows: Res<Windows>,
     mut cursor_moved_events: EventReader<CursorMoved>,
     mouse_button_input: Res<Input<MouseButton>>,
     // @todo remove sprites asap rendering is working
-    mut sprites: Query<(&mut Sprite, &GlobalTransform, &Coordinate, &Parent), With<FieldRenderTag>>,
+    mut sprites: Query<(&GlobalTransform, &Coordinate), With<FieldRenderTag>>,
     mut field_query: Query<(Entity, &mut Field), With<FactoryFieldTag>>,
     query_on_tool_clicked: Query<&ToolComponent>,
     mut player_state: ResMut<PlayerState>,
@@ -149,8 +151,8 @@ pub fn mouse_for_field_selection_and_tool_creation(
         let cursor_pos = moved.position - half_window;
         player_state.tool_placement_coordinate = None;
 
-        for (mut sprite, trans, coord, parent) in sprites.iter_mut() {
-            // @todo check if factory field
+        for (trans, coord) in sprites.iter_mut() {
+            // @todo check if factory field is used and not the production field
             // only continue when hovering a sprite on the factory field
             /*
             if field_id != parent.get() {

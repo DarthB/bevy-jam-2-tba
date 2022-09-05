@@ -1,4 +1,4 @@
-use bevy::{prelude::*, log};
+use bevy::prelude::*;
 use crate::prelude::*;
 
 // chat log form psi architecture / refactor discussion
@@ -46,11 +46,7 @@ impl FieldState {
     pub fn bounds(&self) -> (IVec2, IVec2) {self.bounds}
 
     pub fn get_element(&self, coord: IVec2) -> Option<FieldElement> {
-        if let Some(idx) = self.coord_to_idx(coord) {
-            Some(self.elements[idx])
-        } else {
-            None
-        }
+        self.coord_to_idx(coord).map(|idx| self.elements[idx])
     }
 
     pub fn set_element(&mut self, coord: IVec2, new_el: FieldElement) -> bool {
@@ -81,12 +77,7 @@ impl FieldState {
         exceptions: Option<&Vec<IVec2>>, 
         predicate: &dyn Fn(&FieldElement)->bool,
     ) -> bool {
-        let exceptions = if let Some(exceptions) = exceptions {
-            Some((exceptions, true))
-        } else {
-            None
-        };
-
+        let exceptions = exceptions.map(|e| (e, true));
         for v in coords {
             let res = self.predicate_at_coordinate(*v, exceptions, predicate);
             if !res {
@@ -102,11 +93,7 @@ impl FieldState {
         exceptions: Option<&Vec<IVec2>>,
         predicate: &dyn Fn(&FieldElement)->bool,
     ) -> bool {
-        let exceptions = if let Some(exceptions) = exceptions {
-            Some((exceptions, false))
-        } else {
-            None
-        };
+        let exceptions = exceptions.map(|e| (e, false));
 
         for v in coords {
             let res = self.predicate_at_coordinate(*v, exceptions, predicate);

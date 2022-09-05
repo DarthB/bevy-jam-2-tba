@@ -1,16 +1,18 @@
 use bevy::{ecs::system::EntityCommands, prelude::*};
 
-use crate::{prelude::*, render_old::RenderableGrid};
+use crate::{prelude::*};
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct Target {
+    /// the body of the target, different values of the i32 represent different colors
     #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub body: Vec<i32>,
 
     #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub texture: Handle<Image>,
 
+    /// @todo in respect to what?
     pub coordinate: Option<Coordinate>,
 }
 
@@ -84,10 +86,9 @@ pub fn coords_to_px(x: i32, y: i32, rs: usize, cs: usize) -> (f32, f32) {
 pub fn spawn_target(
     commands: &mut Commands,
     texture: &Handle<Image>,
-    assets: &GameAssets,
     body: Vec<i32>,
     name: &str,
-    coord: Option<Coordinate>, // @todo later work with coordinates and parent tetris-field
+    coord: Option<Coordinate>,
     adapter: &dyn Fn(&mut EntityCommands),
 ) -> Entity {
     let target = Target {
@@ -101,11 +102,8 @@ pub fn spawn_target(
         ..Default::default()
     });
     let id = ec.id();
-    ec.with_children(|cb| {
-    //    target.spawn_render_entities(id, cb, assets);
-    })
-    .insert(target)
-    .insert(Name::new(name.to_string()));
+    ec.insert(target)
+        .insert(Name::new(name.to_string()));
     adapter(&mut ec);
     
     id

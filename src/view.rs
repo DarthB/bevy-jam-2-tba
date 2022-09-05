@@ -5,7 +5,7 @@
 
 use std::{collections::HashMap, time::Duration};
 
-use crate::{blob::Blob, game_assets::GameAssets, input::TetrisActionsWASD, PX_PER_TILE, Z_SOLID};
+use crate::{blob::Blob, game_assets::GameAssets, input::TetrisActionsWASD, PX_PER_TILE, Z_SOLID, prelude::Block};
 use bevy::{
     ecs::{schedule::StateData, system::EntityCommands},
     prelude::*,
@@ -19,29 +19,6 @@ use leafwing_input_manager::{
     prelude::{ActionState, InputMap},
     InputManagerBundle,
 };
-
-//----------------------------------------------------------------------
-// Components I need from the game logic. These *Extra components should
-// later be merged into (or replaced with) the game logic components.
-
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, PartialEq, Clone, Reflect)]
-pub struct BlobExtra {
-    #[cfg_attr(feature = "debug", inspectable(ignore))]
-    /// Blob's blocks. TODO: Currently redundant with parent-child stuff
-    pub blocks: Vec<Entity>,
-    /// Position of the Blob's pivot element within the field
-    pub pivot: IVec2,
-    /// Transferred: is it on the tetris field?
-    pub transferred: bool,
-}
-
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, PartialEq, Clone, Reflect)]
-pub struct BlockExtra {
-    /// Position relative to its Blob's pivot
-    pub coordinate: IVec2,
-}
 
 //----------------------------------------------------------------------
 
@@ -98,7 +75,7 @@ pub fn spawn_simple_rendering_entity<'w, 's, 'a>(
 // Internal helper components for rendering
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, PartialEq, Clone, Reflect)]
+#[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
 pub struct BlobRenderState {
     /// Last known `pivot` from the game logic
     last_pivot: IVec2,
@@ -117,7 +94,7 @@ fn coord_to_translation(coord: IVec2) -> Vec3 {
     )
 }
 
-fn rotate_coord(coord: IVec2, rotation: Rotation) -> IVec2 {
+pub fn rotate_coord(coord: IVec2, rotation: Rotation) -> IVec2 {
     let rot2vec = match rotation {
         Rotation::Left => IVec2::new(0, -1),
         Rotation::Right => IVec2::new(0, 1),
@@ -146,8 +123,8 @@ fn test_rotate_coord() {
 fn handle_blob_spawned(
     commands: &mut Commands,
     blob: Entity,
-    blob_query: &Query<&BlobExtra>,
-    block_query: &Query<&BlockExtra>,
+    blob_query: &Query<&Blob>,
+    block_query: &Query<&Block>,
     config: &Res<ViewConfig>,
 ) {
     log::info!("Handle spawned: {:?}!", blob);
@@ -191,7 +168,7 @@ fn handle_blob_spawned(
                 custom_size: Some(Vec2::ONE * PX_PER_TILE),
                 ..Default::default()
             },
-            transform: Transform::from_translation(coord_to_translation(blockdata.coordinate)),
+            transform: Transform::from_translation(coord_to_translation(blockdata.relative_position.unwrap())),
             texture: config.brick_image.clone(),
             ..Default::default()
         });
@@ -202,7 +179,7 @@ fn handle_blob_spawned(
 fn handle_blob_moved(
     commands: &mut Commands,
     blob: Entity,
-    blob_query: &mut Query<(&BlobExtra, &mut BlobRenderState)>,
+    blob_query: &mut Query<(&Blob, &mut BlobRenderState)>,
     config: &Res<ViewConfig>,
 ) {
     if let Ok((blobdata, mut state)) = blob_query.get_mut(blob) {
@@ -229,7 +206,7 @@ fn handle_blob_rotated(
     commands: &mut Commands,
     blob: Entity,
     rotation: Rotation,
-    blob_query: &mut Query<(&BlobExtra, &mut BlobRenderState)>,
+    blob_query: &mut Query<(&Blob, &mut BlobRenderState)>,
     config: &Res<ViewConfig>,
 ) {
     if let Ok((_, mut state)) = blob_query.get_mut(blob) {
@@ -262,8 +239,8 @@ fn handle_blob_rotated(
 fn handle_blob_cutout(
     commands: &mut Commands,
     newblob: Entity,
-    blob_query: &Query<&BlobExtra>,
-    block_query: &Query<&BlockExtra>,
+    blob_query: &Query<&Blob>,
+    block_query: &Query<&Block>,
     config: &Res<ViewConfig>,
 ) {
     handle_blob_spawned(commands, newblob, blob_query, block_query, config);
@@ -294,7 +271,7 @@ fn handle_blob_cutout(
 fn handle_blob_transferred(
     commands: &mut Commands,
     blob: Entity,
-    blob_query: &mut Query<(&BlobExtra, &mut BlobRenderState)>,
+    blob_query: &mut Query<(&Blob, &mut BlobRenderState)>,
     config: &Res<ViewConfig>,
 ) {
     if let Ok((blobdata, mut state)) = blob_query.get_mut(blob) {
@@ -314,8 +291,8 @@ fn handle_blob_transferred(
 
 fn handle_line_remove(
     commands: &mut Commands,
-    blocks: &Vec<Entity>,
-    block_query: &Query<&BlockExtra>,
+    blocks: &[Entity],
+    _block_query: &Query<&Block>,
     config: &Res<ViewConfig>,
 ) {
     for &block in blocks.iter() {
@@ -334,9 +311,9 @@ fn handle_line_remove(
 pub fn handle_view_updates(
     mut commands: Commands,
     mut ev: EventReader<ViewUpdate>,
-    blob_query: Query<&BlobExtra>,
-    block_query: Query<&BlockExtra>,
-    mut rendered_blobs: Query<(&BlobExtra, &mut BlobRenderState)>,
+    blob_query: Query<&Blob>,
+    block_query: Query<&Block>,
+    mut rendered_blobs: Query<(&Blob, &mut BlobRenderState)>,
     config: Res<ViewConfig>,
 ) {
     for ev in ev.iter() {
@@ -382,7 +359,7 @@ pub fn register_animation_demo(app: &mut App, game_state: impl StateData) {
                 .label(DemoSystemLabels::GameLogic),
         )
         .add_system_set(
-            SystemSet::on_update(game_state.clone())
+            SystemSet::on_update(game_state)
                 .with_system(handle_view_updates)
                 .label(DemoSystemLabels::EventHandling)
                 // Run the ViewHandling BEFORE the game logic. The game logic spawnes new entites
@@ -395,22 +372,29 @@ pub fn register_animation_demo(app: &mut App, game_state: impl StateData) {
     #[cfg(feature = "debug")]
     use bevy_inspector_egui::RegisterInspectable;
 
-    #[cfg(feature = "debug")]
-    app.register_inspectable::<BlobExtra>()
-        .register_inspectable::<BlockExtra>();
 }
 
 fn spawn_demo_blob(commands: &mut Commands) -> Entity {
-    let body = crate::bodies::prototype::gen_target_body(1).unwrap();
+    let field_id = commands.spawn().id();
+    let body = crate::bodies::prototype::gen_blob_body(1).unwrap();
+    let mut rel_pos = vec![];
     let mut blocks = Vec::new();
     for r in 0..Blob::size() {
         for c in 0..Blob::size() {
             if body[Blob::coords_to_idx(r, c)] != 0 {
+                let coord = IVec2::new(
+                    c as i32 - 4, 
+                    r as i32 - 4,
+                );
+                rel_pos.push(coord);
                 blocks.push(
                     commands
                         .spawn()
-                        .insert(BlockExtra {
-                            coordinate: IVec2::new(c as i32 - 4, r as i32 - 4),
+                        .insert(Block {
+                            relative_position: Some(coord),
+                            position: coord,
+                            blob: None,
+                            field: field_id,
                         })
                         .id(),
                 );
@@ -420,10 +404,12 @@ fn spawn_demo_blob(commands: &mut Commands) -> Entity {
 
     commands
         .spawn()
-        .insert(BlobExtra {
-            transferred: false,
-            pivot: IVec2::default(), //IVec2::new(-1, 4),
+        .insert(Blob {
+            pivot: IVec2::default(),
+            movement: IVec2::ZERO, //IVec2::new(-1, 4),
+            active: true,
             blocks,
+            transferred: false,
         })
         .insert(Name::new("Test Blob"))
         .id()
@@ -519,19 +505,21 @@ pub fn setup_demo_system(
 }
 
 fn rotate_demo_blob(
-    blobdata: &BlobExtra,
-    block_query: &mut Query<&mut BlockExtra>,
+    blobdata: &Blob,
+    block_query: &mut Query<&mut Block>,
     rotation: Rotation,
 ) {
     for &block in blobdata.blocks.iter() {
         let mut blockdata = block_query.get_mut(block).unwrap();
-        blockdata.coordinate = rotate_coord(blockdata.coordinate, rotation);
+        blockdata.relative_position = Some(
+            rotate_coord(blockdata.relative_position.unwrap(), rotation)
+        );
     }
 }
 
 fn lowest_blocks_of_testblob(
-    block_query: &Query<&mut BlockExtra>,
-    blob_query: &Query<&mut BlobExtra>,
+    block_query: &Query<&mut Block>,
+    blob_query: &Query<&mut Blob>,
     config: &Res<ViewConfig>,
 ) -> Vec<Entity> {
     let blobdata = blob_query.get(config.test_blob.unwrap()).unwrap();
@@ -540,7 +528,7 @@ fn lowest_blocks_of_testblob(
         .iter()
         .map(|&block| {
             let blockdata = block_query.get(block).unwrap();
-            blockdata.coordinate.y
+            blockdata.relative_position.unwrap().y
         })
         .max()
         .unwrap_or_default();
@@ -549,7 +537,7 @@ fn lowest_blocks_of_testblob(
         .iter()
         .filter_map(|&block| {
             let blockdata = block_query.get(block).unwrap();
-            if blockdata.coordinate.y == max_y {
+            if blockdata.relative_position.unwrap().y == max_y {
                 Some(block)
             } else {
                 None
@@ -566,8 +554,8 @@ fn lowest_blocks_of_testblob(
 fn cutout_triangle_from_blob(
     commands: &mut Commands,
     blob: Entity,
-    blob_query: &mut Query<&mut BlobExtra>,
-    block_query: &mut Query<&mut BlockExtra>,
+    blob_query: &mut Query<&mut Blob>,
+    block_query: &mut Query<&mut Block>,
 ) -> Option<Entity> {
     let mut blobdata = blob_query.get_mut(blob).unwrap();
     let coordinates = blobdata
@@ -575,7 +563,7 @@ fn cutout_triangle_from_blob(
         .iter()
         .map(|&block| {
             let blockdata = block_query.get(block).unwrap();
-            (blockdata.coordinate, block)
+            (blockdata.relative_position.unwrap(), block)
         })
         .collect::<HashMap<IVec2, Entity>>();
     let triangle_blocks = coordinates.iter().find_map(|(coord, &block)| {
@@ -587,20 +575,23 @@ fn cutout_triangle_from_blob(
         }
     });
     if let Some((a, b, c)) = triangle_blocks {
-        let pivot_block_coordinate = block_query.get(a).unwrap().coordinate;
+        let pivot_block_coordinate = block_query.get(a).unwrap().relative_position.unwrap();
         let pivot = pivot_block_coordinate + blobdata.pivot;
         let blocks = vec![a, b, c];
         blobdata.blocks.retain(|x| !blocks.contains(x));
         for &block in blocks.iter() {
-            block_query.get_mut(block).unwrap().coordinate -= pivot_block_coordinate;
+            *block_query.get_mut(block).unwrap().relative_position.as_mut().unwrap() -= pivot_block_coordinate;
         }
         let newblob = commands
             .spawn()
             .insert_children(0, &blocks[..])
-            .insert(BlobExtra {
+            .insert(Blob {
                 blocks,
                 pivot,
                 transferred: false,
+                movement: IVec2::ZERO,
+                active: true,
+                
             })
             .id();
         Some(newblob)
@@ -612,8 +603,8 @@ fn cutout_triangle_from_blob(
 pub fn demo_system(
     mut commands: Commands,
     config: Res<ViewConfig>,
-    mut blob_query: Query<&mut BlobExtra>,
-    mut block_query: Query<&mut BlockExtra>,
+    mut blob_query: Query<&mut Blob>,
+    mut block_query: Query<&mut Block>,
     query: Query<&ActionState<TetrisActionsWASD>>,
     mut evt: EventWriter<ViewUpdate>,
 ) {

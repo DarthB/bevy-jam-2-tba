@@ -10,16 +10,20 @@ pub struct PivotTag {}
 pub struct OriginTag {}
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
+#[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
 pub struct Block {
+    /// the position of the block in the coordinate system of the field
     pub position: IVec2,
+
+    /// the relative position of the block from the parent blob
+    pub relative_position: Option<IVec2>,
 
     /// the parent blob of this block, if any, ignore in inspector, due to cycle
     #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub blob: Option<Entity>,
 
     /// the parent field of this block if any
-    pub field: Option<Entity>,
+    pub field: Entity,
 }
 
 impl Block {
@@ -37,12 +41,10 @@ impl Block {
                 ec.insert(PivotTag{});
             }
             let id = ec.insert(Block{ 
-                    position: blob.coordinate + v, 
+                    position: blob.pivot + v, 
                     blob: Some(blob_id),
-                    field: Some(field),
-                })
-                .insert(BlockExtra {
-                    coordinate: v,
+                    relative_position: Some(v),
+                    field,
                 })
                 .insert(Name::new(format!("Block {},{}", v.x, v.y)))
                 .id();
@@ -61,7 +63,7 @@ pub fn blocks_are_on_field<'a>(
     let mut at_least_one = false;
     for block in iter {
         at_least_one = true;
-        if !block.field.is_some() || block.field.unwrap() != field_id {
+        if block.field != field_id {
             return false
         }
     }

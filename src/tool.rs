@@ -18,6 +18,7 @@ impl Default for ToolComponent {
     }
 }
 
+/// spawns a tool into the world such that it can affect Blobs on the factory field
 pub fn spawn_tool (
     commands: &mut Commands,
     tool: Tool,
@@ -40,7 +41,7 @@ pub fn spawn_tool (
         ..Default::default()
     })
         .insert(ToolComponent{ kind: tool, relative_positions: None })
-        .insert(Block{ position: coordinate, blob: None, field: Some(field_id) })
+        .insert(Block{ position: coordinate, blob: None, relative_position: None, field: field_id })
         .insert(Name::new(format!("Tool-{}", tool)))
         .id();
     

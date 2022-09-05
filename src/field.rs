@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use bevy::{ecs::system::EntityCommands, log, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
+use bevy::{ecs::system::EntityCommands, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
 
 use crate::{game_assets::GameAssets, prelude::*};
 
@@ -38,7 +38,7 @@ pub type FieldMutator = dyn Fn(&mut Field, (i32, i32), usize);
 
 impl Field {
     pub fn as_factory(assets: &GameAssets) -> Self {
-        let reval = Field {
+        Field {
             movable_size: (10, 18),
             allow_overlap: UiRect {
                 left: 4,
@@ -49,13 +49,11 @@ impl Field {
             movable_area_image: assets.block_factory_floor.clone(),
             brick_image: assets.block_blob.clone(),
             ..Default::default()
-        };
-
-        reval
+        }
     }
 
     pub fn as_production_field(assets: &GameAssets) -> Self {
-        let reval = Field {
+        Field {
             allow_overlap: UiRect {
                 left: 0,
                 right: 0,
@@ -65,9 +63,7 @@ impl Field {
             movable_area_image: assets.block_tetris_floor.clone(),
             brick_image: assets.block_blob.clone(),
             ..Default::default()
-        };
-
-        reval
+        }
     }
 
     pub fn bounds(&self) -> (IVec2, IVec2) {
@@ -156,81 +152,20 @@ impl Field {
         }
     }
 
-    /*
-    pub fn full_lines(&self) -> Vec<usize> {
-        let mut reval: Vec<usize> = Vec::new();
-        if !self.tracks_occupied || !self.remove_full_lines {
-            return reval;
-        }
-        //~
-
-        for r in 0..self.movable_size.1 {
-            let mut full_line = true;
-            for c in 0..self.movable_size.0 {
-                full_line = full_line && self.occupied[self.coords_to_idx(c, r).unwrap()] > 0
-            }
-            if full_line {
-                reval.push(r);
-            }
-        }
-
-        reval
-    }
-    */
-
-    pub fn deoccupy_lines(&mut self, lines: &Vec<usize>) {
-        unimplemented!()
-        /*
-        if !self.tracks_occupied {
-            return;
-        }
-
-        for r in lines {
-            for c in 0..self.movable_size.0 {
-                if let Some(idx) = self.coords_to_idx(c, *r) {
-                    self.occupied[idx] = 0;
-                }
-            }
-        }
-        */
-    }
-
-    pub fn move_down_if_possible(&mut self) {
-        unimplemented!()
-        /*
-        for r in (0..self.mov_size().1 - 1).rev() {
-            for c in 0..self.mov_size().0 {
-                let idx_up = self.coords_to_idx(c, r).unwrap();
-                let idx_below = self.coords_to_idx(c, r + 1).unwrap();
-                if self.occupied[idx_up] > 0
-                    && self.occupied[idx_up] < 100
-                    && self.occupied[idx_below] == 0
-                {
-                    self.occupied[idx_below] = self.occupied[idx_up];
-                    self.occupied[idx_up] = 0;
-                }
-            }
-        }
-        */
-    }
-
     pub fn remove_all_tools(&mut self) -> Vec<Tool> {
-        let mut reval = Vec::new();
-        /*
+        let state = self.get_field_state();
         
-        for r in 0..self.mov_size().1 {
-            for c in 0..self.mov_size().0 {
-                let idx = self.coords_to_idx(c, r).unwrap();
-                let tool: Result<Tool, _> = TryFrom::<i32>::try_from(self.occupied[idx]);
-                if let Ok(tool) = tool {
-                    reval.push(tool);
-                    self.occupied[idx] = 0;
+        state.into_iter()
+            .filter(|f| {
+                matches!(f.kind, FieldElementKind::Tool(_))
+            })
+            .map(|e| {
+                match e.kind {
+                    FieldElementKind::Tool(t) => t,
+                    _ => panic!("Cannot happen because of previous filter.") 
                 }
-            }
-        }
-        */
-
-        reval
+            })
+            .collect()
     }
 }
 
@@ -257,11 +192,7 @@ pub fn generate_field_states(
 ) {
     for (field_id, mut field) in query_field.iter_mut() {
         let iter = query_state.iter().filter(|(_, block, _)| {
-            if let Some(id) = block.field {
-                id == field_id
-            } else {
-                false
-            }
+            block.field == field_id
         });
         //log::info!("Blocks on Field {:?} = {}", field_id, iter.count());
         field.generate_field_state(iter);
@@ -296,28 +227,3 @@ pub fn spawn_field(
     id
 }
 
-pub fn remove_field_lines(mut query_field: Query<&mut Field>) {
-    /*
-    for mut field in query_field.iter_mut() {
-        let fl: Vec<usize> = field.full_lines();
-        if fl.is_empty() {
-            continue;
-        }
-        //~
-        log::info!("Removing {} lines", fl.len());
-
-        let coordinates: Vec<(i32, i32)> = fl
-            .iter()
-            .cartesian_product(0..field.mov_size().0)
-            .map(|(y, x)| (x as i32, *y as i32))
-            .collect();
-        log::info!(
-            "Cartesian Product contains  {} elments\n{:?}",
-            coordinates.len(),
-            coordinates
-        );
-
-        field.deoccupy_lines(&fl);
-    }
-    */
-}
