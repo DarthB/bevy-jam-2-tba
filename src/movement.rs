@@ -12,7 +12,7 @@ pub struct BlobTeleportEvent {
 }
 
 pub fn generate_move_events_by_gravity(
-    query_collector: Query<(Entity, &Blob)>,
+    query_collector: Query<(Entity, &GridBody)>,
     mut query: Query<(Entity, &Blob)>,
     turn: Res<Turn>,
     mut ev: EventWriter<BlobMoveEvent>,
@@ -20,7 +20,7 @@ pub fn generate_move_events_by_gravity(
     if turn.is_new_turn() {
         let mut vec: Vec<(Entity, i32)> = query_collector
             .iter()
-            .map(|(entity, blob)| (entity, blob.pivot.y))
+            .map(|(entity, body)| (entity, body.pivot.y))
             .collect();
 
         vec.sort_by(|left, right| left.1.cmp(&right.1));
@@ -40,7 +40,7 @@ pub fn generate_move_events_by_gravity(
 }
 
 pub fn move_factory_blobs_by_events(
-    mut query: Query<(Entity, &mut Blob)>,
+    mut query: Query<(Entity, &mut Blob, &mut GridBody)>,
     field_query: Query<(Entity, &Field), With<FactoryFieldTag>>,
     mut block_query: Query<(Entity, &mut Block)>,
     mut ev_move: EventReader<BlobMoveEvent>,
@@ -50,11 +50,11 @@ pub fn move_factory_blobs_by_events(
     let (_field_id, field) = field_query.single();
 
     for ev in ev_move.iter() {
-        if let Ok((blob_id, mut blob)) = query.get_mut(ev.entity) {
-            if blob.active && !blob.transferred {
+        if let Ok((blob_id, mut blob, mut body)) = query.get_mut(ev.entity) {
+            if blob.active && !body.transferred {
                 log::info!("Move Factory!");
 
-                let tv = blob.pivot + ev.delta;
+                let tv = body.pivot + ev.delta;
                 let state = field.get_field_state();
 
                 // if blob is at the coordinate limit send an BlobTeleportEvent
@@ -92,9 +92,9 @@ pub fn move_factory_blobs_by_events(
                                         block_query.iter_mut().map(|(_, block)| block);
                                     match d {
                                         RotateDirection::Left => {
-                                            blob.rotate_left(&mut block_iter, &mut ev_view, blob_id)
+                                            body.rotate_left(&mut block_iter, &mut ev_view, blob_id)
                                         }
-                                        RotateDirection::Right => blob.rotate_right(
+                                        RotateDirection::Right => body.rotate_right(
                                             &mut block_iter,
                                             &mut ev_view,
                                             blob_id,
@@ -118,7 +118,7 @@ pub fn move_factory_blobs_by_events(
                             block.blob.is_some() && block.blob.unwrap() == blob_id
                         });
 
-                        move_blob(blob_id, &mut blob, ev.delta, block_iter, Some(&mut ev_view));
+                        move_blob(blob_id, &mut body, ev.delta, block_iter, Some(&mut ev_view));
                     }
                 }
             }
@@ -128,7 +128,7 @@ pub fn move_factory_blobs_by_events(
 
 pub fn move_production_blobs_by_events(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut Blob)>,
+    mut query: Query<(Entity, &Blob, &mut GridBody)>,
     mut query_block: Query<(Entity, &mut Block)>,
     mut field_query: Query<(Entity, &mut Field), With<ProductionFieldTag>>,
     mut ev: EventReader<BlobMoveEvent>,
@@ -136,8 +136,8 @@ pub fn move_production_blobs_by_events(
 ) {
     if let Ok((_field_id, field)) = field_query.get_single_mut() {
         for ev in ev.iter() {
-            if let Ok((blob_id, mut blob)) = query.get_mut(ev.entity) {
-                if blob.active && blob.transferred {
+            if let Ok((blob_id, blob, mut body)) = query.get_mut(ev.entity) {
+                if blob.active && body.transferred {
                     log::info!("Move Production!");
 
                     let occ_coords: Vec<IVec2> = query_block
@@ -167,7 +167,7 @@ pub fn move_production_blobs_by_events(
                         block.blob.is_some() && block.blob.unwrap() == blob_id
                     });
                     if !occupied {
-                        move_blob(blob_id, &mut blob, ev.delta, block_iter, Some(&mut ev_view));
+                        move_blob(blob_id, &mut body, ev.delta, block_iter, Some(&mut ev_view));
                     } else {
                         log::info!("Full Stop and occupy");
                         dissolve_blob(&mut commands, blob_id, block_iter, Some(&mut ev_view));
@@ -193,13 +193,13 @@ pub fn dissolve_blob<'a>(
 
 pub fn move_blob<'a>(
     blob_id: Entity,
-    blob: &mut Blob,
+    body: &mut GridBody,
     delta: IVec2,
     block_iter: impl Iterator<Item = (Entity, Mut<'a, Block>)>,
     ev_view: Option<&mut EventWriter<ViewUpdate>>,
 ) {
     // update the grid position
-    blob.pivot += delta;
+    body.pivot += delta;
 
     // update the grid position of every block
     for (_id, mut block) in block_iter {
@@ -218,13 +218,13 @@ pub fn move_blob<'a>(
 
 pub fn teleport_blob<'a>(
     blob_id: Entity,
-    blob: &mut Blob,
+    body: &mut GridBody,
     field: Entity,
     block_iter: impl Iterator<Item = (Entity, Mut<'a, Block>)>,
     ev_view: Option<&mut EventWriter<ViewUpdate>>,
 ) {
     // set the transferred flags for the renderer
-    blob.transferred = true;
+    body.transferred = true;
 
     // update the field reference in blocks
     for (_id, mut block) in block_iter {
@@ -243,14 +243,14 @@ pub fn teleport_blob<'a>(
 
 pub fn handle_teleport_event(
     query_prod: Query<Entity, With<ProductionFieldTag>>,
-    mut query_blob: Query<(Entity, &mut Blob)>,
+    mut query_blob: Query<(Entity, &mut GridBody)>,
     mut query_block: Query<(Entity, &mut Block)>,
     mut ev: EventReader<BlobTeleportEvent>,
     mut ev_view: EventWriter<ViewUpdate>,
 ) {
     for ev in ev.iter() {
-        if let Ok((blob_id, blob)) = &mut query_blob.get_mut(ev.entity) {
-            if blob.transferred {
+        if let Ok((blob_id, body)) = &mut query_blob.get_mut(ev.entity) {
+            if body.transferred {
                 log::warn!(
                     "Blob {:?} is already transfered, aborting teleport event.",
                     blob_id
@@ -261,8 +261,8 @@ pub fn handle_teleport_event(
 
             // collect data
             let prod_field = query_prod.single();
-            let target = IVec2::new(blob.pivot.x, -3);
-            let delta = target - blob.pivot;
+            let target = IVec2::new(body.pivot.x, -3);
+            let delta = target - body.pivot;
 
             // update the grid coordinates
             {
@@ -270,7 +270,7 @@ pub fn handle_teleport_event(
                     .iter_mut()
                     .filter(|(_, block)| block.blob.is_some() && block.blob.unwrap() == *blob_id);
 
-                move_blob(*blob_id, blob, delta, block_iter_move, None);
+                move_blob(*blob_id, body, delta, block_iter_move, None);
             }
 
             // set the correct transfer flags
@@ -279,7 +279,7 @@ pub fn handle_teleport_event(
                 .filter(|(_, block)| block.blob.is_some() && block.blob.unwrap() == *blob_id);
             teleport_blob(
                 *blob_id,
-                blob,
+                body,
                 prod_field,
                 block_iter_teleport,
                 Some(&mut ev_view),

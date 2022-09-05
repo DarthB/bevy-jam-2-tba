@@ -49,7 +49,7 @@ pub fn spawn_world(
 
     let start_blob = spawn_blob(
         &mut commands,
-        BlobBody::new(level.start_blob.0.clone()),
+        BodyDefinition::as_blob(level.start_blob.0.clone()),
         "Start Blob",
         fac_field_id,
         level.start_blob.1.into(),
@@ -118,7 +118,7 @@ pub fn contiously_spawn_tetris_at_end(
 
             let _new_id = spawn_blob(
                 &mut commands,
-                BlobBody::new(body),
+                BodyDefinition::as_blob(body),
                 format!("{}. Additional Tetris Brick", turn.num_additional_bricks).as_str(),
                 prod_ent,
                 IVec2 { x: -3, y: 3 },

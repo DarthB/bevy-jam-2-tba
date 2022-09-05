@@ -13,6 +13,13 @@ pub struct DebugOccupiedTag {
     pub parent: Entity,
 }
 
+pub fn coords_to_px(x: i32, y: i32, rs: usize, cs: usize) -> (f32, f32) {
+    (
+        ((cs as f32 / -2.0) + x as f32) * PX_PER_TILE + PX_PER_TILE / 2.0,
+        ((rs as f32 / 2.0) - y as f32) * PX_PER_TILE - PX_PER_TILE / 2.0,
+    )
+}
+
 pub trait RenderableGrid {
     fn bounds(&self) -> (IVec2, IVec2);
 

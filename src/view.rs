@@ -6,8 +6,11 @@
 use std::{collections::HashMap, time::Duration};
 
 use crate::{
-    blob::Blob, game_assets::GameAssets, input::TetrisActionsWASD, prelude::Block, PX_PER_TILE,
-    Z_SOLID,
+    blob::Blob,
+    game_assets::GameAssets,
+    input::TetrisActionsWASD,
+    prelude::{Block, GridBody},
+    PX_PER_TILE, Z_SOLID,
 };
 use bevy::{
     ecs::{schedule::StateData, system::EntityCommands},
@@ -127,20 +130,20 @@ fn test_rotate_coord() {
 fn handle_blob_spawned(
     commands: &mut Commands,
     blob: Entity,
-    blob_query: &Query<&Blob>,
+    blob_query: &Query<&GridBody>,
     block_query: &Query<&Block>,
     config: &Res<ViewConfig>,
 ) {
     log::info!("Handle spawned: {:?}!", blob);
-    let blobdata = blob_query.get(blob).unwrap();
-    assert!(!blobdata.transferred);
+    let bodydata = blob_query.get(blob).unwrap();
+    assert!(!bodydata.transferred);
     let transform =
-        Transform::from_translation(config.factory_topleft + coord_to_translation(blobdata.pivot));
+        Transform::from_translation(config.factory_topleft + coord_to_translation(bodydata.pivot));
     commands
         .entity(blob)
         .insert_bundle(SpatialBundle::from(transform))
         .insert(BlobRenderState {
-            last_pivot: blobdata.pivot,
+            last_pivot: bodydata.pivot,
             rotation_steps: 0,
         })
         .with_children(|cb| {
@@ -159,7 +162,7 @@ fn handle_blob_spawned(
         });
     commands.entity(config.renderer_entity).add_child(blob);
 
-    for &block in blobdata.blocks.iter() {
+    for &block in bodydata.blocks.iter() {
         let blockdata = block_query.get(block).unwrap();
 
         // temporary hack until we can expect the game logic to do this for us
@@ -183,17 +186,17 @@ fn handle_blob_spawned(
 fn handle_blob_moved(
     commands: &mut Commands,
     blob: Entity,
-    blob_query: &mut Query<(&Blob, &mut BlobRenderState)>,
+    blob_query: &mut Query<(&GridBody, &mut BlobRenderState)>,
     config: &Res<ViewConfig>,
 ) {
-    if let Ok((blobdata, mut state)) = blob_query.get_mut(blob) {
-        let topleft = if blobdata.transferred {
+    if let Ok((bodydata, mut state)) = blob_query.get_mut(blob) {
+        let topleft = if bodydata.transferred {
             config.tetris_topleft
         } else {
             config.factory_topleft
         };
         let start = topleft + coord_to_translation(state.last_pivot);
-        let end = topleft + coord_to_translation(blobdata.pivot);
+        let end = topleft + coord_to_translation(bodydata.pivot);
 
         let tween = Tween::new(
             EaseFunction::QuadraticInOut,
@@ -202,7 +205,7 @@ fn handle_blob_moved(
             TransformPositionLens { start, end },
         );
         commands.entity(blob).insert(Animator::new(tween));
-        state.last_pivot = blobdata.pivot;
+        state.last_pivot = bodydata.pivot;
     }
 }
 
@@ -210,7 +213,7 @@ fn handle_blob_rotated(
     commands: &mut Commands,
     blob: Entity,
     rotation: Rotation,
-    blob_query: &mut Query<(&Blob, &mut BlobRenderState)>,
+    blob_query: &mut Query<(&GridBody, &mut BlobRenderState)>,
     config: &Res<ViewConfig>,
 ) {
     if let Ok((_, mut state)) = blob_query.get_mut(blob) {
@@ -243,13 +246,13 @@ fn handle_blob_rotated(
 fn handle_blob_cutout(
     commands: &mut Commands,
     newblob: Entity,
-    blob_query: &Query<&Blob>,
+    blob_query: &Query<&GridBody>,
     block_query: &Query<&Block>,
     config: &Res<ViewConfig>,
 ) {
     handle_blob_spawned(commands, newblob, blob_query, block_query, config);
-    let blobdata = blob_query.get(newblob).unwrap();
-    for &block in blobdata.blocks.iter() {
+    let body = blob_query.get(newblob).unwrap();
+    for &block in body.blocks.iter() {
         let tween = Tween::new(
             EaseFunction::BounceInOut,
             TweeningType::Once,
@@ -275,7 +278,7 @@ fn handle_blob_cutout(
 fn handle_blob_transferred(
     commands: &mut Commands,
     blob: Entity,
-    blob_query: &mut Query<(&Blob, &mut BlobRenderState)>,
+    blob_query: &mut Query<(&GridBody, &mut BlobRenderState)>,
     config: &Res<ViewConfig>,
 ) {
     if let Ok((blobdata, mut state)) = blob_query.get_mut(blob) {
@@ -315,9 +318,9 @@ fn handle_line_remove(
 pub fn handle_view_updates(
     mut commands: Commands,
     mut ev: EventReader<ViewUpdate>,
-    blob_query: Query<&Blob>,
+    blob_query: Query<&GridBody>,
     block_query: Query<&Block>,
-    mut rendered_blobs: Query<(&Blob, &mut BlobRenderState)>,
+    mut rendered_blobs: Query<(&GridBody, &mut BlobRenderState)>,
     config: Res<ViewConfig>,
 ) {
     for ev in ev.iter() {
@@ -382,9 +385,9 @@ fn spawn_demo_blob(commands: &mut Commands) -> Entity {
     let body = crate::bodies::prototype::gen_blob_body(1).unwrap();
     let mut rel_pos = vec![];
     let mut blocks = Vec::new();
-    for r in 0..Blob::size() {
-        for c in 0..Blob::size() {
-            if body[Blob::coords_to_idx(r, c)] != 0 {
+    for r in 0..GridBody::size() {
+        for c in 0..GridBody::size() {
+            if body[GridBody::coords_to_idx(r, c)] != 0 {
                 let coord = IVec2::new(c as i32 - 4, r as i32 - 4);
                 rel_pos.push(coord);
                 blocks.push(
@@ -404,12 +407,14 @@ fn spawn_demo_blob(commands: &mut Commands) -> Entity {
 
     commands
         .spawn()
-        .insert(Blob {
+        .insert(GridBody {
             pivot: IVec2::default(),
-            movement: IVec2::ZERO, //IVec2::new(-1, 4),
-            active: true,
             blocks,
             transferred: false,
+        })
+        .insert(Blob {
+            movement: IVec2::ZERO, //IVec2::new(-1, 4),
+            active: true,
         })
         .insert(Name::new("Test Blob"))
         .id()
@@ -504,7 +509,7 @@ pub fn setup_demo_system(
     evt.send(ViewUpdate::BlobSpawned(blob));
 }
 
-fn rotate_demo_blob(blobdata: &Blob, block_query: &mut Query<&mut Block>, rotation: Rotation) {
+fn rotate_demo_blob(blobdata: &GridBody, block_query: &mut Query<&mut Block>, rotation: Rotation) {
     for &block in blobdata.blocks.iter() {
         let mut blockdata = block_query.get_mut(block).unwrap();
         blockdata.relative_position =
@@ -514,7 +519,7 @@ fn rotate_demo_blob(blobdata: &Blob, block_query: &mut Query<&mut Block>, rotati
 
 fn lowest_blocks_of_testblob(
     block_query: &Query<&mut Block>,
-    blob_query: &Query<&mut Blob>,
+    blob_query: &Query<&mut GridBody>,
     config: &Res<ViewConfig>,
 ) -> Vec<Entity> {
     let blobdata = blob_query.get(config.test_blob.unwrap()).unwrap();
@@ -549,7 +554,7 @@ fn lowest_blocks_of_testblob(
 fn cutout_triangle_from_blob(
     commands: &mut Commands,
     blob: Entity,
-    blob_query: &mut Query<&mut Blob>,
+    blob_query: &mut Query<&mut GridBody>,
     block_query: &mut Query<&mut Block>,
 ) -> Option<Entity> {
     let mut blobdata = blob_query.get_mut(blob).unwrap();
@@ -585,10 +590,12 @@ fn cutout_triangle_from_blob(
         let newblob = commands
             .spawn()
             .insert_children(0, &blocks[..])
-            .insert(Blob {
-                blocks,
+            .insert(GridBody {
                 pivot,
+                blocks,
                 transferred: false,
+            })
+            .insert(Blob {
                 movement: IVec2::ZERO,
                 active: true,
             })
@@ -602,7 +609,7 @@ fn cutout_triangle_from_blob(
 pub fn demo_system(
     mut commands: Commands,
     config: Res<ViewConfig>,
-    mut blob_query: Query<&mut Blob>,
+    mut body_query: Query<&mut GridBody>,
     mut block_query: Query<&mut Block>,
     query: Query<&ActionState<TetrisActionsWASD>>,
     mut evt: EventWriter<ViewUpdate>,
@@ -611,8 +618,8 @@ pub fn demo_system(
         if s.just_pressed(TetrisActionsWASD::Down) {
             bevy::log::info!("DOWN pressed!");
             if let Some(test_blob) = config.test_blob {
-                if let Ok(mut blobdata) = blob_query.get_mut(test_blob) {
-                    blobdata.pivot.y += 1;
+                if let Ok(mut bodydata) = body_query.get_mut(test_blob) {
+                    bodydata.pivot.y += 1;
                     evt.send(ViewUpdate::BlobMoved(test_blob));
                 }
             }
@@ -620,8 +627,8 @@ pub fn demo_system(
         if s.just_pressed(TetrisActionsWASD::RRotate) {
             bevy::log::info!("RRotate pressed!");
             if let Some(test_blob) = config.test_blob {
-                if let Ok(blobdata) = blob_query.get(test_blob) {
-                    rotate_demo_blob(blobdata, &mut block_query, Rotation::Right);
+                if let Ok(bodydata) = body_query.get(test_blob) {
+                    rotate_demo_blob(bodydata, &mut block_query, Rotation::Right);
                     evt.send(ViewUpdate::BlobRotated(test_blob, Rotation::Right));
                 }
             }
@@ -629,8 +636,8 @@ pub fn demo_system(
         if s.just_pressed(TetrisActionsWASD::LRotate) {
             bevy::log::info!("LRotate pressed!");
             if let Some(test_blob) = config.test_blob {
-                if let Ok(blobdata) = blob_query.get(test_blob) {
-                    rotate_demo_blob(blobdata, &mut block_query, Rotation::Left);
+                if let Ok(bodydata) = body_query.get(test_blob) {
+                    rotate_demo_blob(bodydata, &mut block_query, Rotation::Left);
                     evt.send(ViewUpdate::BlobRotated(test_blob, Rotation::Left));
                 }
             }
@@ -638,19 +645,19 @@ pub fn demo_system(
         if s.just_pressed(TetrisActionsWASD::Up) {
             bevy::log::info!("UP for block transfer pressed!");
             if let Some(test_blob) = config.test_blob {
-                if let Ok(mut blobdata) = blob_query.get_mut(test_blob) {
-                    blobdata.transferred = true;
-                    blobdata.pivot.y = 0;
+                if let Ok(mut bodydata) = body_query.get_mut(test_blob) {
+                    bodydata.transferred = true;
+                    bodydata.pivot.y = 0;
                     evt.send(ViewUpdate::BlobTransferred(test_blob));
                 }
             }
         }
         if s.just_pressed(TetrisActionsWASD::Left) {
             bevy::log::info!("LEFT for LineRemove pressed!");
-            let to_remove = lowest_blocks_of_testblob(&block_query, &blob_query, &config);
+            let to_remove = lowest_blocks_of_testblob(&block_query, &body_query, &config);
             if let Some(test_blob) = config.test_blob {
-                if let Ok(mut blobdata) = blob_query.get_mut(test_blob) {
-                    blobdata.blocks.retain(|x| !to_remove.contains(x));
+                if let Ok(mut bodydata) = body_query.get_mut(test_blob) {
+                    bodydata.blocks.retain(|x| !to_remove.contains(x));
                     evt.send(ViewUpdate::LineRemove(to_remove));
                 }
             }
@@ -661,7 +668,7 @@ pub fn demo_system(
                 if let Some(newblob) = cutout_triangle_from_blob(
                     &mut commands,
                     test_blob,
-                    &mut blob_query,
+                    &mut body_query,
                     &mut block_query,
                 ) {
                     evt.send(ViewUpdate::BlobCutout(newblob));
