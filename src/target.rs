@@ -42,12 +42,14 @@ impl Target {
         }
     }
 
+    
     pub fn coords_to_idx(r: usize, c: usize) -> usize {
-        coords_to_idx(r, c, Target::size())
+        coords_to_idx(r, c, Target::dimensions().0)
     }
+    
 
-    pub fn size() -> usize {
-        10
+    pub fn dimensions() -> (usize, usize) {
+        (10, 12)
     }
 
     /// the function calculates the occupied coordinates in the coordinate system of the
@@ -55,15 +57,14 @@ impl Target {
     pub fn occupied_coordinates(&self) -> Vec<(i32, i32)> {
         let mut reval = Vec::new();
         if self.coordinate.is_some() {
-            /*
-            for r in 0..self.dimensions().1 {
-                for c in 0..self.dimensions().0 {
-                    if self.body[ coords_to_idx(r, c, self.dimensions().0)] != 0 {
+            
+            for r in 0..Target::dimensions().1 {
+                for c in 0..Target::dimensions().0 {
+                    if self.body[ Target::coords_to_idx(r, c)] != 0 {
                         reval.push((c as i32, r as i32));
                     }
                 }
             }
-             */
         }
         reval
     }
@@ -106,5 +107,6 @@ pub fn spawn_target(
     .insert(target)
     .insert(Name::new(name.to_string()));
     adapter(&mut ec);
-    ec.id()
+    
+    id
 }

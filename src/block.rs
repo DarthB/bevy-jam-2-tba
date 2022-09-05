@@ -14,8 +14,11 @@ pub struct OriginTag {}
 pub struct Block {
     pub position: IVec2,
 
+    /// the parent blob of this block, if any, ignore in inspector, due to cycle
+    #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub blob: Option<Entity>,
 
+    /// the parent field of this block if any
     pub field: Option<Entity>,
 }
 
@@ -24,6 +27,7 @@ impl Block {
         commands: &mut Commands, 
         body: &BlobBody, 
         blob: &Blob,
+        blob_id: Entity,
         field: Entity,
     ) -> Vec<Entity> {
         let mut reval = vec![];
@@ -34,7 +38,7 @@ impl Block {
             }
             let id = ec.insert(Block{ 
                     position: blob.coordinate + v, 
-                    blob: None,
+                    blob: Some(blob_id),
                     field: Some(field),
                 })
                 .insert(BlockExtra {

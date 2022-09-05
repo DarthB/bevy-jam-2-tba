@@ -51,7 +51,7 @@ pub fn spawn_world(
         &mut commands,
         &assets.block_blob,
         BlobBody::new(level.start_blob.0.clone()),
-        "L Stone",
+        "Start Blob",
         fac_field_id,
         level.start_blob.1.into(),
         &|ec| {
@@ -66,7 +66,7 @@ pub fn spawn_world(
     let field_info = Field::as_production_field(&assets);
     let root_production_field = Vec3::new(300.0, 0.0, 0.0);
     let (px, py) = field_info.coords_to_px(0, 0);
-    let origin_production = Vec3::new(px, py, 0.0) + root_factory_field; 
+    let origin_production = Vec3::new(px, py, 0.0) + root_production_field; 
     let pr_field = spawn_field(
         &mut commands,
         &assets,
@@ -132,7 +132,7 @@ pub fn contiously_spawn_tetris_at_end(
                 },
             );
             turn.num_additional_bricks += 1;
-            commands.entity(prod_ent).push_children(&[new_id]);
+            //commands.entity(prod_ent).push_children(&[new_id]);
         }
     } else {
         panic!("The programmer forgot to create the production Field...");
@@ -142,13 +142,14 @@ pub fn contiously_spawn_tetris_at_end(
 pub fn check_win(
     mut commands: Commands,
     assets: Res<GameAssets>,
-    mut query_field: Query<&mut Field, With<ProductionFieldTag>>,
     query_target: Query<&Target>,
+    mut query_field: Query<&mut Field, With<ProductionFieldTag>>,
     mut player_state: ResMut<PlayerState>,
 ) {
     if player_state.won {
         return;
     }
+    //~
 
     let target = query_target.single();
     let field = query_field.single_mut();
@@ -160,10 +161,10 @@ pub fn check_win(
         .map(|(c, r)| IVec2::new(*c, *r + 6)) // as the production field 6 tiles larger in y direction
         .collect();
 
-    let cond = field_state.are_all_coordinates_occupied(
+    let cond = field_state.are_all_coordinates(
         &transformed_coords, 
         None, 
-        &|el| el.kind != FieldElementKind::Empty,
+        &|el| el.kind == FieldElementKind::Block(None), // none means the blob is not existing and the blocks are direcly linked to the field
     ) 
         //&& coords.len() == field.num_occupied()
         ;

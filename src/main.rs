@@ -70,7 +70,6 @@ fn main() {
                 .with_system(progress_turn)
                 //                .with_system(contiously_spawn_tetris_at_end)
                 //.with_system(remove_field_lines)
-                .with_system(stupid_block_update)
                 .with_system(crate::view::handle_view_updates)
                 .label(MySystems::EventHandling),
         )
@@ -99,7 +98,7 @@ fn main() {
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)            
-                .with_system(teleport_blob_out_of_factory)
+                .with_system(handle_teleport_event)
                 .with_system(generate_field_states)
                 .label(MySystems::PostGameUpdates)
                 .after(MySystems::GameUpdates)
@@ -111,7 +110,6 @@ fn main() {
                 .with_system(update_toolbar_images)
                 .with_system(update_toolbar_inventory)
                 .with_system(update_toolbar_overlays)
-                .with_system(blob_update_transforms)
                 .with_system(update_field_debug)
                 .label(MySystems::RenderUpdates)
                 .after(MySystems::PostGameUpdates),

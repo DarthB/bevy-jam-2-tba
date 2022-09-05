@@ -11,11 +11,14 @@ pub struct Field {
 
     pub allow_overlap: UiRect<usize>,
 
+    
+    #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub movable_area_image: Handle<Image>,
 
+    #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub brick_image: Handle<Image>,
 
-    //#[cfg_attr(feature = "debug", inspectable(ignore))]
+    #[cfg_attr(feature = "debug", inspectable(ignore))]
     field_state: FieldState,
 }
 
@@ -99,7 +102,6 @@ impl Field {
                     let pos = IVec2::new(x,y);
                     self.field_state.set_element(pos, FieldElement { 
                         entity: None, 
-                        blob: None,
                         kind: FieldElementKind::OutOfMovableRegion,
                         position: pos 
                     });
@@ -108,25 +110,32 @@ impl Field {
         }
 
         for (entity, block, opt_tool) in block_iter {
-            let new_el = if let Some(blob) = block.blob {
+            let new_el = if let Some(tool) = opt_tool {
                 FieldElement {
                     entity: Some(entity),
-                    blob: Some(blob),
-                    kind: FieldElementKind::Block,
-                    position: block.position,
-                }
-            } else if let Some(tool) = opt_tool {
-                FieldElement {
-                    entity: Some(entity),
-                    blob: None,
                     kind: FieldElementKind::Tool(tool.kind),
                     position: block.position,
                 }
-            } else if let Some(old_el) = self.field_state.get_element(block.position) {
+            } else if let Some(blob) = block.blob {
+                FieldElement {
+                    entity: Some(entity),
+                    kind: FieldElementKind::Block(Some(blob)),
+                    position: block.position,
+                }
+            } else {
+                FieldElement {
+                    entity: Some(entity),
+                    kind: FieldElementKind::Block(None),
+                    position: block.position,
+                }
+            };
+            /* 
+            else if let Some(old_el) = self.field_state.get_element(block.position) {
                 old_el
             } else {
                 FieldElement::default()
-            };        
+            }; 
+            */       
             self.field_state.set_element(block.position, new_el);
         }
         &self.field_state

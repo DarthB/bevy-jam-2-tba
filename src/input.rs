@@ -139,6 +139,7 @@ pub fn mouse_for_field_selection_and_tool_creation(
     mut field_query: Query<(Entity, &mut Field), With<FactoryFieldTag>>,
     query_on_tool_clicked: Query<&ToolComponent>,
     mut player_state: ResMut<PlayerState>,
+    assets: Res<GameAssets>,
 ) {
     let (field_id, field) = field_query.single_mut();
 
@@ -149,10 +150,13 @@ pub fn mouse_for_field_selection_and_tool_creation(
         player_state.tool_placement_coordinate = None;
 
         for (mut sprite, trans, coord, parent) in sprites.iter_mut() {
+            // @todo check if factory field
             // only continue when hovering a sprite on the factory field
+            /*
             if field_id != parent.get() {
                 continue;
             }
+            */
             //~
 
             let sprite_pos = trans.translation();
@@ -164,7 +168,6 @@ pub fn mouse_for_field_selection_and_tool_creation(
 
             // sprite is a cube so x test is enough
             if diff.length() < (PX_PER_TILE / 2.0) {
-                sprite.color = Color::WHITE;
                 //let (x, y) = (coord.c, coord.r);
                 //log::info!("Mouse over: Coordinate {x},{y}");
                 player_state.tool_placement_coordinate = Some(IVec2::new(coord.c, coord.r));
@@ -183,7 +186,7 @@ pub fn mouse_for_field_selection_and_tool_creation(
 
             if let Some(element) = field_state.get_element(coord) {
                 let valid_place = matches!(element.kind, 
-                        FieldElementKind::Empty | FieldElementKind::Tool(_) | FieldElementKind::Block);
+                        FieldElementKind::Empty | FieldElementKind::Tool(_) | FieldElementKind::Block(_));
 
                 if valid_place && placeable_tool_selected && player_state.num_in_inventory(tool) > 0 {
                     player_state.add_to_inventory(tool, -1);
@@ -195,10 +198,9 @@ pub fn mouse_for_field_selection_and_tool_creation(
                             commands.entity(entity).despawn_recursive();
                         }
                     }
-                    commands.spawn()
-                        .insert(ToolComponent{ kind: tool, relative_positions: None })
-                        .insert(Block{ position: coord, blob: None, field: Some(field_id) })
-                        ;
+                    
+                    spawn_tool(&mut commands, tool, coord, field_id, &field, &assets);
+
                 } else if tool == Tool::Eraser {
                     log::info!("Erase tool {:?} at ({},{})", tool, coord.x, coord.y);
 

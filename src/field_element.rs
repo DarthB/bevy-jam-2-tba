@@ -66,7 +66,7 @@ impl FieldState {
         let mut reval = vec![];
         for el in self.into_iter() {
             match el.kind {
-                FieldElementKind::OutOfMovableRegion | FieldElementKind::Block => {
+                FieldElementKind::OutOfMovableRegion | FieldElementKind::Block(_) => {
                     reval.push(el.position);
                 },
                 _ => {}
@@ -75,12 +75,18 @@ impl FieldState {
         reval
     }
 
-    pub fn are_all_coordinates_occupied(
+    pub fn are_all_coordinates(
         &self, 
         coords: &Vec<IVec2>,
         exceptions: Option<&Vec<IVec2>>, 
         predicate: &dyn Fn(&FieldElement)->bool,
     ) -> bool {
+        let exceptions = if let Some(exceptions) = exceptions {
+            Some((exceptions, true))
+        } else {
+            None
+        };
+
         for v in coords {
             let res = self.predicate_at_coordinate(*v, exceptions, predicate);
             if !res {
@@ -90,12 +96,18 @@ impl FieldState {
         true
     }
 
-    pub fn is_any_coordinate_occupied(
+    pub fn is_any_coordinate(
         &self,
         coords: &Vec<IVec2>,
         exceptions: Option<&Vec<IVec2>>,
         predicate: &dyn Fn(&FieldElement)->bool,
     ) -> bool {
+        let exceptions = if let Some(exceptions) = exceptions {
+            Some((exceptions, false))
+        } else {
+            None
+        };
+
         for v in coords {
             let res = self.predicate_at_coordinate(*v, exceptions, predicate);
             if res {
@@ -108,18 +120,23 @@ impl FieldState {
     pub fn predicate_at_coordinate(
         &self, 
         coord: IVec2, 
-        exceptions: Option<&Vec<IVec2>>,
+        exceptions: Option<(&Vec<IVec2>, bool)>,
         predicate: &dyn Fn(&FieldElement)->bool,
     ) -> bool {
         if let Some(exceptions) = exceptions {
-            if exceptions.contains(&coord) {
-                return true;
+            if exceptions.0.contains(&coord) {
+                return exceptions.1;
             }
         }
         if let Some(element) = self.get_element(coord) {
             predicate(&element)
         } else {
-            false
+            let el = FieldElement { 
+                entity: None, 
+                kind: FieldElementKind::OutOfValidRegion, 
+                position: coord 
+            };
+            predicate(&el)
         }
     }
 
@@ -181,7 +198,7 @@ pub enum FieldElementKind {
     Empty,
     OutOfMovableRegion,
     OutOfValidRegion,
-    Block,
+    Block(Option<Entity>),
     Tool(Tool),
 }
 
@@ -189,7 +206,6 @@ pub enum FieldElementKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
 pub struct FieldElement {
     pub entity: Option<Entity>,
-    pub blob: Option<Entity>,
     pub kind: FieldElementKind,
     pub position: IVec2,
 }

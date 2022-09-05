@@ -1,4 +1,4 @@
-use bevy::{ecs::{system::EntityCommands}, prelude::*};
+use bevy::{ecs::{system::EntityCommands}, prelude::*, log};
 use leafwing_input_manager::prelude::*;
 
 use crate::{prelude::*};
@@ -115,7 +115,6 @@ impl Blob {
             block.position += self.coordinate;
         }
 
-        
         ev_view.send(ViewUpdate::BlobRotated(id, Rotation::Right))
     }
 
@@ -162,21 +161,28 @@ pub fn spawn_blob(
     // @todo replace with psi rendering
     blob.texture = texture.clone();
 
-    // @todo borow checker and getting the ids into each other
-    blob.blocks = Block::spawn_blocks_of_blob(commands, &body, &blob, field);
-
-    let mut ec = commands.spawn_bundle(SpatialBundle {
+    // use commands to generate blob entity and block entities
+    let blob_id = {
+        let id = commands.spawn_bundle(SpatialBundle {
         ..Default::default()
-    });
-    let id = ec.id();
+        })
+        .id();
     
-    // @todo clarify if that is needed
+        // @todo borow checker and getting the ids into each other
+        blob.blocks = Block::spawn_blocks_of_blob(commands, &body, &blob, id, field);
+
+        id
+    };
+
+    // use commands to adapt the blob entity
+    let mut ec = commands.entity(blob_id);
+    // @todo remove extra stuff
     ec.insert(BlobExtra { blocks: blob.blocks.clone(), pivot: IVec2::ZERO, transferred: false })
         .insert(blob)
         .insert(Name::new(name.to_string()));
     adapter(&mut ec);
 
-    id
+    blob_id
 }
 
 /// Example of system that maps actions to movements on a controlled entity:
@@ -229,35 +235,8 @@ pub fn move_blob_by_player(
                     &mut extra,
                     delta, 
                     block_iter, 
-                    &mut ev_view);
+                    Some(&mut ev_view));
             }
         });
-    }
-}
-
-pub fn blob_update_transforms(
-    mut query: Query<(&Blob, &mut Transform, &Parent)>,
-    parent_query: Query<&Field>,
-) {
-    for (blob, mut transform, parent) in query.iter_mut() {
-        if let Ok(field) = parent_query.get(parent.get()) {
-            let (x, y) = field.coords_to_px(blob.coordinate.x, blob.coordinate.y);
-            transform.translation = Vec3::new(x, y, transform.translation.z);
-        }
-    }
-}
-
-// Keep the blob id in the block entity correct as this has not been done during spawning
-pub fn stupid_block_update(
-    blob_query: Query<(Entity, &Parent, &Blob)>, 
-    mut block_query: Query<&mut Block>,
-) {
-    for (blob_id, parent, blob) in blob_query.iter() {
-        for block_id in blob.blocks.iter() {
-            if let Ok(mut block) = block_query.get_mut(*block_id) {
-                block.blob = Some(blob_id);
-                block.field = Some(parent.get());
-            }
-        }
     }
 }
