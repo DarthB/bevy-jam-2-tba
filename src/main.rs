@@ -9,11 +9,11 @@ use {
         //        InspectorPlugin,
         WorldInspectorPlugin,
     },
-    bevy_jam_2_disastris_lib::block::Block,
     bevy_jam_2_disastris_lib::blob::Blob,
-    bevy_jam_2_disastris_lib::target::{Coordinate, Target},
+    bevy_jam_2_disastris_lib::block::Block,
     bevy_jam_2_disastris_lib::field::Field,
     bevy_jam_2_disastris_lib::hud::{UITagHover, UITagImage, UITagInventory},
+    bevy_jam_2_disastris_lib::target::{Coordinate, Target},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SystemLabel)]
@@ -84,22 +84,23 @@ fn main() {
                 .with_system(generate_field_states)
                 .with_system(generate_move_events_by_gravity)
                 .label(MySystems::PreGameUpdates)
-                .after(MySystems::Input)
+                .after(MySystems::Input),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
                 .with_system(move_factory_blobs_by_events)
                 .with_system(move_production_blobs_by_events)
-                .with_system(mouse_for_field_selection_and_tool_creation)
+                .with_system(mouse_for_field_selection)
                 .label(MySystems::GameUpdates)
                 .after(MySystems::PreGameUpdates),
         )
         .add_system_set(
-            SystemSet::on_update(GameState::Ingame)            
+            SystemSet::on_update(GameState::Ingame)
                 .with_system(handle_teleport_event)
                 .with_system(generate_field_states)
+                .with_system(mouse_for_tool_creation)
                 .label(MySystems::PostGameUpdates)
-                .after(MySystems::GameUpdates)
+                .after(MySystems::GameUpdates),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)

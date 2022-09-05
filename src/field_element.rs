@@ -1,10 +1,10 @@
-use bevy::prelude::*;
 use crate::prelude::*;
+use bevy::prelude::*;
 
 // chat log form psi architecture / refactor discussion
 
 /// Encapsules the game state of a game field.
-/// 
+///
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct FieldState {
@@ -16,26 +16,26 @@ pub struct FieldState {
 
 impl FieldState {
     pub fn new(bounds: (IVec2, IVec2)) -> Self {
-        if bounds.0.x > 0 || bounds.0.x >= bounds.1.x 
-            || bounds.0.y > 0 || bounds.0.y >= bounds.1.y {
+        if bounds.0.x > 0 || bounds.0.x >= bounds.1.x || bounds.0.y > 0 || bounds.0.y >= bounds.1.y
+        {
             panic!("Illegal bounds given for FactoryFieldState")
         }
 
         let len = len_from_bounds(bounds);
-        let mut reval = FieldState { 
-            bounds, 
-            elements: vec![FieldElement::default(); len.0*len.1], 
+        let mut reval = FieldState {
+            bounds,
+            elements: vec![FieldElement::default(); len.0 * len.1],
         };
-        
+
         for x in bounds.0.x..bounds.1.x {
             for y in bounds.0.y..bounds.1.y {
-                let pos = IVec2::new(x,y);
+                let pos = IVec2::new(x, y);
                 let mut el = reval.get_element(pos).unwrap();
                 el.position = pos;
                 reval.set_element(pos, el);
             }
         }
-        
+
         reval
     }
 
@@ -43,7 +43,9 @@ impl FieldState {
         len_from_bounds(self.bounds)
     }
 
-    pub fn bounds(&self) -> (IVec2, IVec2) {self.bounds}
+    pub fn bounds(&self) -> (IVec2, IVec2) {
+        self.bounds
+    }
 
     pub fn get_element(&self, coord: IVec2) -> Option<FieldElement> {
         self.coord_to_idx(coord).map(|idx| self.elements[idx])
@@ -64,7 +66,7 @@ impl FieldState {
             match el.kind {
                 FieldElementKind::OutOfMovableRegion | FieldElementKind::Block(_) => {
                     reval.push(el.position);
-                },
+                }
                 _ => {}
             }
         }
@@ -72,10 +74,10 @@ impl FieldState {
     }
 
     pub fn are_all_coordinates(
-        &self, 
+        &self,
         coords: &Vec<IVec2>,
-        exceptions: Option<&Vec<IVec2>>, 
-        predicate: &dyn Fn(&FieldElement)->bool,
+        exceptions: Option<&Vec<IVec2>>,
+        predicate: &dyn Fn(&FieldElement) -> bool,
     ) -> bool {
         let exceptions = exceptions.map(|e| (e, true));
         for v in coords {
@@ -91,7 +93,7 @@ impl FieldState {
         &self,
         coords: &Vec<IVec2>,
         exceptions: Option<&Vec<IVec2>>,
-        predicate: &dyn Fn(&FieldElement)->bool,
+        predicate: &dyn Fn(&FieldElement) -> bool,
     ) -> bool {
         let exceptions = exceptions.map(|e| (e, false));
 
@@ -105,10 +107,10 @@ impl FieldState {
     }
 
     pub fn predicate_at_coordinate(
-        &self, 
-        coord: IVec2, 
+        &self,
+        coord: IVec2,
         exceptions: Option<(&Vec<IVec2>, bool)>,
-        predicate: &dyn Fn(&FieldElement)->bool,
+        predicate: &dyn Fn(&FieldElement) -> bool,
     ) -> bool {
         if let Some(exceptions) = exceptions {
             if exceptions.0.contains(&coord) {
@@ -118,18 +120,21 @@ impl FieldState {
         if let Some(element) = self.get_element(coord) {
             predicate(&element)
         } else {
-            let el = FieldElement { 
-                entity: None, 
-                kind: FieldElementKind::OutOfValidRegion, 
-                position: coord 
+            let el = FieldElement {
+                entity: None,
+                kind: FieldElementKind::OutOfValidRegion,
+                position: coord,
             };
             predicate(&el)
         }
     }
 
     fn coord_to_idx(&self, coord: IVec2) -> Option<usize> {
-        if coord.x < self.bounds.0.x || coord.x >= self.bounds.1.x 
-            || coord.y < self.bounds.0.y || coord.y >= self.bounds.1.y {
+        if coord.x < self.bounds.0.x
+            || coord.x >= self.bounds.1.x
+            || coord.y < self.bounds.0.y
+            || coord.y >= self.bounds.1.y
+        {
             None
         } else {
             let len = self.len();

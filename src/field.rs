@@ -11,7 +11,6 @@ pub struct Field {
 
     pub allow_overlap: UiRect<usize>,
 
-    
     #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub movable_area_image: Handle<Image>,
 
@@ -69,13 +68,13 @@ impl Field {
     pub fn bounds(&self) -> (IVec2, IVec2) {
         (
             IVec2::new(
-                -(self.allow_overlap.left as i32), 
+                -(self.allow_overlap.left as i32),
                 -(self.allow_overlap.top as i32),
             ),
             IVec2::new(
                 (self.mov_size().0 + self.allow_overlap.right) as i32,
                 (self.mov_size().1 + self.allow_overlap.bottom) as i32,
-            )
+            ),
         )
     }
 
@@ -87,20 +86,24 @@ impl Field {
     /// This ensures that at some places where field state is queried a lot it is not regenerated
     /// all the time (once per system should be fine)
     pub fn generate_field_state<'a>(
-        &mut self, 
+        &mut self,
         block_iter: impl Iterator<Item = (Entity, &'a Block, Option<&'a ToolComponent>)>,
     ) -> &FieldState {
         self.field_state = FieldState::new(self.bounds());
 
         for x in self.bounds().0.x..self.bounds().1.x {
             for y in self.bounds().0.y..self.bounds().1.y {
-                if x < 0 || y < 0 || x >= self.mov_size().0 as i32 || y >= self.mov_size().1 as i32 {
-                    let pos = IVec2::new(x,y);
-                    self.field_state.set_element(pos, FieldElement { 
-                        entity: None, 
-                        kind: FieldElementKind::OutOfMovableRegion,
-                        position: pos 
-                    });
+                if x < 0 || y < 0 || x >= self.mov_size().0 as i32 || y >= self.mov_size().1 as i32
+                {
+                    let pos = IVec2::new(x, y);
+                    self.field_state.set_element(
+                        pos,
+                        FieldElement {
+                            entity: None,
+                            kind: FieldElementKind::OutOfMovableRegion,
+                            position: pos,
+                        },
+                    );
                 }
             }
         }
@@ -125,13 +128,13 @@ impl Field {
                     position: block.position,
                 }
             };
-            /* 
+            /*
             else if let Some(old_el) = self.field_state.get_element(block.position) {
                 old_el
             } else {
                 FieldElement::default()
-            }; 
-            */       
+            };
+            */
             self.field_state.set_element(block.position, new_el);
         }
         &self.field_state
@@ -154,16 +157,13 @@ impl Field {
 
     pub fn remove_all_tools(&mut self) -> Vec<Tool> {
         let state = self.get_field_state();
-        
-        state.into_iter()
-            .filter(|f| {
-                matches!(f.kind, FieldElementKind::Tool(_))
-            })
-            .map(|e| {
-                match e.kind {
-                    FieldElementKind::Tool(t) => t,
-                    _ => panic!("Cannot happen because of previous filter.") 
-                }
+
+        state
+            .into_iter()
+            .filter(|f| matches!(f.kind, FieldElementKind::Tool(_)))
+            .map(|e| match e.kind {
+                FieldElementKind::Tool(t) => t,
+                _ => panic!("Cannot happen because of previous filter."),
             })
             .collect()
     }
@@ -181,7 +181,7 @@ impl Default for Field {
             },
             movable_area_image: DEFAULT_IMAGE_HANDLE.typed(),
             brick_image: DEFAULT_IMAGE_HANDLE.typed(),
-            field_state: FieldState::default()
+            field_state: FieldState::default(),
         }
     }
 }
@@ -191,9 +191,9 @@ pub fn generate_field_states(
     mut query_field: Query<(Entity, &mut Field)>,
 ) {
     for (field_id, mut field) in query_field.iter_mut() {
-        let iter = query_state.iter().filter(|(_, block, _)| {
-            block.field == field_id
-        });
+        let iter = query_state
+            .iter()
+            .filter(|(_, block, _)| block.field == field_id);
         //log::info!("Blocks on Field {:?} = {}", field_id, iter.count());
         field.generate_field_state(iter);
     }
@@ -216,14 +216,13 @@ pub fn spawn_field(
     });
 
     let id = ec.id();
-    
+
     ec.with_children(|cb| {
         field.spawn_render_entities(id, cb, assets);
     })
     .insert(Name::new(name.to_string()))
     .insert(field);
     adapter(&mut ec);
-    
+
     id
 }
-

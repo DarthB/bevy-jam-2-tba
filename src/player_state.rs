@@ -1,5 +1,5 @@
-use bevy::{prelude::*, utils::HashMap};
 use crate::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 
 use std::fmt::Display;
 
@@ -52,7 +52,7 @@ impl From<MoveDirection> for IVec2 {
     fn from(d: MoveDirection) -> Self {
         match d {
             MoveDirection::Up => IVec2 { x: 0, y: -1 },
-            MoveDirection::Right => IVec2 { x: 1, y:0 },
+            MoveDirection::Right => IVec2 { x: 1, y: 0 },
             MoveDirection::Down => IVec2 { x: 0, y: 1 },
             MoveDirection::Left => IVec2 { x: -1, y: 0 },
         }

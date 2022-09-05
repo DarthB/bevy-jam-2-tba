@@ -5,11 +5,15 @@
 
 use std::{collections::HashMap, time::Duration};
 
-use crate::{blob::Blob, game_assets::GameAssets, input::TetrisActionsWASD, PX_PER_TILE, Z_SOLID, prelude::Block};
+use crate::{
+    blob::Blob, game_assets::GameAssets, input::TetrisActionsWASD, prelude::Block, PX_PER_TILE,
+    Z_SOLID,
+};
 use bevy::{
     ecs::{schedule::StateData, system::EntityCommands},
+    log,
     prelude::*,
-    render::texture::DEFAULT_IMAGE_HANDLE, log,
+    render::texture::DEFAULT_IMAGE_HANDLE,
 };
 use bevy_tweening::{
     lens::{SpriteColorLens, TransformPositionLens, TransformRotateZLens},
@@ -154,8 +158,7 @@ fn handle_blob_spawned(
             .insert(Name::new("Pivot Debug"));
         });
     commands.entity(config.renderer_entity).add_child(blob);
-        
-        
+
     for &block in blobdata.blocks.iter() {
         let blockdata = block_query.get(block).unwrap();
 
@@ -168,11 +171,12 @@ fn handle_blob_spawned(
                 custom_size: Some(Vec2::ONE * PX_PER_TILE),
                 ..Default::default()
             },
-            transform: Transform::from_translation(coord_to_translation(blockdata.relative_position.unwrap())),
+            transform: Transform::from_translation(coord_to_translation(
+                blockdata.relative_position.unwrap(),
+            )),
             texture: config.brick_image.clone(),
             ..Default::default()
         });
-        
     }
 }
 
@@ -371,7 +375,6 @@ pub fn register_animation_demo(app: &mut App, game_state: impl StateData) {
 
     #[cfg(feature = "debug")]
     use bevy_inspector_egui::RegisterInspectable;
-
 }
 
 fn spawn_demo_blob(commands: &mut Commands) -> Entity {
@@ -382,10 +385,7 @@ fn spawn_demo_blob(commands: &mut Commands) -> Entity {
     for r in 0..Blob::size() {
         for c in 0..Blob::size() {
             if body[Blob::coords_to_idx(r, c)] != 0 {
-                let coord = IVec2::new(
-                    c as i32 - 4, 
-                    r as i32 - 4,
-                );
+                let coord = IVec2::new(c as i32 - 4, r as i32 - 4);
                 rel_pos.push(coord);
                 blocks.push(
                     commands
@@ -504,16 +504,11 @@ pub fn setup_demo_system(
     evt.send(ViewUpdate::BlobSpawned(blob));
 }
 
-fn rotate_demo_blob(
-    blobdata: &Blob,
-    block_query: &mut Query<&mut Block>,
-    rotation: Rotation,
-) {
+fn rotate_demo_blob(blobdata: &Blob, block_query: &mut Query<&mut Block>, rotation: Rotation) {
     for &block in blobdata.blocks.iter() {
         let mut blockdata = block_query.get_mut(block).unwrap();
-        blockdata.relative_position = Some(
-            rotate_coord(blockdata.relative_position.unwrap(), rotation)
-        );
+        blockdata.relative_position =
+            Some(rotate_coord(blockdata.relative_position.unwrap(), rotation));
     }
 }
 
@@ -580,7 +575,12 @@ fn cutout_triangle_from_blob(
         let blocks = vec![a, b, c];
         blobdata.blocks.retain(|x| !blocks.contains(x));
         for &block in blocks.iter() {
-            *block_query.get_mut(block).unwrap().relative_position.as_mut().unwrap() -= pivot_block_coordinate;
+            *block_query
+                .get_mut(block)
+                .unwrap()
+                .relative_position
+                .as_mut()
+                .unwrap() -= pivot_block_coordinate;
         }
         let newblob = commands
             .spawn()
@@ -591,7 +591,6 @@ fn cutout_triangle_from_blob(
                 transferred: false,
                 movement: IVec2::ZERO,
                 active: true,
-                
             })
             .id();
         Some(newblob)

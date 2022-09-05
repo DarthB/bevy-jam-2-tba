@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::{blob::*, field::spawn_field, game_assets::GameAssets, prelude::*, target::*};
-use bevy::{prelude::*, log};
+use bevy::{log, prelude::*};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum GameState {
@@ -33,7 +33,7 @@ pub fn spawn_world(
     let root_factory_field = Vec3::new(-200.0, 64.0, 0.0);
     let (px, py) = factory_field_struct.coords_to_px(0, 0);
     let origin_factory = Vec3::new(px, py, 0.0) + root_factory_field;
-    
+
     let fac_field_id = spawn_field(
         &mut commands,
         &assets,
@@ -65,7 +65,7 @@ pub fn spawn_world(
     let field_info = Field::as_production_field(&assets);
     let root_production_field = Vec3::new(300.0, 0.0, 0.0);
     let (px, py) = field_info.coords_to_px(0, 0);
-    let origin_production = Vec3::new(px, py, 0.0) + root_production_field; 
+    let origin_production = Vec3::new(px, py, 0.0) + root_production_field;
     let pr_field = spawn_field(
         &mut commands,
         &assets,
@@ -79,7 +79,7 @@ pub fn spawn_world(
     turn.prod_id = Some(pr_field);
     log::info!("Production field with id: {:?} is spawned.", pr_field);
 
-    let id =  spawn_simple_rendering_entity(&mut commands).id();
+    let id = spawn_simple_rendering_entity(&mut commands).id();
     commands.insert_resource(ViewConfig {
         renderer_entity: id,
         factory_topleft: origin_factory,
@@ -159,10 +159,10 @@ pub fn check_win(
         .collect();
 
     let cond = field_state.are_all_coordinates(
-        &transformed_coords, 
-        None, 
+        &transformed_coords,
+        None,
         &|el| el.kind == FieldElementKind::Block(None), // none means the blob is not existing and the blocks are direcly linked to the field
-    ) 
+    )
         //&& coords.len() == field.num_occupied()
         ;
     if cond {
