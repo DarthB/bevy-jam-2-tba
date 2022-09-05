@@ -1,66 +1,79 @@
-use bevy::{ecs::system::EntityCommands, prelude::*};
+use bevy::{ecs::{system::EntityCommands}, prelude::*, log};
 use leafwing_input_manager::prelude::*;
 
-use crate::{prelude::*, render_old::RenderableGrid};
+use crate::{prelude::*};
 
+// @todo seperate into position related and game-logic releated
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct Blob {
-    #[cfg_attr(feature = "debug", inspectable(ignore))]
-    pub body: Vec<i32>,
+    /// the pivot of the blob that defines the center
+    pub pivot: IVec2,
 
-    #[cfg_attr(feature = "debug", inspectable(ignore))]
-    pub texture: Handle<Image>,
+    /// the movement direction that can be changed by tools
+    pub movement: IVec2,
 
-    pub coordinate: Option<Coordinate>,
-}
-
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Copy, Reflect)]
-pub struct Coordinate {
-    pub r: i32,
-    pub c: i32,
-}
-
-impl From<Coordinate> for (i32, i32) {
-    fn from(c: Coordinate) -> Self {
-        (c.c, c.r)
-    }
-}
-
-impl From<(i32, i32)> for Coordinate {
-    fn from((c, r): (i32, i32)) -> Self {
-        Coordinate { r, c }
-    }
-}
-
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
-pub struct BlobGravity {
-    pub gravity: (i32, i32),
-
+    /// information if the blob is active (receives movement updates, or not) (for pause after cutting)
     pub active: bool,
+
+    /// a list of blocks that belong to this blob
+    #[cfg_attr(feature = "debug", inspectable(ignore))]
+    pub blocks: Vec<Entity>,
+
+    /// a flag indicting of the blob has already been teleported to the production field
+    pub transferred: bool,
 }
 
-impl BlobGravity {
-    pub fn is_zero(&self) -> bool {
-        self.gravity.0 == 0 && self.gravity.1 == 0
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Reflect)]
+pub struct BlobBody {
+    pub block_positions: Vec<i32>,
+
+    pub size: (usize, usize),
+
+    pub pivot: (usize, usize),
+}
+
+impl BlobBody {
+    pub fn new(positions: Vec<i32>) -> Self {
+        BlobBody {
+            block_positions: positions,
+            size: (Blob::size(), Blob::size()),
+            pivot: (4,4),
+        }
     }
-}
 
-impl From<BlobGravity> for (i32, i32) {
-    fn from(g: BlobGravity) -> Self {
-        (g.gravity.0, g.gravity.1)
+    pub fn get_relative_positions(&self) -> Vec<IVec2> {
+        let mut reval = vec![];
+
+        for idx in 0..self.block_positions.len() {
+            let num = self.block_positions[idx];
+            if num == 0 {continue;}
+            //~
+
+            let x = (idx as i32 % self.size.0 as i32) - self.pivot.0 as i32;
+            let y = (idx as i32 / self.size.1 as i32) - self.pivot.1 as i32;
+            
+            reval.push(IVec2 {x, y});
+        }
+
+        reval
     }
 }
 
 impl Blob {
-    pub fn new(body: Vec<i32>) -> Self {
+    pub fn new(position: IVec2) -> Self {
         Blob {
-            body,
-            coordinate: None,
-            texture: Handle::default(),
+            pivot: position,
+            movement: IVec2::new(0, 1),
+            active: true,
+            blocks: vec![],
+            transferred: false,
         }
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.movement.x == 0 && self.movement.y == 0
     }
 
     pub fn coords_to_idx(r: usize, c: usize) -> usize {
@@ -72,57 +85,45 @@ impl Blob {
     }
 
     pub fn empty(&self) -> bool {
-        self.body.iter().sum::<i32>() == 0
+        self.blocks.is_empty()
     }
 
     pub fn pivot_idx() -> usize {
         Blob::size().pow(2) / 2
     }
 
-    pub fn rotate_left(&mut self) {
-        let mut rot_vec = vec![0; Blob::size().pow(2)];
+    pub fn rotate_left<'a>(
+        &mut self, block_iter: 
+        &mut impl Iterator<Item = Mut<'a, Block>>,
+        ev_view: &mut EventWriter<ViewUpdate>,
+        id: Entity,
+    ) {
+        for mut block in block_iter.filter(|b| b.blob.is_some() && b.blob.unwrap() == id) {
+            /*
+            block.relative_position = block.relative_position.map(|rp| IVec2::new(rp.y, -rp.x));
+            */
+            let old_pos = block.relative_position.unwrap_or_default();
+            block.relative_position = Some(rotate_coord(block.relative_position.unwrap(), Rotation::Left));
+            block.position = block.relative_position.unwrap_or_default() + self.pivot;
 
-        for r in 0..Blob::size() {
-            for c in 0..Blob::size() {
-                let index = Blob::coords_to_idx(r, c);
-                let index_in_new = (Blob::size() - c) * Blob::size() - (Blob::size() - r);
-                rot_vec[index_in_new] = self.body[index];
-            }
+            log::info!("Rotated from {} to {}", old_pos, block.relative_position.unwrap_or_default());
         }
 
-        self.body = rot_vec;
+        ev_view.send(ViewUpdate::BlobRotated(id, Rotation::Left))
     }
 
-    pub fn rotate_right(&mut self) {
-        let mut rot_vec = vec![0; Blob::size().pow(2)];
-
-        for r in 0..Blob::size() {
-            for c in 0..Blob::size() {
-                let index = Blob::coords_to_idx(r, c);
-                let index_in_new = Blob::size() - r - 1 + c * Blob::size();
-                rot_vec[index_in_new] = self.body[index];
-            }
+    pub fn rotate_right<'a>(
+        &mut self, 
+        block_iter: impl Iterator<Item = Mut<'a, Block>>, 
+        ev_view: &mut EventWriter<ViewUpdate>, 
+        id: Entity,
+    ) {
+        for mut block in block_iter.filter(|b| b.blob.is_some() && b.blob.unwrap() ==id) {
+            block.relative_position = block.relative_position.map(|rp| IVec2::new(-rp.y, rp.x));
+            block.position = block.relative_position.unwrap_or_default() + self.pivot;
         }
 
-        self.body = rot_vec;
-    }
-
-    /// the function calculates the occupied coordinates in the coordinate system of the
-    /// parent (coordinate property)
-    pub fn occupied_coordinates(&self) -> Vec<(i32, i32)> {
-        let mut reval = Vec::new();
-        if self.coordinate.is_some() {
-            for r in 0..Blob::size() {
-                for c in 0..Blob::size() {
-                    if self.body[Blob::coords_to_idx(r, c)] != 0 {
-                        if let Some(coord) = &self.coordinate {
-                            reval.push((c as i32 + coord.c, r as i32 + coord.r));
-                        }
-                    }
-                }
-            }
-        }
-        reval
+        ev_view.send(ViewUpdate::BlobRotated(id, Rotation::Right))
     }
 }
 
@@ -143,191 +144,86 @@ pub fn coords_to_px(x: i32, y: i32, rs: usize, cs: usize) -> (f32, f32) {
 
 pub fn spawn_blob(
     commands: &mut Commands,
-    texture: &Handle<Image>,
-    assets: &GameAssets,
-    body: Vec<i32>,
+    body: BlobBody,
     name: &str,
-    coord: Option<Coordinate>, // @todo later work with coordinates and parent tetris-field
+    field: Entity,
+    position: IVec2, // @todo later work with coordinates and parent tetris-field
     adapter: &dyn Fn(&mut EntityCommands),
 ) -> Entity {
-    let blob = Blob {
-        body,
-        coordinate: coord,
-        texture: texture.clone(),
+    let mut blob = Blob::new(position);
+
+    // use commands to generate blob entity and block entities
+    let blob_id = {
+        let id = commands.spawn_bundle(SpatialBundle {
+        ..Default::default()
+        })
+        .id();
+    
+        blob.blocks = Block::spawn_blocks_of_blob(commands, &body, &blob, id, field);
+
+        id
     };
 
-    let mut ec = commands.spawn_bundle(SpatialBundle {
-        ..Default::default()
-    });
-    let id = ec.id();
-    ec.with_children(|cb| {
-        blob.spawn_render_entities(id, cb, assets);
-    })
-    .insert(blob)
-    .insert(Name::new(name.to_string()));
+    // use commands to adapt the blob entity
+    let mut ec = commands.entity(blob_id);
+    ec.insert(blob)
+        .insert(Name::new(name.to_string()));
     adapter(&mut ec);
-    ec.id()
+
+    blob_id
 }
 
 /// Example of system that maps actions to movements on a controlled entity:
 pub fn move_blob_by_player(
-    mut query: Query<(&ActionState<TetrisActionsWASD>, &mut Blob, &mut Transform)>, // get every entity, that has these three components
-    turn: Res<Turn>, // get a bevy-internal resource that represents the time
+    mut query: Query<(&ActionState<TetrisActionsWASD>, &mut Blob, Entity)>,
+    mut query_block: Query<(Entity, &mut Block)>,
+    mut ev_view: EventWriter<ViewUpdate>,
+    turn: Res<Turn>,
 ) {
     // continue here
     // check if we are in a turn change...
     if turn.is_new_turn() {
-        query.for_each_mut(|(s, mut blob, mut t)| {
-            if let Some(c) = &mut blob.coordinate {
-                if s.pressed(TetrisActionsWASD::Up) {
-                    c.r -= 1;
-                }
+        query.for_each_mut(|(s, mut blob, blob_id)| {
+            
+            let mut delta = IVec2::ZERO;
+            if s.pressed(TetrisActionsWASD::Up) {
+                delta.y -= 1;
+            }
 
-                if s.pressed(TetrisActionsWASD::Down) {
-                    c.r += 1;
-                }
+            if s.pressed(TetrisActionsWASD::Down) {
+                delta.y += 1;
+            }
 
-                if s.pressed(TetrisActionsWASD::Left) {
-                    c.c -= 1;
-                }
+            if s.pressed(TetrisActionsWASD::Left) {
+                delta.x -= 1;
+            }
 
-                if s.pressed(TetrisActionsWASD::Right) {
-                    c.c += 1;
-                }
-            } else {
-                if s.pressed(TetrisActionsWASD::Up) {
-                    t.translation.y += PX_PER_TILE;
-                }
-
-                if s.pressed(TetrisActionsWASD::Down) {
-                    t.translation.y -= PX_PER_TILE;
-                }
-
-                if s.pressed(TetrisActionsWASD::Left) {
-                    t.translation.x -= PX_PER_TILE;
-                }
-
-                if s.pressed(TetrisActionsWASD::Right) {
-                    t.translation.x += PX_PER_TILE;
+            if s.pressed(TetrisActionsWASD::Right) {
+                delta.x += 1;
+            }
+        
+            {
+                let mut block_iter = query_block.iter_mut()
+                    .map(|(_,block)| block)
+                    .filter(|block| block.blob.is_some() && block.blob.unwrap() == blob_id);
+                if s.pressed(TetrisActionsWASD::LRotate) {
+                    blob.rotate_left(&mut block_iter, &mut ev_view, blob_id);
+                } else if s.pressed(TetrisActionsWASD::RRotate) {
+                    blob.rotate_right(&mut block_iter, &mut ev_view, blob_id);
                 }
             }
 
-            if s.pressed(TetrisActionsWASD::LRotate) {
-                blob.rotate_left();
-            }
+            let block_iter = query_block.iter_mut()
+                .filter(|(_,block)| block.blob.is_some() && block.blob.unwrap() == blob_id);
 
-            if s.pressed(TetrisActionsWASD::RRotate) {
-                blob.rotate_right();
+            if delta != IVec2::ZERO {
+                move_blob(
+                    blob_id, 
+                    &mut blob,
+                    delta, 
+                    block_iter, 
+                    Some(&mut ev_view));
             }
         });
-    }
-}
-
-pub fn blob_update_transforms(
-    mut query: Query<(&Blob, &mut Transform, &Parent)>,
-    parent_query: Query<&Field>,
-) {
-    for (blob, mut transform, parent) in query.iter_mut() {
-        if let Some(coord) = &blob.coordinate {
-            if let Ok(field) = parent_query.get(parent.get()) {
-                let (x, y) = field.coords_to_px(coord.c, coord.r);
-                transform.translation = Vec3::new(x, y, transform.translation.z);
-            }
-        }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::blob::pivot_coord;
-
-    use super::{Blob, Coordinate};
-
-    pub fn gen_3x3_test_body() -> Vec<i32> {
-        vec![
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 1, 2, 3, 0, 0, 0, //
-            0, 0, 0, 4, 5, 6, 0, 0, 0, //
-            0, 0, 0, 7, 8, 9, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        ]
-    }
-
-    pub fn gen_3x3_lr_test_body() -> Vec<i32> {
-        vec![
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 3, 6, 9, 0, 0, 0, //
-            0, 0, 0, 2, 5, 8, 0, 0, 0, //
-            0, 0, 0, 1, 4, 7, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        ]
-    }
-
-    pub fn gen_3x3_rr_test_body() -> Vec<i32> {
-        vec![
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 7, 4, 1, 0, 0, 0, //
-            0, 0, 0, 8, 5, 2, 0, 0, 0, //
-            0, 0, 0, 9, 6, 3, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-            0, 0, 0, 0, 0, 0, 0, 0, 0, //
-        ]
-    }
-
-    #[test]
-    fn test_rotation_left() {
-        let mut blob = Blob::new(gen_3x3_test_body());
-        blob.rotate_left();
-        assert_eq!(blob.body, gen_3x3_lr_test_body());
-    }
-
-    #[test]
-    fn test_rotation_right() {
-        let mut blob = Blob::new(gen_3x3_test_body());
-        blob.rotate_right();
-        assert_eq!(blob.body, gen_3x3_rr_test_body());
-    }
-
-    #[test]
-    fn test_pivot() {
-        let blob = Blob::new(gen_3x3_test_body());
-        assert_eq!(blob.body[Blob::pivot_idx()], 5);
-
-        let (r, c) = pivot_coord();
-        assert_eq!(blob.body[Blob::coords_to_idx(r, c)], 5);
-    }
-
-    #[test]
-    fn test_occupied_coordinates() {
-        let body = gen_3x3_test_body();
-        let mut blob = Blob::new(body);
-        blob.coordinate = Some(Coordinate { c: -3, r: 2 });
-        let ocs = blob.occupied_coordinates();
-
-        assert_eq!(
-            ocs,
-            vec![
-                (0, 5),
-                (1, 5),
-                (2, 5),
-                (0, 6),
-                (1, 6),
-                (2, 6),
-                (0, 7),
-                (1, 7),
-                (2, 7)
-            ]
-        );
     }
 }

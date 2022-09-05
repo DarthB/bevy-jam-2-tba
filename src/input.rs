@@ -129,15 +129,21 @@ pub fn tool_switch_on_mouse_wheel(
     }
 }
 
+// @todo simplify this function, idea: separate mouse hover detection and click into tool creation in
+// seperate systems.
 pub fn mouse_for_field_selection_and_tool_creation(
+    mut commands: Commands,
     windows: Res<Windows>,
     mut cursor_moved_events: EventReader<CursorMoved>,
     mouse_button_input: Res<Input<MouseButton>>,
-    mut sprites: Query<(&mut Sprite, &GlobalTransform, &Coordinate, &Parent), With<FieldRenderTag>>,
+    // @todo remove sprites asap rendering is working
+    mut sprites: Query<(&GlobalTransform, &Coordinate), With<FieldRenderTag>>,
     mut field_query: Query<(Entity, &mut Field), With<FactoryFieldTag>>,
+    query_on_tool_clicked: Query<&ToolComponent>,
     mut player_state: ResMut<PlayerState>,
+    assets: Res<GameAssets>,
 ) {
-    let (field_id, mut field) = field_query.single_mut();
+    let (field_id, field) = field_query.single_mut();
 
     let ev = cursor_moved_events.iter().last();
     if let (Some(moved), Some(window)) = (ev, windows.get_primary()) {
@@ -145,11 +151,14 @@ pub fn mouse_for_field_selection_and_tool_creation(
         let cursor_pos = moved.position - half_window;
         player_state.tool_placement_coordinate = None;
 
-        for (mut sprite, trans, coord, parent) in sprites.iter_mut() {
+        for (trans, coord) in sprites.iter_mut() {
+            // @todo check if factory field is used and not the production field
             // only continue when hovering a sprite on the factory field
+            /*
             if field_id != parent.get() {
                 continue;
             }
+            */
             //~
 
             let sprite_pos = trans.translation();
@@ -161,10 +170,9 @@ pub fn mouse_for_field_selection_and_tool_creation(
 
             // sprite is a cube so x test is enough
             if diff.length() < (PX_PER_TILE / 2.0) {
-                sprite.color = Color::WHITE;
                 //let (x, y) = (coord.c, coord.r);
                 //log::info!("Mouse over: Coordinate {x},{y}");
-                player_state.tool_placement_coordinate = Some(*coord);
+                player_state.tool_placement_coordinate = Some(IVec2::new(coord.c, coord.r));
             }
         }
     }
@@ -174,37 +182,34 @@ pub fn mouse_for_field_selection_and_tool_creation(
             player_state.selected_tool,
             player_state.tool_placement_coordinate,
         ) {
-            // first check if the coords are valid
-            if let Some(idx) = field.coords_to_idx(coord.c as usize, coord.r as usize) {
-                let placeable_tool =
-                    matches!(tool, Tool::Move(_) | Tool::Rotate(_) | Tool::Cutter(_));
-                let empty_place = field.occupied(idx).unwrap() == 0;
-                if empty_place && placeable_tool && player_state.num_in_inventory(tool) > 0 {
+            let placeable_tool_selected =
+                matches!(tool, Tool::Move(_) | Tool::Rotate(_) | Tool::Cutter(_));
+            let field_state = field.get_field_state();
+
+            if let Some(element) = field_state.get_element(coord) {
+                let valid_place = matches!(element.kind, 
+                        FieldElementKind::Empty | FieldElementKind::Tool(_) | FieldElementKind::Block(_));
+
+                if valid_place && placeable_tool_selected && player_state.num_in_inventory(tool) > 0 {
                     player_state.add_to_inventory(tool, -1);
 
-                    log::info!("Place tool {:?} at ({},{})", tool, coord.c, coord.r);
-                    field.mutate_at_coordinate((coord.c, coord.r), &move |field, _, idx| {
-                        field.set_occupied(idx, Into::<i32>::into(tool)).expect(
-                            "should not happen: wrong coordinate in set_occupied due to mouse click",
-                        );
-                    })
+                    log::info!("Place tool {:?} at ({},{})", tool, coord.x, coord.y);
+                    if let Some(entity) = element.entity {
+                        if let Ok(tc) = query_on_tool_clicked.get(entity) {
+                            player_state.add_to_inventory(tc.kind, 1);
+                            commands.entity(entity).despawn_recursive();
+                        }
+                    }
+                    
+                    spawn_tool(&mut commands, tool, coord, field_id, &field, &assets);
+
                 } else if tool == Tool::Eraser {
-                    log::info!("Erase tool {:?} at ({},{})", tool, coord.c, coord.r);
+                    log::info!("Erase tool {:?} at ({},{})", tool, coord.x, coord.y);
 
-                    // idx, tool, tool, tool, tool -> how can this be simplified?
-                    let tool = field.occupied(idx);
-                    if let Some(tool) = tool {
-                        let tool: Result<Tool, _> = TryFrom::<i32>::try_from(tool);
-                        if let Ok(tool) = tool {
-                            // update inventory
-                            player_state.add_to_inventory(tool, 1);
-
-                            // remove from field
-                            field.mutate_at_coordinate((coord.c, coord.r), &move |field, _, idx| {
-                                field
-                                    .set_occupied(idx, 0)
-                                    .expect("should not happen: wrong coordinate in set_occupied due to mouse click");
-                            })
+                    if let Some(entity) = element.entity {
+                        if let Ok(tc) = query_on_tool_clicked.get(entity) {
+                            player_state.add_to_inventory(tc.kind, 1);
+                            commands.entity(entity).despawn_recursive();
                         }
                     }
                 }

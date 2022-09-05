@@ -1,8 +1,10 @@
 use rand::Rng;
 
 pub mod blob;
+pub mod block;
 pub mod bodies;
 pub mod field;
+pub mod field_element;
 pub mod game;
 pub mod game_assets;
 pub mod hud;
@@ -12,7 +14,9 @@ pub mod movement;
 pub mod player_state;
 pub mod render_old;
 pub mod target;
+pub mod tool;
 pub mod turn;
+pub mod view;
 
 pub const PX_PER_TILE: f32 = 32.0;
 pub const SECONDS_PER_ROUND: f32 = 0.5;
@@ -39,8 +43,10 @@ pub const Z_OVERLAY: f32 = 30.0;
 
 pub mod prelude {
     pub use crate::blob::*;
+    pub use crate::block::*;
     pub use crate::bodies::*;
     pub use crate::field::*;
+    pub use crate::field_element::*;
     pub use crate::game::*;
     pub use crate::game_assets::*;
     pub use crate::hud::*;
@@ -50,7 +56,9 @@ pub mod prelude {
     pub use crate::player_state::*;
     pub use crate::render_old::*;
     pub use crate::target::*;
+    pub use crate::tool::*;
     pub use crate::turn::*;
+    pub use crate::view::*;
 
     pub use crate::*;
 }

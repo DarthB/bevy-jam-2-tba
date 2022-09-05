@@ -1,5 +1,6 @@
 use bevy::{prelude::*, window::WindowMode};
-use bevy_jam_2_disastris_lib::{game_assets::GameAssets, prelude::*, SECONDS_PER_ROUND};
+use bevy_jam_2_disastris_lib::prelude::*;
+use bevy_tweening::TweeningPlugin;
 
 #[cfg(feature = "debug")]
 use {
@@ -8,16 +9,20 @@ use {
         //        InspectorPlugin,
         WorldInspectorPlugin,
     },
-    bevy_jam_2_disastris_lib::blob::{Blob, BlobGravity, Coordinate},
+    bevy_jam_2_disastris_lib::block::Block,
+    bevy_jam_2_disastris_lib::blob::Blob,
+    bevy_jam_2_disastris_lib::target::{Coordinate, Target},
     bevy_jam_2_disastris_lib::field::Field,
-    bevy_jam_2_disastris_lib::hud::{UITagHover, UITagImage},
+    bevy_jam_2_disastris_lib::hud::{UITagHover, UITagImage, UITagInventory},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SystemLabel)]
 enum MySystems {
     EventHandling,
     Input,
+    PreGameUpdates,
     GameUpdates,
+    PostGameUpdates,
     RenderUpdates,
 }
 
@@ -44,7 +49,8 @@ fn main() {
     app.add_plugins(DefaultPlugins)
         // the following plugin is an example on how bigger units
         // of functionalities can be structured
-        .add_plugin(InputMappingPlugin);
+        .add_plugin(InputMappingPlugin)
+        .add_plugin(TweeningPlugin);
 
     // Setup the game loop
     app.add_state(GameState::Starting)
@@ -61,7 +67,8 @@ fn main() {
             SystemSet::on_update(GameState::Ingame)
                 .with_system(progress_turn)
                 //                .with_system(contiously_spawn_tetris_at_end)
-                .with_system(remove_field_lines)
+                //.with_system(remove_field_lines)
+                .with_system(crate::view::handle_view_updates)
                 .label(MySystems::EventHandling),
         )
         .add_system_set(
@@ -69,32 +76,41 @@ fn main() {
                 .with_system(move_blob_by_player)
                 .with_system(toolbar_button_system)
                 .with_system(tool_switch_on_mouse_wheel)
-                .with_system(teleport_blob_out_of_factory)
                 .label(MySystems::Input)
                 .after(MySystems::EventHandling),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
-                .with_system(move_blobs_by_gravity)
-                .with_system(move_factory_blobs_by_events)
-                .with_system(move_production_blobs_by_events)
-                .with_system(move_field_content_down_if_not_occupied)
-                .with_system(mouse_for_field_selection_and_tool_creation)
-                .with_system(check_win)
-                .label(MySystems::GameUpdates)
-                .after(MySystems::Input),
+                .with_system(generate_field_states)
+                .with_system(generate_move_events_by_gravity)
+                .label(MySystems::PreGameUpdates)
+                .after(MySystems::Input)
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
-                .with_system(grid_update_render_entities::<Blob>)
+                .with_system(move_factory_blobs_by_events)
+                .with_system(move_production_blobs_by_events)
+                .with_system(mouse_for_field_selection_and_tool_creation)
+                .label(MySystems::GameUpdates)
+                .after(MySystems::PreGameUpdates),
+        )
+        .add_system_set(
+            SystemSet::on_update(GameState::Ingame)            
+                .with_system(handle_teleport_event)
+                .with_system(generate_field_states)
+                .label(MySystems::PostGameUpdates)
+                .after(MySystems::GameUpdates)
+        )
+        .add_system_set(
+            SystemSet::on_update(GameState::Ingame)
+                .with_system(check_win)
                 .with_system(grid_update_render_entities::<Field>)
                 .with_system(update_toolbar_images)
                 .with_system(update_toolbar_inventory)
                 .with_system(update_toolbar_overlays)
-                .with_system(blob_update_transforms)
                 .with_system(update_field_debug)
                 .label(MySystems::RenderUpdates)
-                .after(MySystems::GameUpdates),
+                .after(MySystems::PostGameUpdates),
         )
         .add_system_set(SystemSet::on_exit(GameState::Ingame).with_system(clean_all));
 
@@ -102,12 +118,25 @@ fn main() {
     #[cfg(feature = "debug")]
     app.add_plugin(WorldInspectorPlugin::new())
         .register_inspectable::<Coordinate>()
-        .register_inspectable::<BlobGravity>()
         .register_inspectable::<Blob>()
+        .register_inspectable::<Block>()
+        .register_inspectable::<Coordinate>()
+        .register_inspectable::<Target>()
         .register_inspectable::<Field>()
+        .register_inspectable::<FactoryFieldTag>()
+        .register_inspectable::<ProductionFieldTag>()
+        .register_inspectable::<FieldRenderTag>()
+        .register_inspectable::<FieldState>()
+        .register_inspectable::<FieldElement>()
+        .register_inspectable::<FieldElementKind>()
         .register_inspectable::<UITagImage>()
         .register_inspectable::<UITagHover>()
+        .register_inspectable::<UITagInventory>()
         .register_type::<Interaction>();
+
+    // Setup animation demo
+    crate::view::register_animation_demo(&mut app, GameState::AnimationTest);
+
     app.run();
 }
 
@@ -126,10 +155,12 @@ fn setup(
     });
 
     //commands.insert_resource(WinitSettings::desktop_app());
-    commands.insert_resource(GameAssets::new(&asset_server));
     commands.insert_resource(PlayerState::new());
     commands.insert_resource(Level::level_01());
     commands.insert_resource(Turn::new(SECONDS_PER_ROUND));
+
+    let assets = GameAssets::new(&asset_server);
+    commands.insert_resource(assets);
 
     // Switch state
     app_state.overwrite_set(GameState::Ingame).unwrap();

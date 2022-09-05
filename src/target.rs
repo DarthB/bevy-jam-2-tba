@@ -1,16 +1,18 @@
 use bevy::{ecs::system::EntityCommands, prelude::*};
 
-use crate::{prelude::*, render_old::RenderableGrid};
+use crate::{prelude::*};
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct Target {
+    /// the body of the target, different values of the i32 represent different colors
     #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub body: Vec<i32>,
 
     #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub texture: Handle<Image>,
 
+    /// @todo in respect to what?
     pub coordinate: Option<Coordinate>,
 }
 
@@ -42,12 +44,14 @@ impl Target {
         }
     }
 
+    
     pub fn coords_to_idx(r: usize, c: usize) -> usize {
-        coords_to_idx(r, c, Target::size())
+        coords_to_idx(r, c, Target::dimensions().0)
     }
+    
 
-    pub fn size() -> usize {
-        10
+    pub fn dimensions() -> (usize, usize) {
+        (10, 12)
     }
 
     /// the function calculates the occupied coordinates in the coordinate system of the
@@ -55,12 +59,11 @@ impl Target {
     pub fn occupied_coordinates(&self) -> Vec<(i32, i32)> {
         let mut reval = Vec::new();
         if self.coordinate.is_some() {
-            for r in 0..12 {
-                for c in 0..10 {
-                    if self.body[coords_to_idx(r, c, 10)] != 0 {
-                        if let Some(coord) = &self.coordinate {
-                            reval.push((c as i32 + coord.c, r as i32 + coord.r));
-                        }
+            
+            for r in 0..Target::dimensions().1 {
+                for c in 0..Target::dimensions().0 {
+                    if self.body[ Target::coords_to_idx(r, c)] != 0 {
+                        reval.push((c as i32, r as i32));
                     }
                 }
             }
@@ -83,10 +86,9 @@ pub fn coords_to_px(x: i32, y: i32, rs: usize, cs: usize) -> (f32, f32) {
 pub fn spawn_target(
     commands: &mut Commands,
     texture: &Handle<Image>,
-    assets: &GameAssets,
     body: Vec<i32>,
     name: &str,
-    coord: Option<Coordinate>, // @todo later work with coordinates and parent tetris-field
+    coord: Option<Coordinate>,
     adapter: &dyn Fn(&mut EntityCommands),
 ) -> Entity {
     let target = Target {
@@ -96,14 +98,13 @@ pub fn spawn_target(
     };
 
     let mut ec = commands.spawn_bundle(SpatialBundle {
+        transform: Transform::from_translation(Vec3::new(344.0, -192.0, 0.0)),
         ..Default::default()
     });
     let id = ec.id();
-    ec.with_children(|cb| {
-        target.spawn_render_entities(id, cb, assets);
-    })
-    .insert(target)
-    .insert(Name::new(name.to_string()));
+    ec.insert(target)
+        .insert(Name::new(name.to_string()));
     adapter(&mut ec);
-    ec.id()
+    
+    id
 }

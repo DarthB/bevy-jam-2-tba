@@ -1,5 +1,7 @@
+use std::time::Duration;
+
 use crate::{blob::*, field::spawn_field, game_assets::GameAssets, prelude::*, target::*};
-use bevy::prelude::*;
+use bevy::{prelude::*, log};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum GameState {
@@ -8,6 +10,9 @@ pub enum GameState {
 
     /// The ingame state where the actual action happens!
     Ingame,
+
+    /// Animation test code
+    AnimationTest,
 }
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
@@ -20,64 +25,79 @@ pub fn spawn_world(
     mut turn: ResMut<Turn>,
     level: Res<Level>,
     mut player_state: ResMut<PlayerState>,
+    mut evt: EventWriter<ViewUpdate>,
 ) {
     player_state.applicable_tools = level.applicable_tools.clone();
 
-    let comp = Field::as_factory(&assets);
-    let fac_field = spawn_field(
+    let factory_field_struct = Field::as_factory(&assets);
+    let root_factory_field = Vec3::new(-200.0, 64.0, 0.0);
+    let (px, py) = factory_field_struct.coords_to_px(0, 0);
+    let origin_factory = Vec3::new(px, py, 0.0) + root_factory_field;
+    
+    let fac_field_id = spawn_field(
         &mut commands,
         &assets,
-        comp,
+        factory_field_struct,
         "Factory Field",
-        Vec3::new(-200.0, 0.0, 0.0),
+        root_factory_field,
         &|ec| {
             ec.insert(FactoryFieldTag {});
         },
     );
-    turn.fac_id = Some(fac_field);
+    turn.fac_id = Some(fac_field_id);
+    log::info!("Factory field spawned with id: {:?}", fac_field_id);
 
-    let l_stone = spawn_blob(
+    let start_blob = spawn_blob(
         &mut commands,
-        &assets.block_blob,
-        &assets,
-        level.start_blob.0.clone(),
-        "L Stone",
-        Some(level.start_blob.1.into()),
+        BlobBody::new(level.start_blob.0.clone()),
+        "Start Blob",
+        fac_field_id,
+        level.start_blob.1.into(),
         &|ec| {
             #[cfg(feature = "debug")]
             add_tetris_control(ec);
 
             ec.insert(RealBlob {});
-            ec.insert(BlobGravity {
-                gravity: (0, 1),
-                active: true,
-            });
         },
     );
-    commands.entity(fac_field).push_children(&[l_stone]);
+    evt.send(ViewUpdate::BlobSpawned(start_blob));
 
+    let field_info = Field::as_production_field(&assets);
+    let root_production_field = Vec3::new(300.0, 0.0, 0.0);
+    let (px, py) = field_info.coords_to_px(0, 0);
+    let origin_production = Vec3::new(px, py, 0.0) + root_production_field; 
     let pr_field = spawn_field(
         &mut commands,
         &assets,
-        Field::as_production_field(&assets),
+        field_info,
         "Production Field",
-        Vec3::new(300.0, 0.0, 0.0),
+        root_production_field,
         &|ec| {
             ec.insert(ProductionFieldTag {});
         },
     );
     turn.prod_id = Some(pr_field);
+    log::info!("Production field with id: {:?} is spawned.", pr_field);
 
-    let t_stone = spawn_target(
+    let id =  spawn_simple_rendering_entity(&mut commands).id();
+    commands.insert_resource(ViewConfig {
+        renderer_entity: id,
+        factory_topleft: origin_factory,
+        tetris_topleft: origin_production,
+        anim_duration: Duration::from_millis(200),
+        brick_image: assets.block_blob.clone(),
+        test_blob: None,
+    });
+
+    let _target_stone = spawn_target(
         &mut commands,
         &assets.block_target_outline,
-        &assets,
         level.target_figure.0.clone(),
         "Target Stone",
         Some(level.target_figure.1.into()),
         &|_| {},
     );
-    commands.entity(pr_field).push_children(&[t_stone]);
+    //evt.send(ViewUpdate::BlobSpawned(target_stone));
 
     let pos = UiRect {
         top: Val::Percent(3.0),
@@ -89,32 +109,27 @@ pub fn spawn_world(
 
 pub fn contiously_spawn_tetris_at_end(
     mut commands: Commands,
-    assets: Res<GameAssets>,
-    query_active: Query<&BlobGravity>,
+    query_active: Query<&Blob>,
     mut turn: ResMut<Turn>,
 ) {
     if let Some(prod_ent) = turn.prod_id {
         if turn.is_new_turn() && query_active.iter().filter(|g| g.active).count() == 0 {
             let body = gen_random_tetris_body();
 
-            let new_id = spawn_blob(
+            let _new_id = spawn_blob(
                 &mut commands,
-                &assets.block_blob,
-                &assets,
-                body,
+                BlobBody::new(body),
                 format!("{}. Additional Tetris Brick", turn.num_additional_bricks).as_str(),
-                Some(Coordinate { r: -3, c: 3 }),
+                prod_ent,
+                IVec2 { x: -3, y: 3 },
                 &|ec| {
                     add_tetris_control(ec);
                     ec.insert(RealBlob {});
-                    ec.insert(BlobGravity {
-                        gravity: (0, 1),
-                        active: true,
-                    });
                 },
             );
             turn.num_additional_bricks += 1;
-            commands.entity(prod_ent).push_children(&[new_id]);
+            unimplemented!("continiously spawn tetris at end needs to send events for renderer");
+            //commands.entity(prod_ent).push_children(&[new_id]);
         }
     } else {
         panic!("The programmer forgot to create the production Field...");
@@ -124,21 +139,33 @@ pub fn contiously_spawn_tetris_at_end(
 pub fn check_win(
     mut commands: Commands,
     assets: Res<GameAssets>,
-    query_field: Query<&Field, With<ProductionFieldTag>>,
     query_target: Query<&Target>,
+    mut query_field: Query<&mut Field, With<ProductionFieldTag>>,
     mut player_state: ResMut<PlayerState>,
 ) {
     if player_state.won {
         return;
     }
+    //~
 
     let target = query_target.single();
-    let field = query_field.single();
+    let field = query_field.single_mut();
+    let field_state = field.get_field_state();
 
-    let mut coords = target.occupied_coordinates();
-    coords = coords.iter().map(|(c, r)| (*c - 10, *r - 6_i32)).collect();
-    let cond = field.all_coordinates_occupied(&coords, false);
-    if coords.len() == field.num_occupied() && cond {
+    let coords = target.occupied_coordinates();
+    let transformed_coords = coords
+        .iter()
+        .map(|(c, r)| IVec2::new(*c, *r + 6)) // as the production field 6 tiles larger in y direction
+        .collect();
+
+    let cond = field_state.are_all_coordinates(
+        &transformed_coords, 
+        None, 
+        &|el| el.kind == FieldElementKind::Block(None), // none means the blob is not existing and the blocks are direcly linked to the field
+    ) 
+        //&& coords.len() == field.num_occupied()
+        ;
+    if cond {
         player_state.won = true;
         let pos = UiRect {
             top: Val::Percent(3.0),

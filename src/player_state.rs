@@ -1,11 +1,7 @@
+use bevy::{prelude::*, utils::HashMap};
+use crate::prelude::*;
+
 use std::fmt::Display;
-
-use bevy::prelude::Component;
-use bevy::reflect::Reflect;
-use bevy::utils::HashMap;
-
-use crate::blob::Coordinate;
-use crate::bodies::TetrisBricks;
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
@@ -48,6 +44,17 @@ impl From<MoveDirection> for (i32, i32) {
             MoveDirection::Down => (0, 1),
             MoveDirection::Left => (-1, 0),
             MoveDirection::Right => (1, 0),
+        }
+    }
+}
+
+impl From<MoveDirection> for IVec2 {
+    fn from(d: MoveDirection) -> Self {
+        match d {
+            MoveDirection::Up => IVec2 { x: 0, y: -1 },
+            MoveDirection::Right => IVec2 { x: 1, y:0 },
+            MoveDirection::Down => IVec2 { x: 0, y: 1 },
+            MoveDirection::Left => IVec2 { x: -1, y: 0 },
         }
     }
 }
@@ -174,7 +181,7 @@ pub struct PlayerState {
 
     pub applicable_tools: HashMap<Tool, usize>,
 
-    pub tool_placement_coordinate: Option<Coordinate>,
+    pub tool_placement_coordinate: Option<IVec2>,
 
     pub won: bool,
 }
