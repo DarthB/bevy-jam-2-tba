@@ -77,6 +77,30 @@ impl GridBody {
         }
     }
 
+    pub fn cutout(
+        &mut self,
+        commands: &mut Commands,
+        ev_view: &mut EventWriter<ViewUpdate>,
+        entities: &Vec<Entity>,
+        block_query: &mut Query<&mut Block>,
+        new_pivot: IVec2,
+    ) {
+        // remove blocks from self and spawn new blob
+        self.blocks.retain(|el| !entities.contains(el));
+        let new_blob_id = spawn_blob_from_cutout(commands, new_pivot, entities);
+
+        // calculate new relative position for blocks
+        for block_id in entities {
+            if let Ok(mut block) = block_query.get_mut(*block_id) {
+                block.group = Some(new_blob_id);
+                block.relative_position = Some(block.position - new_pivot);
+            }
+        }
+
+        // inform renderer
+        ev_view.send(ViewUpdate::BlobCutout(new_blob_id));
+    }
+
     pub fn size() -> usize {
         9
     }
@@ -140,7 +164,24 @@ pub fn coords_to_idx(r: usize, c: usize, cs: usize) -> usize {
     r * cs + c
 }
 
-pub fn spawn_blob(
+pub fn spawn_blob_from_cutout(
+    commands: &mut Commands,
+    position: IVec2,
+    blocks: &Vec<Entity>,
+) -> Entity {
+    commands
+        .spawn_bundle(SpatialBundle::default())
+        .insert(GridBody {
+            pivot: position,
+            blocks: blocks.clone(),
+            transferred: false,
+        })
+        .insert(Blob::new())
+        .insert(Name::new("Cutout-Blob"))
+        .id()
+}
+
+pub fn spawn_blob_from_body_definition(
     commands: &mut Commands,
     body: BodyDefinition,
     name: &str,
@@ -148,7 +189,6 @@ pub fn spawn_blob(
     position: IVec2, // @todo later work with coordinates and parent tetris-field
     adapter: &dyn Fn(&mut EntityCommands),
 ) -> Entity {
-    let blob = Blob::new();
     let mut grid_body = GridBody::new(position);
     // use commands to generate blob entity and block entities
     let blob_id = {
@@ -165,7 +205,7 @@ pub fn spawn_blob(
 
     // use commands to adapt the blob entity
     let mut ec = commands.entity(blob_id);
-    ec.insert(blob)
+    ec.insert(Blob::new())
         .insert(grid_body)
         .insert(Name::new(name.to_string()));
     adapter(&mut ec);

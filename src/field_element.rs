@@ -57,6 +57,7 @@ impl FieldState {
             elements: vec![FieldElement::default(); len.0 * len.1],
         };
 
+        // initialize the position values
         for x in bounds.0.x..bounds.1.x {
             for y in bounds.0.y..bounds.1.y {
                 let pos = IVec2::new(x, y);

@@ -88,10 +88,11 @@ impl Field {
     /// all the time (once per system should be fine)
     pub fn generate_field_state<'a>(
         &mut self,
-        block_iter: impl Iterator<Item = (Entity, &'a Block, Option<&'a Tool>)>,
+        block_iter: impl Iterator<Item = (Entity, &'a Block)>,
         tool_query: &Query<&Tool>,
         blob_query: &Query<&Blob>,
     ) -> &FieldState {
+        let old_fieldstate = self.field_state.clone();
         self.field_state = FieldState::new(self.bounds());
 
         for x in self.bounds().0.x..self.bounds().1.x {
@@ -111,7 +112,7 @@ impl Field {
             }
         }
 
-        for (entity, block, opt_tool) in block_iter {
+        for (entity, block) in block_iter {
             let new_el = if let Some(group) = block.group {
                 // 1. case group of blob
                 if let Ok(_blob) = blob_query.get(group) {
@@ -128,7 +129,9 @@ impl Field {
                         position: block.position,
                     }
                 } else {
-                    panic!("Should not happen: Group entity is neither tool nor blob.");
+                    // may happen in one frame after the cutout in this case we just return the former element
+                    // at this position and wait for the update
+                    old_fieldstate.get_element(block.position).unwrap()
                 }
             } else {
                 FieldElement {
@@ -208,7 +211,7 @@ impl Default for Field {
 }
 
 pub fn generate_field_states(
-    query_state: Query<(Entity, &mut Block, Option<&Tool>)>,
+    query_state: Query<(Entity, &mut Block)>,
     query_blob: Query<&Blob>,
     query_tool: Query<&Tool>,
     mut query_field: Query<(Entity, &mut Field)>,
@@ -216,7 +219,7 @@ pub fn generate_field_states(
     for (field_id, mut field) in query_field.iter_mut() {
         let iter = query_state
             .iter()
-            .filter(|(_, block, _)| block.field == field_id);
+            .filter(|(_, block)| block.field == field_id);
         //log::info!("Blocks on Field {:?} = {}", field_id, iter.count());
         field.generate_field_state(iter, &query_tool, &query_blob);
     }

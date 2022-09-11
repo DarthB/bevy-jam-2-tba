@@ -41,7 +41,7 @@ pub fn generate_move_events_by_gravity(
 
 pub fn move_factory_blobs_by_events(
     mut query: Query<(Entity, &mut Blob, &mut GridBody)>,
-    query_tool: Query<(&Tool, &mut GridBody), Without<Blob>>,
+    query_tool: Query<&Tool, Without<Blob>>,
     field_query: Query<(Entity, &Field), With<FactoryFieldTag>>,
     mut block_query: Query<(Entity, &mut Block)>,
     mut ev_move: EventReader<BlobMoveEvent>,
@@ -71,7 +71,7 @@ pub fn move_factory_blobs_by_events(
                     let mut do_move = false;
                     match element.kind {
                         FieldElementKind::Block(by_id) => {
-                            do_move = by_id.is_some() && by_id.unwrap() == blob_id;
+                            do_move = by_id.is_some(); // blobs are allowed to move over each other!
                         }
                         FieldElementKind::Empty => {
                             do_move = true;
@@ -81,7 +81,7 @@ pub fn move_factory_blobs_by_events(
                             do_move = !(tv.x < 0 || tv.x >= field.mov_size().0 as i32);
                         }
                         FieldElementKind::Tool(tool_entity) => {
-                            let (tool, _) = query_tool.get(tool_entity).unwrap();
+                            let tool = query_tool.get(tool_entity).unwrap();
                             do_move = true;
                             match *tool {
                                 Tool::Move(d) => {
@@ -102,16 +102,6 @@ pub fn move_factory_blobs_by_events(
                                             blob_id,
                                         ),
                                     }
-                                }
-                                Tool::Cutter(_tb) => {
-                                    // @todo implement cutter tool, use _query_tool
-
-                                    // 1. get all blocks of cutter
-
-                                    // 2. filter all blocks of cutter that are occupied by blob
-
-                                    // 3. if blocks are empty peform the cut
-                                    // 3a. send block cutout event
                                 }
                                 _ => {}
                             }

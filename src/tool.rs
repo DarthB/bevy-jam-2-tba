@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{log, prelude::*};
 
 #[derive(Bundle, Clone)]
 pub struct ToolBundle {
@@ -12,6 +12,54 @@ pub struct ToolBundle {
     /// the rendering of the tool is at the moment done via the game logic
     #[bundle]
     sprite: SpriteBundle,
+}
+
+pub fn apply_cutter_tool(
+    mut commands: Commands,
+    tool_query: Query<(&Tool, &GridBody)>,
+    mut blob_query: Query<(&mut Blob, &mut GridBody), (Without<Tool>, With<RealBlob>)>,
+    mut block_query: Query<&mut Block>,
+    mut ev_view: EventWriter<ViewUpdate>,
+    turn: Res<Turn>,
+) {
+    if !turn.is_new_turn() {
+        return;
+    }
+
+    if let Ok((mut blob, mut body)) = blob_query.get_single_mut() {
+        for (tool, tool_body) in tool_query.iter() {
+            if matches!(tool, Tool::Cutter(_)) {
+                // 1. get all block positions of cutter on the field
+                let tool_positions: Vec<IVec2> = tool_body
+                    .blocks
+                    .iter()
+                    .map(|block_id| block_query.get(*block_id).unwrap().position)
+                    .collect();
+
+                // 2. get all tool position that are also occupied by a blob and store the block ids
+                let blocks_of_blob: Vec<Entity> = body
+                    .blocks
+                    .iter()
+                    .filter(|block_id| {
+                        tool_positions.contains(&block_query.get(**block_id).unwrap().position)
+                    })
+                    .map(|id| *id)
+                    .collect();
+
+                // 3. if blob blocks and tool blocks have the same len perform cutout
+                if blocks_of_blob.len() == tool_positions.len() {
+                    // apply the cutout on the blob body
+                    body.cutout(
+                        &mut commands,
+                        &mut ev_view,
+                        &blocks_of_blob,
+                        &mut block_query,
+                        tool_body.pivot,
+                    );
+                }
+            }
+        }
+    }
 }
 
 /// spawns a tool into the world such that it can affect Blobs on the factory field

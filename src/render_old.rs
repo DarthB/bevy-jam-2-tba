@@ -191,35 +191,35 @@ impl RenderableGrid for Field {
         match num {
             -1 => SpriteInfo {
                 color: Color::BLACK,
-                z: Z_SOLID,
+                z: Z_FIELD,
                 image: DEFAULT_IMAGE_HANDLE.typed(),
             },
             1 => SpriteInfo {
                 color: Color::WHITE,
-                z: Z_SOLID,
+                z: Z_FIELD,
                 image: self.brick_image.clone(),
             },
             2 => SpriteInfo {
                 image: DEFAULT_IMAGE_HANDLE.typed(),
                 color: Color::GRAY,
-                z: Z_SOLID,
+                z: Z_FIELD,
             },
             3 => SpriteInfo {
                 image: DEFAULT_IMAGE_HANDLE.typed(),
                 color: Color::NAVY,
-                z: Z_SOLID,
+                z: Z_FIELD,
             },
             _ => {
                 if let Ok(tool) = TryInto::<Tool>::try_into(num) {
                     SpriteInfo {
                         color: Color::WHITE,
-                        z: Z_SOLID,
+                        z: Z_FIELD,
                         image: assets.get_tool_image(tool).clone(),
                     }
                 } else {
                     SpriteInfo {
                         color: Color::WHITE,
-                        z: Z_SOLID,
+                        z: Z_FIELD,
                         image: self.movable_area_image.clone(),
                     }
                 }
@@ -244,7 +244,7 @@ impl RenderableGrid for Field {
                 FieldElementKind::Empty => 0,
                 FieldElementKind::OutOfMovableRegion => 2,
                 FieldElementKind::OutOfValidRegion => -1,
-                FieldElementKind::Block(_) => 1,
+                FieldElementKind::Block(_) => 0, // 2 turns this off somehow as it is the same as empty
                 FieldElementKind::Tool(tool_entity) => {
                     let query = tool_query.expect("tool query shall be given");
                     let tool = query.get(tool_entity).expect("tool shall also be there");
