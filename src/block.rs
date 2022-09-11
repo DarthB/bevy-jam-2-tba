@@ -15,35 +15,41 @@ pub struct Block {
     /// the position of the block in the coordinate system of the field
     pub position: IVec2,
 
-    /// the relative position of the block from the parent blob
+    /// the relative position of the block from the parent grid body
     pub relative_position: Option<IVec2>,
 
-    /// the parent blob of this block, if any, ignore in inspector, due to cycle
+    /// the group management entity of this block, if any, ignore in inspector, due to cycle
     #[cfg_attr(feature = "debug", inspectable(ignore))]
-    pub blob: Option<Entity>,
+    pub group: Option<Entity>,
 
-    /// the parent field of this block if any
+    /// the parent field of this block
     pub field: Entity,
 }
 
 impl Block {
     pub fn spawn_blocks_of_blob(
         commands: &mut Commands,
-        body: &BlobBody,
-        blob: &Blob,
-        blob_id: Entity,
+        body_def: &BodyDefinition,
+        pivot: IVec2,
+        group_id: Entity,
         field: Entity,
+        handle_zero_position: bool,
     ) -> Vec<Entity> {
         let mut reval = vec![];
-        for v in body.get_relative_positions() {
+        for v in body_def.get_relative_positions() {
+            if v == IVec2::ZERO && !handle_zero_position {
+                continue;
+            }
+            //~
+
             let mut ec = commands.spawn();
             if v == IVec2::ZERO {
                 ec.insert(PivotTag {});
             }
             let id = ec
                 .insert(Block {
-                    position: blob.pivot + v,
-                    blob: Some(blob_id),
+                    position: pivot + v,
+                    group: Some(group_id),
                     relative_position: Some(v),
                     field,
                 })

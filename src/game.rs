@@ -47,9 +47,9 @@ pub fn spawn_world(
     turn.fac_id = Some(fac_field_id);
     log::info!("Factory field spawned with id: {:?}", fac_field_id);
 
-    let start_blob = spawn_blob(
+    let start_blob = spawn_blob_from_body_definition(
         &mut commands,
-        BlobBody::new(level.start_blob.0.clone()),
+        BodyDefinition::as_blob(level.start_blob.0.clone()),
         "Start Blob",
         fac_field_id,
         level.start_blob.1.into(),
@@ -116,9 +116,9 @@ pub fn contiously_spawn_tetris_at_end(
         if turn.is_new_turn() && query_active.iter().filter(|g| g.active).count() == 0 {
             let body = gen_random_tetris_body();
 
-            let _new_id = spawn_blob(
+            let _new_id = spawn_blob_from_body_definition(
                 &mut commands,
-                BlobBody::new(body),
+                BodyDefinition::as_blob(body),
                 format!("{}. Additional Tetris Brick", turn.num_additional_bricks).as_str(),
                 prod_ent,
                 IVec2 { x: -3, y: 3 },

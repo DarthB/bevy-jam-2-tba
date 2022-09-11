@@ -99,6 +99,7 @@ fn main() {
                 .with_system(handle_teleport_event)
                 .with_system(generate_field_states)
                 .with_system(mouse_for_tool_creation)
+                .with_system(apply_cutter_tool)
                 .label(MySystems::PostGameUpdates)
                 .after(MySystems::GameUpdates),
         )

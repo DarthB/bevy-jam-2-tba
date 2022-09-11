@@ -18,7 +18,7 @@ impl Level {
         let mut applicable_tools = HashMap::new();
         applicable_tools.insert(Tool::Move(MoveDirection::default()), 2);
         applicable_tools.insert(Tool::Rotate(RotateDirection::default()), 1);
-        applicable_tools.insert(Tool::Cutter(TetrisBricks::default()), 0);
+        applicable_tools.insert(Tool::Cutter(TetrisBricks::default()), 1);
 
         Level {
             start_blob: (
