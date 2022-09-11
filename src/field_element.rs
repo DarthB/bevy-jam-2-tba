@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+//#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
 pub enum FieldElementKind {
     /// the area is empty
@@ -28,6 +28,7 @@ pub struct FieldElement {
     pub entity: Option<Entity>,
 
     /// enumeration to distinguish between types of field elements
+    #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub kind: FieldElementKind,
 
     /// the relative position of the element in respect to the fields coordinate system

@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use bevy::{log, prelude::*};
+use bevy::prelude::*;
 
 #[derive(Bundle, Clone)]
 pub struct ToolBundle {
@@ -14,10 +14,11 @@ pub struct ToolBundle {
     sprite: SpriteBundle,
 }
 
+type RealBlobFilter = (Without<Tool>, With<RealBlob>);
 pub fn apply_cutter_tool(
     mut commands: Commands,
     tool_query: Query<(&Tool, &GridBody)>,
-    mut blob_query: Query<(&mut Blob, &mut GridBody), (Without<Tool>, With<RealBlob>)>,
+    mut blob_query: Query<(&mut Blob, &mut GridBody), RealBlobFilter>,
     mut block_query: Query<&mut Block>,
     mut ev_view: EventWriter<ViewUpdate>,
     turn: Res<Turn>,
@@ -26,7 +27,7 @@ pub fn apply_cutter_tool(
         return;
     }
 
-    if let Ok((mut blob, mut body)) = blob_query.get_single_mut() {
+    if let Ok((mut _blob, mut body)) = blob_query.get_single_mut() {
         for (tool, tool_body) in tool_query.iter() {
             if matches!(tool, Tool::Cutter(_)) {
                 // 1. get all block positions of cutter on the field
@@ -43,7 +44,7 @@ pub fn apply_cutter_tool(
                     .filter(|block_id| {
                         tool_positions.contains(&block_query.get(**block_id).unwrap().position)
                     })
-                    .map(|id| *id)
+                    .copied()
                     .collect();
 
                 // 3. if blob blocks and tool blocks have the same len perform cutout

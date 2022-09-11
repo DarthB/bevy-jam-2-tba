@@ -375,9 +375,6 @@ pub fn register_animation_demo(app: &mut App, game_state: impl StateData) {
                 // cannot be executed after the game logic in the same cycle.
                 .before(DemoSystemLabels::GameLogic),
         );
-
-    #[cfg(feature = "debug")]
-    use bevy_inspector_egui::RegisterInspectable;
 }
 
 fn spawn_demo_blob(commands: &mut Commands) -> Entity {

@@ -130,7 +130,6 @@ fn main() {
         .register_inspectable::<FieldRenderTag>()
         .register_inspectable::<FieldState>()
         .register_inspectable::<FieldElement>()
-        .register_inspectable::<FieldElementKind>()
         .register_inspectable::<UITagImage>()
         .register_inspectable::<UITagHover>()
         .register_inspectable::<UITagInventory>()

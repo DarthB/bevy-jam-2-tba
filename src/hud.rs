@@ -196,6 +196,7 @@ pub fn update_toolbar_overlays(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn toolbar_button_system(
     mut commands: Commands,
     mut interaction_query: Query<(&Interaction, &UITagImage), Changed<Interaction>>,

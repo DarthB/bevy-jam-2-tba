@@ -167,13 +167,13 @@ pub fn coords_to_idx(r: usize, c: usize, cs: usize) -> usize {
 pub fn spawn_blob_from_cutout(
     commands: &mut Commands,
     position: IVec2,
-    blocks: &Vec<Entity>,
+    blocks: &[Entity],
 ) -> Entity {
     commands
         .spawn_bundle(SpatialBundle::default())
         .insert(GridBody {
             pivot: position,
-            blocks: blocks.clone(),
+            blocks: blocks.to_owned(),
             transferred: false,
         })
         .insert(Blob::new())
