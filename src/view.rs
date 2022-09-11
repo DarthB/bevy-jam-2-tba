@@ -396,7 +396,7 @@ fn spawn_demo_blob(commands: &mut Commands) -> Entity {
                         .insert(Block {
                             relative_position: Some(coord),
                             position: coord,
-                            blob: None,
+                            group: None,
                             field: field_id,
                         })
                         .id(),

@@ -172,7 +172,8 @@ pub fn mouse_for_field_selection(
 pub fn mouse_for_tool_creation(
     mut commands: Commands,
     mut field_query: Query<(Entity, &mut Field), With<FactoryFieldTag>>,
-    query_on_tool_clicked: Query<&ToolComponent>,
+    query_on_tool_clicked: Query<&Tool>,
+    query_body: Query<&GridBody>,
     mouse_button_input: Res<Input<MouseButton>>,
     assets: Res<GameAssets>,
     mut player_state: ResMut<PlayerState>,
@@ -200,11 +201,11 @@ pub fn mouse_for_tool_creation(
                 {
                     player_state.add_to_inventory(tool, -1);
 
-                    log::info!("Place tool {:?} at ({},{})", tool, coord.x, coord.y);
+                    log::info!("Placed tool {:?} at ({},{})", tool, coord.x, coord.y);
                     if let Some(entity) = element.entity {
-                        if let Ok(tc) = query_on_tool_clicked.get(entity) {
-                            player_state.add_to_inventory(tc.kind, 1);
-                            commands.entity(entity).despawn_recursive();
+                        if let Ok(tool) = query_on_tool_clicked.get(entity) {
+                            player_state.add_to_inventory(*tool, 1);
+                            despawn_tool(&mut commands, entity, &query_body);
                         }
                     }
 
@@ -213,9 +214,9 @@ pub fn mouse_for_tool_creation(
                     log::info!("Erase tool {:?} at ({},{})", tool, coord.x, coord.y);
 
                     if let Some(entity) = element.entity {
-                        if let Ok(tc) = query_on_tool_clicked.get(entity) {
-                            player_state.add_to_inventory(tc.kind, 1);
-                            commands.entity(entity).despawn_recursive();
+                        if let Ok(tool) = query_on_tool_clicked.get(entity) {
+                            player_state.add_to_inventory(*tool, 1);
+                            despawn_tool(&mut commands, entity, &query_body);
                         }
                     }
                 }

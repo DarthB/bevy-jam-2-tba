@@ -37,7 +37,7 @@ pub trait RenderableGrid {
 
     fn coords_to_px(&self, x: i32, y: i32) -> (f32, f32);
 
-    fn get_render_id(&self, r: i32, c: i32) -> i32;
+    fn get_render_id(&self, r: i32, c: i32, tool_query: Option<&Query<&Tool>>) -> i32;
 
     fn spawn_pivot(&self) -> bool {
         true
@@ -77,7 +77,7 @@ pub trait RenderableGrid {
                 let b = self.bounds();
                 for r in b.0.y..b.1.y {
                     for c in b.0.x..b.1.x {
-                        let num = self.get_render_id(r as i32, c as i32);
+                        let num = self.get_render_id(r as i32, c as i32, None);
                         let info = self.get_sprite_info(num, assets);
 
                         let (x, y) = self.coords_to_px(c, r);
@@ -232,7 +232,7 @@ impl RenderableGrid for Field {
         (woo.0, woo.1)
     }
 
-    fn get_render_id(&self, r: i32, c: i32) -> i32 {
+    fn get_render_id(&self, r: i32, c: i32, tool_query: Option<&Query<&Tool>>) -> i32 {
         let b = self.bounds();
         if r < b.0.y || r >= b.1.y || c < b.0.x || c >= b.1.x {
             panic!("Shall not happen! r and c for get_render_id out of bounds");
@@ -245,7 +245,11 @@ impl RenderableGrid for Field {
                 FieldElementKind::OutOfMovableRegion => 2,
                 FieldElementKind::OutOfValidRegion => -1,
                 FieldElementKind::Block(_) => 1,
-                FieldElementKind::Tool(t) => t.into(),
+                FieldElementKind::Tool(tool_entity) => {
+                    let query = tool_query.expect("tool query shall be given");
+                    let tool = query.get(tool_entity).expect("tool shall also be there");
+                    (*tool).into()
+                }
             }
         } else if r < 0 || r >= self.mov_size().1 as i32 || c < 0 || c >= self.mov_size().0 as i32 {
             // render the outside grid in gray
@@ -283,21 +287,35 @@ type RenderGridTuple<'w> = (
 
 pub fn grid_update_render_entities<T: Component + RenderableGrid>(
     query_top: Query<(&Children, &T)>,
+    query_1st_children_layer: Query<(&Children, &Name)>,
+    query_tool: Query<&Tool>,
     mut query: Query<RenderGridTuple>,
     assets: Res<GameAssets>,
 ) {
     for (children, renderable_grid) in query_top.iter() {
         for &child in children.iter() {
-            if let Ok((mut sprite, mut t, mut texture, coord, pivot)) = query.get_mut(child) {
-                let num = renderable_grid.get_render_id(coord.r, coord.c);
-                let info = renderable_grid.get_sprite_info(num, &assets);
-
-                sprite.color = info.color;
-                if pivot.is_some() {
-                    sprite.color = Color::YELLOW;
+            if let Ok((layer_children, name)) = query_1st_children_layer.get(child) {
+                if *name != Name::new("Sprites") {
+                    continue;
                 }
-                *texture = info.image;
-                t.translation.z = info.z;
+                //~
+
+                for &layer_child in layer_children.iter() {
+                    if let Ok((mut sprite, mut t, mut texture, coord, pivot)) =
+                        query.get_mut(layer_child)
+                    {
+                        let num =
+                            renderable_grid.get_render_id(coord.r, coord.c, Some(&query_tool));
+                        let info = renderable_grid.get_sprite_info(num, &assets);
+
+                        sprite.color = info.color;
+                        if pivot.is_some() {
+                            sprite.color = Color::YELLOW;
+                        }
+                        *texture = info.image;
+                        t.translation.z = info.z;
+                    }
+                }
             }
         }
     }

@@ -197,7 +197,10 @@ pub fn update_toolbar_overlays(
 }
 
 pub fn toolbar_button_system(
+    mut commands: Commands,
     mut interaction_query: Query<(&Interaction, &UITagImage), Changed<Interaction>>,
+    query_tool: Query<&Tool, With<GridBody>>,
+    query_body: Query<&GridBody>,
     mut hover_query: Query<(&mut UiColor, &mut UITagHover)>,
     assets: Res<GameAssets>,
     mut player_state: ResMut<PlayerState>,
@@ -224,7 +227,8 @@ pub fn toolbar_button_system(
                         }
                         Tool::EraseAll => {
                             let mut field = field_query.single_mut();
-                            let tools = field.remove_all_tools();
+                            let tools =
+                                field.remove_all_tools(&mut commands, &query_tool, &query_body);
                             for tool in tools {
                                 player_state.add_to_inventory(tool, 1);
                             }

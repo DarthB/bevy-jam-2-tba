@@ -13,10 +13,12 @@ pub struct GridBody {
     #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub blocks: Vec<Entity>,
 
+    // todo move this flag somewhere else
     /// a flag indicting of the body has already been teleported to the production field
     pub transferred: bool,
 }
 
+/// A blob is a connection of blocks that together form a movable stone
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct Blob {
@@ -89,7 +91,7 @@ impl GridBody {
         ev_view: &mut EventWriter<ViewUpdate>,
         id: Entity,
     ) {
-        for mut block in block_iter.filter(|b| b.blob.is_some() && b.blob.unwrap() == id) {
+        for mut block in block_iter.filter(|b| b.group.is_some() && b.group.unwrap() == id) {
             /*
             block.relative_position = block.relative_position.map(|rp| IVec2::new(rp.y, -rp.x));
             */
@@ -116,7 +118,7 @@ impl GridBody {
         ev_view: &mut EventWriter<ViewUpdate>,
         id: Entity,
     ) {
-        for mut block in block_iter.filter(|b| b.blob.is_some() && b.blob.unwrap() == id) {
+        for mut block in block_iter.filter(|b| b.group.is_some() && b.group.unwrap() == id) {
             block.relative_position = block.relative_position.map(|rp| IVec2::new(-rp.y, rp.x));
             block.position = block.relative_position.unwrap_or_default() + self.pivot;
         }
@@ -132,10 +134,6 @@ impl Blob {
             active: true,
         }
     }
-}
-
-pub fn pivot_coord() -> (usize, usize) {
-    (4, 4)
 }
 
 pub fn coords_to_idx(r: usize, c: usize, cs: usize) -> usize {
@@ -160,7 +158,7 @@ pub fn spawn_blob(
             })
             .id();
 
-        grid_body.blocks = Block::spawn_blocks_of_blob(commands, &body, &grid_body, id, field);
+        grid_body.blocks = Block::spawn_blocks_of_blob(commands, &body, position, id, field, true);
 
         id
     };
@@ -207,7 +205,7 @@ pub fn move_blob_by_player(
                 let mut block_iter = query_block
                     .iter_mut()
                     .map(|(_, block)| block)
-                    .filter(|block| block.blob.is_some() && block.blob.unwrap() == blob_id);
+                    .filter(|block| block.group == Some(blob_id));
                 if s.pressed(TetrisActionsWASD::LRotate) {
                     body.rotate_left(&mut block_iter, &mut ev_view, blob_id);
                 } else if s.pressed(TetrisActionsWASD::RRotate) {
@@ -217,7 +215,7 @@ pub fn move_blob_by_player(
 
             let block_iter = query_block
                 .iter_mut()
-                .filter(|(_, block)| block.blob.is_some() && block.blob.unwrap() == blob_id);
+                .filter(|(_, block)| block.group == Some(blob_id));
 
             if delta != IVec2::ZERO {
                 move_blob(blob_id, &mut body, delta, block_iter, Some(&mut ev_view));

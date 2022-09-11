@@ -1,10 +1,40 @@
-use crate::prelude::*;
 use bevy::prelude::*;
 
-// chat log form psi architecture / refactor discussion
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
+pub enum FieldElementKind {
+    /// the area is empty
+    #[default]
+    Empty,
+
+    /// the area is outside the movable region but rendering may occur here
+    OutOfMovableRegion,
+
+    /// the area is complety outside the valid region,
+    OutOfValidRegion,
+
+    /// the area is blocked the parent blob of the block entities may be given here
+    Block(Option<Entity>),
+
+    /// the area is occupied by a tool, if that is true it may be at the same time occupied by a block
+    Tool(Entity),
+}
+
+/// a element that descirbes a coordinate in the FieldState
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
+pub struct FieldElement {
+    /// "most" relating entity, if a tool and a blob occupy the space this contains the tool
+    pub entity: Option<Entity>,
+
+    /// enumeration to distinguish between types of field elements
+    pub kind: FieldElementKind,
+
+    /// the relative position of the element in respect to the fields coordinate system
+    pub position: IVec2,
+}
 
 /// Encapsules the game state of a game field.
-///
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct FieldState {
@@ -181,23 +211,4 @@ impl<'a> Iterator for FieldElementIterator<'a> {
         self.index += 1;
         res
     }
-}
-
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
-pub enum FieldElementKind {
-    #[default]
-    Empty,
-    OutOfMovableRegion,
-    OutOfValidRegion,
-    Block(Option<Entity>),
-    Tool(Tool),
-}
-
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
-pub struct FieldElement {
-    pub entity: Option<Entity>,
-    pub kind: FieldElementKind,
-    pub position: IVec2,
 }

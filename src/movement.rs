@@ -41,6 +41,7 @@ pub fn generate_move_events_by_gravity(
 
 pub fn move_factory_blobs_by_events(
     mut query: Query<(Entity, &mut Blob, &mut GridBody)>,
+    query_tool: Query<(&Tool, &mut GridBody), Without<Blob>>,
     field_query: Query<(Entity, &Field), With<FactoryFieldTag>>,
     mut block_query: Query<(Entity, &mut Block)>,
     mut ev_move: EventReader<BlobMoveEvent>,
@@ -79,9 +80,10 @@ pub fn move_factory_blobs_by_events(
                             // only react on outside of x movable region
                             do_move = !(tv.x < 0 || tv.x >= field.mov_size().0 as i32);
                         }
-                        FieldElementKind::Tool(tool) => {
+                        FieldElementKind::Tool(tool_entity) => {
+                            let (tool, _) = query_tool.get(tool_entity).unwrap();
                             do_move = true;
-                            match tool {
+                            match *tool {
                                 Tool::Move(d) => {
                                     blob.movement = d.into();
                                 }
@@ -101,8 +103,15 @@ pub fn move_factory_blobs_by_events(
                                         ),
                                     }
                                 }
-                                Tool::Cutter(_) => {
-                                    // @todo implement cutter tool
+                                Tool::Cutter(_tb) => {
+                                    // @todo implement cutter tool, use _query_tool
+
+                                    // 1. get all blocks of cutter
+
+                                    // 2. filter all blocks of cutter that are occupied by blob
+
+                                    // 3. if blocks are empty peform the cut
+                                    // 3a. send block cutout event
                                 }
                                 _ => {}
                             }
@@ -114,9 +123,9 @@ pub fn move_factory_blobs_by_events(
 
                     // if flag do_move is set perform the actual move
                     if do_move {
-                        let block_iter = block_query.iter_mut().filter(|(_, block)| {
-                            block.blob.is_some() && block.blob.unwrap() == blob_id
-                        });
+                        let block_iter = block_query
+                            .iter_mut()
+                            .filter(|(_, block)| block.group == Some(blob_id));
 
                         move_blob(blob_id, &mut body, ev.delta, block_iter, Some(&mut ev_view));
                     }
@@ -142,7 +151,7 @@ pub fn move_production_blobs_by_events(
 
                     let occ_coords: Vec<IVec2> = query_block
                         .iter_mut()
-                        .filter(|(_, block)| block.blob.is_some() && block.blob.unwrap() == blob_id)
+                        .filter(|(_, block)| block.group == Some(blob_id))
                         .map(|(_, block)| block.position)
                         .collect();
 
@@ -163,9 +172,9 @@ pub fn move_production_blobs_by_events(
                         },
                     );
 
-                    let block_iter = query_block.iter_mut().filter(|(_, block)| {
-                        block.blob.is_some() && block.blob.unwrap() == blob_id
-                    });
+                    let block_iter = query_block
+                        .iter_mut()
+                        .filter(|(_, block)| block.group == Some(blob_id));
                     if !occupied {
                         move_blob(blob_id, &mut body, ev.delta, block_iter, Some(&mut ev_view));
                     } else {
@@ -187,7 +196,7 @@ pub fn dissolve_blob<'a>(
     commands.entity(blob_id).despawn();
 
     for (_, mut block) in block_iter {
-        block.blob = None;
+        block.group = None;
     }
 }
 
@@ -203,7 +212,7 @@ pub fn move_blob<'a>(
 
     // update the grid position of every block
     for (_id, mut block) in block_iter {
-        if let Some(blob_of_block) = block.blob {
+        if let Some(blob_of_block) = block.group {
             if blob_of_block == blob_id {
                 block.position += delta;
             }
@@ -228,7 +237,7 @@ pub fn teleport_blob<'a>(
 
     // update the field reference in blocks
     for (_id, mut block) in block_iter {
-        if let Some(blob_of_block) = block.blob {
+        if let Some(blob_of_block) = block.group {
             if blob_of_block == blob_id {
                 block.field = field;
             }
@@ -268,7 +277,7 @@ pub fn handle_teleport_event(
             {
                 let block_iter_move = query_block
                     .iter_mut()
-                    .filter(|(_, block)| block.blob.is_some() && block.blob.unwrap() == *blob_id);
+                    .filter(|(_, block)| block.group == Some(*blob_id));
 
                 move_blob(*blob_id, body, delta, block_iter_move, None);
             }
@@ -276,7 +285,7 @@ pub fn handle_teleport_event(
             // set the correct transfer flags
             let block_iter_teleport = query_block
                 .iter_mut()
-                .filter(|(_, block)| block.blob.is_some() && block.blob.unwrap() == *blob_id);
+                .filter(|(_, block)| block.group == Some(*blob_id));
             teleport_blob(
                 *blob_id,
                 body,
