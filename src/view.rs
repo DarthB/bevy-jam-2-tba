@@ -22,10 +22,8 @@ use bevy::{
     prelude::*,
     render::texture::DEFAULT_IMAGE_HANDLE,
 };
-use bevy_tweening::{
-    lens::{SpriteColorLens, TransformPositionLens, TransformRotateZLens},
-    Animator, EaseFunction, Tween, TweeningType,
-};
+use bevy_tweening::{lens::SpriteColorLens, Animator, Tween, TweeningType};
+use interpolation::{Ease, EaseFunction};
 use leafwing_input_manager::{
     prelude::{ActionState, InputMap},
     InputManagerBundle,
@@ -85,7 +83,7 @@ pub fn spawn_simple_rendering_entity<'w, 's, 'a>(
 //----------------------------------------------------------------------
 // Internal helper components for rendering
 
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Clone)]
 pub struct BlobRenderState {
     /// Last known `pivot` from the game logic
     last_pivot: IVec2,
@@ -97,10 +95,15 @@ pub struct BlobRenderState {
     translation_tween: MyTween<Vec3>,
 }
 
-#[derive(Clone, Debug)]
+//----------------------------------------------------------------------
+// Tweening
+
+/// Simple tweening over a vector space T.
+#[derive(Clone)]
 struct MyTween<T> {
     start: T,
     end: T,
+    ease: EaseFunction,
     elapsed: Duration,
     duration: Duration,
 }
@@ -113,6 +116,7 @@ where
         Self {
             start: Default::default(),
             end,
+            ease: EaseFunction::QuadraticOut,
             elapsed: Duration::ZERO,
             duration: Duration::ZERO,
         }
@@ -125,6 +129,7 @@ where
         } else {
             let factor = self.elapsed.as_secs_f32() / self.duration.as_secs_f32();
             debug_assert!(factor >= 0.0 && factor <= 1.0);
+            let factor = factor.calc(self.ease);
             self.start * (1.0 - factor) + self.end * factor
         }
     }
@@ -135,6 +140,7 @@ where
             end,
             duration,
             elapsed: Duration::ZERO,
+            ..*self
         };
     }
 }
