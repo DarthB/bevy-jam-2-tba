@@ -3,7 +3,11 @@
 //!
 //!
 
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    ops::{Add, Mul},
+    time::Duration,
+};
 
 use crate::{
     blob::Blob,
@@ -81,13 +85,58 @@ pub fn spawn_simple_rendering_entity<'w, 's, 'a>(
 //----------------------------------------------------------------------
 // Internal helper components for rendering
 
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
+#[derive(Component, Debug, Clone)]
 pub struct BlobRenderState {
     /// Last known `pivot` from the game logic
     last_pivot: IVec2,
     /// Cumulative left rotations (0..3)
     rotation_steps: i32,
+
+    //---------------------
+    rotation_tween: MyTween<f32>,
+    translation_tween: MyTween<Vec3>,
+}
+
+#[derive(Clone, Debug)]
+struct MyTween<T> {
+    start: T,
+    end: T,
+    elapsed: Duration,
+    duration: Duration,
+}
+
+impl<T> MyTween<T>
+where
+    T: Copy + Add<T, Output = T> + Mul<f32, Output = T> + Default,
+{
+    pub fn new(end: T) -> Self {
+        Self {
+            start: Default::default(),
+            end,
+            elapsed: Duration::ZERO,
+            duration: Duration::ZERO,
+        }
+    }
+
+    pub fn tick(&mut self, elapsed: Duration) -> T {
+        self.elapsed += elapsed;
+        if self.elapsed >= self.duration {
+            self.end
+        } else {
+            let factor = self.elapsed.as_secs_f32() / self.duration.as_secs_f32();
+            debug_assert!(factor >= 0.0 && factor <= 1.0);
+            self.start * (1.0 - factor) + self.end * factor
+        }
+    }
+
+    pub fn set(&mut self, start: T, end: T, duration: Duration) {
+        *self = Self {
+            start,
+            end,
+            duration,
+            elapsed: Duration::ZERO,
+        };
+    }
 }
 
 //----------------------------------------------------------------------
@@ -126,6 +175,22 @@ fn test_rotate_coord() {
 }
 
 //----------------------------------------------------------------------
+// animation system
+
+pub fn animate_rendered_blob_system(
+    mut rendered_blobs: Query<(&mut BlobRenderState, &mut Transform)>,
+    time: Res<Time>,
+) {
+    let elapsed = time.delta();
+    for (mut state, mut transform) in rendered_blobs.iter_mut() {
+        let new_rotation = state.rotation_tween.tick(elapsed);
+        transform.rotation = Quat::from_rotation_z(new_rotation);
+        transform.translation = state.translation_tween.tick(elapsed);
+    }
+}
+
+//----------------------------------------------------------------------
+// handle ViewUpdate events
 
 fn handle_blob_spawned(
     commands: &mut Commands,
@@ -145,6 +210,8 @@ fn handle_blob_spawned(
         .insert(BlobRenderState {
             last_pivot: bodydata.pivot,
             rotation_steps: 0,
+            rotation_tween: MyTween::new(0.0),
+            translation_tween: MyTween::new(transform.translation),
         })
         .with_children(|cb| {
             // Pivot
@@ -198,13 +265,18 @@ fn handle_blob_moved(
         let start = topleft + coord_to_translation(state.last_pivot);
         let end = topleft + coord_to_translation(bodydata.pivot);
 
+        /*
         let tween = Tween::new(
             EaseFunction::QuadraticInOut,
             TweeningType::Once,
             config.anim_duration,
             TransformPositionLens { start, end },
         );
-        commands.entity(blob).insert(Animator::new(tween));
+        commands.entity(blob).insert(Animator::new(tween));*/
+        state
+            .translation_tween
+            .set(start, end, config.anim_duration);
+
         state.last_pivot = bodydata.pivot;
     }
 }
@@ -223,14 +295,16 @@ fn handle_blob_rotated(
             Rotation::Right => ((state.rotation_steps - 1) as f32 * 90.0).to_radians(),
         };
 
+        /*
         let tween = Tween::new(
             EaseFunction::QuadraticInOut,
             TweeningType::Once,
             config.anim_duration,
             TransformRotateZLens { start, end },
         );
-
         commands.entity(blob).insert(Animator::new(tween));
+        */
+        state.rotation_tween.set(start, end, config.anim_duration);
 
         match rotation {
             Rotation::Left => {
@@ -285,6 +359,7 @@ fn handle_blob_transferred(
         let start = config.factory_topleft + coord_to_translation(state.last_pivot);
         let end = config.tetris_topleft + coord_to_translation(blobdata.pivot);
 
+        /*
         let tween = Tween::new(
             EaseFunction::QuadraticInOut,
             TweeningType::Once,
@@ -292,6 +367,11 @@ fn handle_blob_transferred(
             TransformPositionLens { start, end },
         );
         commands.entity(blob).insert(Animator::new(tween));
+        */
+        state
+            .translation_tween
+            .set(start, end, config.anim_duration);
+
         state.last_pivot = blobdata.pivot;
     }
 }
@@ -315,7 +395,7 @@ fn handle_line_remove(
     }
 }
 
-pub fn handle_view_updates(
+pub fn handle_view_update_system(
     mut commands: Commands,
     mut ev: EventReader<ViewUpdate>,
     blob_query: Query<&GridBody>,
@@ -367,7 +447,8 @@ pub fn register_animation_demo(app: &mut App, game_state: impl StateData) {
         )
         .add_system_set(
             SystemSet::on_update(game_state)
-                .with_system(handle_view_updates)
+                .with_system(animate_rendered_blob_system)
+                .with_system(handle_view_update_system)
                 .label(DemoSystemLabels::EventHandling)
                 // Run the ViewHandling BEFORE the game logic. The game logic spawnes new entites
                 // with components and publishes events referring these new entities. Because
