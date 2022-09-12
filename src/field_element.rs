@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
 pub enum FieldElementKind {
     /// the area is empty
@@ -21,7 +20,6 @@ pub enum FieldElementKind {
 }
 
 /// a element that descirbes a coordinate in the FieldState
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
 pub struct FieldElement {
     /// "most" relating entity, if a tool and a blob occupy the space this contains the tool
@@ -35,7 +33,6 @@ pub struct FieldElement {
 }
 
 /// Encapsules the game state of a game field.
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct FieldState {
     // gives the start values and end values of coordinates in this field

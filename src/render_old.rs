@@ -146,7 +146,7 @@ pub trait RenderableGrid {
                     let b = self.bounds();
                     for x in b.0.x..b.1.x {
                         for y in b.0.y..b.1.y {
-                            if self.get_render_id(y as i32, x as i32) == -1 {
+                            if self.get_render_id(y as i32, x as i32, None) == -1 {
                                 continue;
                             }
 
