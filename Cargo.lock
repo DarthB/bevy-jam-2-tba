@@ -479,6 +479,7 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_tweening",
+ "interpolation",
  "itertools",
  "leafwing-input-manager",
  "rand",
