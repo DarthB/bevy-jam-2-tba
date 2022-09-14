@@ -199,6 +199,7 @@ pub fn update_toolbar_overlays(
 #[allow(clippy::too_many_arguments)]
 pub fn toolbar_button_system(
     mut commands: Commands,
+    mut field_query: Query<&mut Field, With<FactoryFieldTag>>,
     mut interaction_query: Query<(&Interaction, &UITagImage), Changed<Interaction>>,
     query_tool: Query<&Tool, With<GridBody>>,
     query_body: Query<&GridBody>,
@@ -207,7 +208,6 @@ pub fn toolbar_button_system(
     mut player_state: ResMut<PlayerState>,
     mut turn: ResMut<Turn>,
     mut app_state: ResMut<State<GameState>>,
-    mut field_query: Query<&mut Field, With<FactoryFieldTag>>,
 ) {
     for (mut color, mut tag_hover) in &mut hover_query {
         for (interaction, tag) in &mut interaction_query {

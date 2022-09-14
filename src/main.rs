@@ -68,7 +68,8 @@ fn main() {
                 .with_system(progress_turn)
                 //                .with_system(contiously_spawn_tetris_at_end)
                 //.with_system(remove_field_lines)
-                .with_system(crate::view::handle_view_updates)
+                .with_system(crate::view::animate_rendered_blob_system)
+                .with_system(crate::view::handle_view_update_system)
                 .label(MySystems::EventHandling),
         )
         .add_system_set(
@@ -128,8 +129,6 @@ fn main() {
         .register_inspectable::<FactoryFieldTag>()
         .register_inspectable::<ProductionFieldTag>()
         .register_inspectable::<FieldRenderTag>()
-        .register_inspectable::<FieldState>()
-        .register_inspectable::<FieldElement>()
         .register_inspectable::<UITagImage>()
         .register_inspectable::<UITagHover>()
         .register_inspectable::<UITagInventory>()

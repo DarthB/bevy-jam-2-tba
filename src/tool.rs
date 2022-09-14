@@ -15,6 +15,7 @@ pub struct ToolBundle {
 }
 
 type RealBlobFilter = (Without<Tool>, With<RealBlob>);
+/// system function that applies the cutter tool and thereby the cutout operation on blobs
 pub fn apply_cutter_tool(
     mut commands: Commands,
     tool_query: Query<(&Tool, &GridBody)>,
