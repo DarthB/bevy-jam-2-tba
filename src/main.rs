@@ -90,7 +90,6 @@ fn main() {
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
                 .with_system(move_factory_blobs_by_events)
-                .with_system(move_production_blobs_by_events)
                 .with_system(mouse_for_field_selection)
                 .label(MySystems::GameUpdates)
                 .after(MySystems::PreGameUpdates),

@@ -30,7 +30,7 @@ pub fn spawn_world(
     player_state.applicable_tools = level.applicable_tools.clone();
 
     let factory_field_struct = Field::as_factory(&assets);
-    let root_factory_field = Vec3::new(-200.0, 64.0, 0.0);
+    let root_factory_field = Vec3::new(-200.0, -70.0, 0.0);
     let (px, py) = factory_field_struct.coords_to_px(0, 0);
     let origin_factory = Vec3::new(px, py, 0.0) + root_factory_field;
 
@@ -62,28 +62,11 @@ pub fn spawn_world(
     );
     evt.send(ViewUpdate::BlobSpawned(start_blob));
 
-    let field_info = Field::as_production_field(&assets);
-    let root_production_field = Vec3::new(300.0, 0.0, 0.0);
-    let (px, py) = field_info.coords_to_px(0, 0);
-    let origin_production = Vec3::new(px, py, 0.0) + root_production_field;
-    let pr_field = spawn_field(
-        &mut commands,
-        &assets,
-        field_info,
-        "Production Field",
-        root_production_field,
-        &|ec| {
-            ec.insert(ProductionFieldTag {});
-        },
-    );
-    turn.prod_id = Some(pr_field);
-    log::info!("Production field with id: {:?} is spawned.", pr_field);
-
     let id = spawn_simple_rendering_entity(&mut commands).id();
     commands.insert_resource(ViewConfig {
         renderer_entity: id,
         factory_topleft: origin_factory,
-        tetris_topleft: origin_production,
+        tetris_topleft: Vec3::ZERO,
         anim_duration: Duration::from_millis(200),
         brick_image: assets.block_blob.clone(),
         test_blob: None,
@@ -140,7 +123,7 @@ pub fn check_win(
     mut commands: Commands,
     assets: Res<GameAssets>,
     query_target: Query<&Target>,
-    mut query_field: Query<&mut Field, With<ProductionFieldTag>>,
+    mut query_field: Query<&mut Field, With<FactoryFieldTag>>,
     mut player_state: ResMut<PlayerState>,
 ) {
     if player_state.won {
@@ -155,7 +138,7 @@ pub fn check_win(
     let coords = target.occupied_coordinates();
     let transformed_coords = coords
         .iter()
-        .map(|(c, r)| IVec2::new(*c, *r + 6)) // as the production field 6 tiles larger in y direction
+        .map(|(c, r)| IVec2::new(*c, *r + 12)) // as the factory field 12 tiles larger in y direction
         .collect();
 
     let cond = field_state.are_all_coordinates(

@@ -40,12 +40,12 @@ pub fn generate_move_events_by_gravity(
 }
 
 pub fn move_factory_blobs_by_events(
+    mut commands: Commands,
     mut query: Query<(Entity, &mut Blob, &mut GridBody)>,
     query_tool: Query<&Tool, Without<Blob>>,
     field_query: Query<(Entity, &Field), With<FactoryFieldTag>>,
     mut block_query: Query<(Entity, &mut Block)>,
     mut ev_move: EventReader<BlobMoveEvent>,
-    mut ev_teleport: EventWriter<BlobTeleportEvent>,
     mut ev_view: EventWriter<ViewUpdate>,
 ) {
     let (_field_id, field) = field_query.single();
@@ -55,126 +55,117 @@ pub fn move_factory_blobs_by_events(
             if blob.active && !body.transferred {
                 log::info!("Move Factory!");
 
-                let tv = body.pivot + ev.delta;
-                let state = field.get_field_state();
+                // get block positions of the blob
+                let occ_coords: Vec<IVec2> = block_query
+                    .iter_mut()
+                    .filter(|(_, block)| block.group == Some(blob_id))
+                    .map(|(_, block)| block.position)
+                    .collect();
 
-                // if blob is at the coordinate limit send an BlobTeleportEvent
-                if tv.y >= field.coordinate_limits().bottom {
-                    ev_teleport.send(BlobTeleportEvent { entity: ev.entity });
-                    continue;
+                // transform blocks with given delta
+                let mut occ_coords_delta = occ_coords.clone();
+                for ch in &mut occ_coords_delta {
+                    *ch += ev.delta;
                 }
-                //~
+
+                // check if any coordinate of the movement target is already occupied, e.g by a previous blob
+                let state = field.get_field_state();
+                let mut do_move =
+                    !state.is_any_coordinate(&occ_coords_delta, Some(&occ_coords), &|el| match el
+                        .kind
+                    {
+                        FieldElementKind::Empty
+                        | FieldElementKind::OutOfMovableRegion
+                        | FieldElementKind::Tool(_) => false,
+                        FieldElementKind::Block(id) if id.is_some() => false,
+                        _ => true,
+                    });
 
                 // depending on the state at the target position of the grid decide how the movement happens
                 // here we just check for the pivot position
-                if let Some(element) = state.get_element(tv) {
-                    let mut do_move = false;
-                    match element.kind {
-                        FieldElementKind::Block(by_id) => {
-                            do_move = by_id.is_some(); // blobs are allowed to move over each other!
-                        }
-                        FieldElementKind::Empty => {
-                            do_move = true;
-                        }
-                        FieldElementKind::OutOfMovableRegion => {
-                            // only react on outside of x movable region
-                            do_move = !(tv.x < 0 || tv.x >= field.mov_size().0 as i32);
-                        }
-                        FieldElementKind::Tool(tool_entity) => {
-                            let tool = query_tool.get(tool_entity).unwrap();
-                            do_move = true;
-                            match *tool {
-                                Tool::Move(d) => {
-                                    blob.movement = d.into();
-                                }
-                                Tool::Rotate(d) => {
-                                    log::info!("Rotation tool at {},{}", tv.x, tv.y);
-                                    //blob.active = false;
-                                    let mut block_iter =
-                                        block_query.iter_mut().map(|(_, block)| block);
-                                    match d {
-                                        RotateDirection::Left => {
-                                            body.rotate_left(&mut block_iter, &mut ev_view, blob_id)
-                                        }
-                                        RotateDirection::Right => body.rotate_right(
-                                            &mut block_iter,
-                                            &mut ev_view,
-                                            blob_id,
-                                        ),
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                        _ => {
-                            bevy::log::warn!("Do nothing with target: {tv} but stuck");
-                        }
-                    }
+                if do_move {
+                    do_move = handle_move(
+                        &mut body,
+                        ev.delta,
+                        &field,
+                        &query_tool,
+                        &mut blob,
+                        &mut block_query,
+                        &mut ev_view,
+                        blob_id,
+                    );
+                }
 
-                    // if flag do_move is set perform the actual move
-                    if do_move {
-                        let block_iter = block_query
-                            .iter_mut()
-                            .filter(|(_, block)| block.group == Some(blob_id));
-
-                        move_blob(blob_id, &mut body, ev.delta, block_iter, Some(&mut ev_view));
-                    }
+                // if flag do_move is set perform the actual move
+                let block_iter = block_query
+                    .iter_mut()
+                    .filter(|(_, block)| block.group == Some(blob_id));
+                if do_move {
+                    move_blob(blob_id, &mut body, ev.delta, block_iter, Some(&mut ev_view));
+                } else {
+                    log::info!("Full Stop and occupy");
+                    dissolve_blob(&mut commands, blob_id, block_iter, Some(&mut ev_view));
                 }
             }
         }
     }
 }
 
-pub fn move_production_blobs_by_events(
-    mut commands: Commands,
-    mut query: Query<(Entity, &Blob, &mut GridBody)>,
-    mut query_block: Query<(Entity, &mut Block)>,
-    mut field_query: Query<(Entity, &mut Field), With<ProductionFieldTag>>,
-    mut ev: EventReader<BlobMoveEvent>,
-    mut ev_view: EventWriter<ViewUpdate>,
-) {
-    if let Ok((_field_id, field)) = field_query.get_single_mut() {
-        for ev in ev.iter() {
-            if let Ok((blob_id, blob, mut body)) = query.get_mut(ev.entity) {
-                if blob.active && body.transferred {
-                    log::info!("Move Production!");
+fn handle_move(
+    body: &mut GridBody,
+    delta: IVec2,
+    field: &Field,
+    query_tool: &Query<&Tool, Without<Blob>>,
+    mut blob: &mut Blob,
+    block_query: &mut Query<(Entity, &mut Block)>,
+    ev_view: &mut EventWriter<ViewUpdate>,
+    blob_id: Entity,
+) -> bool {
+    let mut do_move = false;
+    let tv = body.pivot + delta;
+    let state = field.get_field_state();
+    if let Some(element) = state.get_element(tv) {
+        match element.kind {
+            FieldElementKind::Block(by_id) => {
+                do_move = by_id.is_some(); // blobs are allowed to move over each other!
+            }
+            FieldElementKind::Empty => {
+                do_move = true;
+            }
+            FieldElementKind::OutOfMovableRegion => {
+                // only react on outside of x movable region
+                do_move = !(tv.x < 0 || tv.x >= field.mov_size().0 as i32);
+            }
+            FieldElementKind::Tool(tool_entity) => {
+                let tool = query_tool.get(tool_entity).unwrap();
+                do_move = true;
 
-                    let occ_coords: Vec<IVec2> = query_block
-                        .iter_mut()
-                        .filter(|(_, block)| block.group == Some(blob_id))
-                        .map(|(_, block)| block.position)
-                        .collect();
-
-                    // transform grid
-                    let mut occ_coords_delta = occ_coords.clone();
-                    for ch in &mut occ_coords_delta {
-                        *ch += ev.delta;
+                match *tool {
+                    Tool::Move(d) => {
+                        blob.movement = d.into();
                     }
-
-                    let field_state = field.get_field_state();
-                    log::info!("Target by move:\n{:?}", occ_coords_delta);
-                    let occupied = field_state.is_any_coordinate(
-                        &occ_coords_delta,
-                        Some(&occ_coords),
-                        &|el| {
-                            el.kind != FieldElementKind::Empty
-                                && el.kind != FieldElementKind::OutOfMovableRegion
-                        },
-                    );
-
-                    let block_iter = query_block
-                        .iter_mut()
-                        .filter(|(_, block)| block.group == Some(blob_id));
-                    if !occupied {
-                        move_blob(blob_id, &mut body, ev.delta, block_iter, Some(&mut ev_view));
-                    } else {
-                        log::info!("Full Stop and occupy");
-                        dissolve_blob(&mut commands, blob_id, block_iter, Some(&mut ev_view));
+                    Tool::Rotate(d) => {
+                        log::info!("Rotation tool at {},{}", tv.x, tv.y);
+                        let mut block_iter = block_query.iter_mut().map(|(_, block)| block);
+                        match d {
+                            RotateDirection::Left => {
+                                body.rotate_left(&mut block_iter, ev_view, blob_id)
+                            }
+                            RotateDirection::Right => {
+                                body.rotate_right(&mut block_iter, ev_view, blob_id)
+                            }
+                        }
                     }
+                    _ => {}
                 }
+            }
+            _ => {
+                bevy::log::warn!("Do nothing with target: {tv} but stuck");
             }
         }
     }
+
+    do_move
 }
 
 pub fn dissolve_blob<'a>(

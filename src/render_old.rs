@@ -243,8 +243,8 @@ impl RenderableGrid for Field {
             match element.kind {
                 FieldElementKind::Empty => 0,
                 FieldElementKind::OutOfMovableRegion => 2,
-                FieldElementKind::OutOfValidRegion => -1,
-                FieldElementKind::Block(_) => 0, // 2 turns this off somehow as it is the same as empty
+                FieldElementKind::OutOfValidRegion => -1, // nothing rendered outside of the valid region
+                FieldElementKind::Block(_) => 0,          // view.rs is responsible to render that
                 FieldElementKind::Tool(tool_entity) => {
                     let query = tool_query.expect("tool query shall be given");
                     let tool = query.get(tool_entity).expect("tool shall also be there");

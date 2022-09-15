@@ -39,12 +39,12 @@ pub type FieldMutator = dyn Fn(&mut Field, (i32, i32), usize);
 impl Field {
     pub fn as_factory(assets: &GameAssets) -> Self {
         Field {
-            movable_size: (10, 18),
+            movable_size: (10, 24),
             allow_overlap: UiRect {
                 left: 4,
                 right: 4,
                 top: 4,
-                bottom: 9,
+                bottom: 0,
             },
             movable_area_image: assets.block_factory_floor.clone(),
             brick_image: assets.block_blob.clone(),
