@@ -22,7 +22,7 @@ use bevy::{
     prelude::*,
     render::texture::DEFAULT_IMAGE_HANDLE,
 };
-use bevy_tweening::{lens::SpriteColorLens, Animator, Tween, TweeningType};
+use bevy_tweening::{lens::SpriteColorLens, Animator, Tween};
 use interpolation::{Ease, EaseFunction};
 use leafwing_input_manager::{
     prelude::{ActionState, InputMap},
@@ -55,6 +55,7 @@ pub enum ViewUpdate {
 }
 
 /// Configuration struct for integration into the rest of the project
+#[derive(Resource)]
 pub struct ViewConfig {
     /// Global renderer entity just for making the entity tree a bit cleaner.
     /// Create a basic one via `spawn_simple_rendering_entity`.
@@ -75,7 +76,7 @@ pub struct ViewConfig {
 pub fn spawn_simple_rendering_entity<'w, 's, 'a>(
     commands: &'a mut Commands<'w, 's>,
 ) -> EntityCommands<'w, 's, 'a> {
-    let mut rv = commands.spawn_bundle(SpatialBundle::default());
+    let mut rv = commands.spawn(SpatialBundle::default());
     rv.insert(Name::new("Rendering"));
     rv
 }
@@ -212,7 +213,7 @@ fn handle_blob_spawned(
         Transform::from_translation(config.factory_topleft + coord_to_translation(bodydata.pivot));
     commands
         .entity(blob)
-        .insert_bundle(SpatialBundle::from(transform))
+        .insert(SpatialBundle::from(transform))
         .insert(BlobRenderState {
             last_pivot: bodydata.pivot,
             rotation_steps: 0,
@@ -221,7 +222,7 @@ fn handle_blob_spawned(
         })
         .with_children(|cb| {
             // Pivot
-            cb.spawn_bundle(SpriteBundle {
+            cb.spawn(SpriteBundle {
                 sprite: Sprite {
                     color: Color::RED,
                     custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
@@ -241,7 +242,7 @@ fn handle_blob_spawned(
         // temporary hack until we can expect the game logic to do this for us
         commands.entity(blob).add_child(block);
 
-        commands.entity(block).insert_bundle(SpriteBundle {
+        commands.entity(block).insert(SpriteBundle {
             sprite: Sprite {
                 color: Color::WHITE,
                 custom_size: Some(Vec2::ONE * PX_PER_TILE),
@@ -335,7 +336,6 @@ fn handle_blob_cutout(
     for &block in body.blocks.iter() {
         let tween = Tween::new(
             EaseFunction::BounceInOut,
-            TweeningType::Once,
             config.anim_duration,
             SpriteColorLens {
                 start: Color::WHITE,
@@ -344,7 +344,6 @@ fn handle_blob_cutout(
         )
         .then(Tween::new(
             EaseFunction::BounceInOut,
-            TweeningType::Once,
             config.anim_duration,
             SpriteColorLens {
                 start: Color::BLUE,
@@ -393,7 +392,6 @@ fn handle_line_remove(
         let end = Color::rgba(1.0, 1.0, 1.0, 0.0);
         let tween = Tween::new(
             EaseFunction::QuadraticInOut,
-            TweeningType::Once,
             config.anim_duration,
             SpriteColorLens { start, end },
         );
@@ -465,7 +463,7 @@ pub fn register_animation_demo(app: &mut App, game_state: impl StateData) {
 }
 
 fn spawn_demo_blob(commands: &mut Commands) -> Entity {
-    let field_id = commands.spawn().id();
+    let field_id = commands.spawn_empty().id();
     let body = crate::bodies::prototype::gen_blob_body(1).unwrap();
     let mut rel_pos = vec![];
     let mut blocks = Vec::new();
@@ -476,7 +474,7 @@ fn spawn_demo_blob(commands: &mut Commands) -> Entity {
                 rel_pos.push(coord);
                 blocks.push(
                     commands
-                        .spawn()
+                        .spawn_empty()
                         .insert(Block {
                             relative_position: Some(coord),
                             position: coord,
@@ -490,7 +488,7 @@ fn spawn_demo_blob(commands: &mut Commands) -> Entity {
     }
 
     commands
-        .spawn()
+        .spawn_empty()
         .insert(GridBody {
             pivot: IVec2::default(),
             blocks,
@@ -512,9 +510,9 @@ pub fn setup_demo_system(
     let factory_gridsize = IVec2::new(10, 14);
     let factory_pos = Vec3::new(-200.0, 0.0, 0.0);
     let factory = commands
-        .spawn_bundle::<SpatialBundle>(Transform::from_translation(factory_pos).into())
+        .spawn::<SpatialBundle>(Transform::from_translation(factory_pos).into())
         .with_children(|cb| {
-            cb.spawn_bundle(SpriteBundle {
+            cb.spawn(SpriteBundle {
                 sprite: Sprite {
                     color: Color::BLUE,
                     custom_size: Some(Vec2::new(
@@ -538,9 +536,9 @@ pub fn setup_demo_system(
     let tetris_gridsize = IVec2::new(8, 14);
     let tetris_pos = Vec3::new(400.0, 0.0, 0.0);
     let tetris = commands
-        .spawn_bundle::<SpatialBundle>(Transform::from_translation(tetris_pos).into())
+        .spawn::<SpatialBundle>(Transform::from_translation(tetris_pos).into())
         .with_children(|cb| {
-            cb.spawn_bundle(SpriteBundle {
+            cb.spawn(SpriteBundle {
                 sprite: Sprite {
                     color: Color::YELLOW,
                     custom_size: Some(Vec2::new(
@@ -562,7 +560,7 @@ pub fn setup_demo_system(
         );
 
     let renderer_entity = spawn_simple_rendering_entity(&mut commands)
-        .insert_bundle(InputManagerBundle::<TetrisActionsWASD> {
+        .insert(InputManagerBundle::<TetrisActionsWASD> {
             // Stores "which actions are currently pressed"
             action_state: ActionState::default(),
             // Describes how to convert from player inputs into those actions
@@ -672,7 +670,7 @@ fn cutout_triangle_from_blob(
                 .unwrap() -= pivot_block_coordinate;
         }
         let newblob = commands
-            .spawn()
+            .spawn_empty()
             .insert_children(0, &blocks[..])
             .insert(GridBody {
                 pivot,

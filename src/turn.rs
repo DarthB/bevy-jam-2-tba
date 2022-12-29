@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct Turn {
     cur: f32,
 

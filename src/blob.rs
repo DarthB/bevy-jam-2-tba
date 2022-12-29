@@ -170,7 +170,7 @@ pub fn spawn_blob_from_cutout(
     blocks: &[Entity],
 ) -> Entity {
     commands
-        .spawn_bundle(SpatialBundle::default())
+        .spawn(SpatialBundle::default())
         .insert(GridBody {
             pivot: position,
             blocks: blocks.to_owned(),
@@ -193,7 +193,7 @@ pub fn spawn_blob_from_body_definition(
     // use commands to generate blob entity and block entities
     let blob_id = {
         let id = commands
-            .spawn_bundle(SpatialBundle {
+            .spawn(SpatialBundle {
                 ..Default::default()
             })
             .id();

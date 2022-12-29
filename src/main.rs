@@ -28,29 +28,26 @@ enum MySystems {
 
 fn main() {
     let mut app = App::new();
-    app.insert_resource(WindowDescriptor {
-        width: 1600.0,
-        height: 1000.0,
-        position: bevy::window::WindowPosition::Centered(MonitorSelection::Primary),
-        title: "Disastris - A contribution to bevy-jam-2".into(),
-        resizable: true,
-        decorations: true,
-        cursor_visible: true,
-        cursor_locked: false,
-        mode: WindowMode::Windowed,
-        transparent: false,
-        ..Default::default()
-    });
+    app.add_plugins(DefaultPlugins.set(WindowPlugin {
+        window: WindowDescriptor {
+            width: 1600.0,
+            height: 1000.0,
+            position: WindowPosition::Centered,
+            title: "Disastris - A contribution to bevy-jam-2".into(),
+            resizable: true,
+            decorations: true,
+            cursor_visible: true,
+            mode: WindowMode::Windowed,
+            transparent: false,
+            ..default()
+        },
+        ..default()
+    }))
+    .add_plugin(InputMappingPlugin)
+    .add_plugin(TweeningPlugin);
 
     app.add_event::<BlobMoveEvent>()
         .add_event::<BlobTeleportEvent>();
-
-    // Use default pluign and show own plugin for input mapping
-    app.add_plugins(DefaultPlugins)
-        // the following plugin is an example on how bigger units
-        // of functionalities can be structured
-        .add_plugin(InputMappingPlugin)
-        .add_plugin(TweeningPlugin);
 
     // Setup the game loop
     app.add_state(GameState::Starting)
@@ -146,7 +143,7 @@ fn setup(
     mut app_state: ResMut<State<GameState>>,
 ) {
     // setup the camera
-    commands.spawn_bundle(Camera2dBundle {
+    commands.spawn(Camera2dBundle {
         projection: OrthographicProjection {
             //    scaling_mode: ScalingMode::FixedVertical(1000.0),
             ..Default::default()

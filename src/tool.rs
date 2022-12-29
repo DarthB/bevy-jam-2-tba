@@ -76,7 +76,7 @@ pub fn spawn_tool(
     let (px, py) = field.coords_to_px(coordinate.x, coordinate.y);
     let position = Vec3::new(px, py, Z_OVERLAY);
 
-    let id = commands.spawn().id();
+    let id = commands.spawn_empty().id();
 
     let block_children = match tool {
         Tool::Cutter(tb) => {
@@ -91,7 +91,7 @@ pub fn spawn_tool(
 
     commands
         .entity(id)
-        .insert_bundle(ToolBundle {
+        .insert(ToolBundle {
             sprite: SpriteBundle {
                 sprite: Sprite {
                     color: Color::WHITE,

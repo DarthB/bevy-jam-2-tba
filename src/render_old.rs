@@ -71,7 +71,7 @@ pub trait RenderableGrid {
         })
         .insert(Name::new("NOTRANSLATION"));
 
-        cb.spawn_bundle(SpatialBundle::default())
+        cb.spawn(SpatialBundle::default())
             .insert(Name::new("Sprites"))
             .with_children(|cb| {
                 let b = self.bounds();
@@ -82,7 +82,7 @@ pub trait RenderableGrid {
 
                         let (x, y) = self.coords_to_px(c, r);
 
-                        let mut ec = cb.spawn_bundle(SpriteBundle {
+                        let mut ec = cb.spawn(SpriteBundle {
                             sprite: Sprite {
                                 color: info.color,
                                 custom_size: Some(Vec2::ONE * PX_PER_TILE - 2.0),
@@ -100,7 +100,7 @@ pub trait RenderableGrid {
                         self.adapt_render_entities(&mut ec, r as i32, c as i32);
 
                         if self.spawn_origin() && r == 0 && c == 0 {
-                            cb.spawn_bundle(SpriteBundle {
+                            cb.spawn(SpriteBundle {
                                 sprite: Sprite {
                                     color: Color::GREEN,
                                     custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
@@ -119,7 +119,7 @@ pub trait RenderableGrid {
 
                         let (pc, pr) = self.pivot();
                         if r == pr as i32 && c == pc as i32 && self.spawn_pivot() {
-                            cb.spawn_bundle(SpriteBundle {
+                            cb.spawn(SpriteBundle {
                                 sprite: Sprite {
                                     color: Color::RED,
                                     custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
@@ -179,10 +179,10 @@ pub trait RenderableGrid {
 
 impl RenderableGrid for Field {
     fn bounds(&self) -> (IVec2, IVec2) {
-        let top = self.allow_overlap.top as i32;
-        let left = self.allow_overlap.left as i32;
-        let bottom = (self.mov_size().1 + self.allow_overlap.bottom) as i32;
-        let right = (self.mov_size().0 + self.allow_overlap.right) as i32;
+        let top = self.overlap_top as i32;
+        let left = self.overlap_left as i32;
+        let bottom = self.mov_size().1 as i32 + self.overlap_bottom as i32;
+        let right = self.mov_size().0 as i32 + self.overlap_right as i32;
 
         (IVec2::new(-left, -top), IVec2::new(right, bottom))
     }

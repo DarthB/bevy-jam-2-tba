@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Resource)]
 pub struct GameAssets {
     pub block_blob: Handle<Image>,
 

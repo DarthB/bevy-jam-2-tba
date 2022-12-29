@@ -1,8 +1,8 @@
-use bevy::reflect::Reflect;
+use bevy::reflect::{FromReflect, Reflect};
 use rand::Rng;
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, FromReflect)]
 pub enum TetrisBricks {
     #[default]
     Square = 1,

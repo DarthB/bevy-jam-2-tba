@@ -59,7 +59,7 @@ pub fn move_factory_blobs_by_events(
                 let state = field.get_field_state();
 
                 // if blob is at the coordinate limit send an BlobTeleportEvent
-                if tv.y >= field.coordinate_limits().bottom {
+                if tv.y >= field.overlap_bottom as i32 {
                     ev_teleport.send(BlobTeleportEvent { entity: ev.entity });
                     continue;
                 }

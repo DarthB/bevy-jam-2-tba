@@ -1,6 +1,7 @@
 use crate::prelude::*;
-use bevy::utils::HashMap;
+use bevy::{prelude::Resource, utils::HashMap};
 
+#[derive(Resource)]
 pub struct Level {
     pub start_blob: (Vec<i32>, (i32, i32)),
 
