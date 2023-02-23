@@ -77,7 +77,7 @@ pub trait RenderableGrid {
                 let b = self.bounds();
                 for r in b.0.y..b.1.y {
                     for c in b.0.x..b.1.x {
-                        let num = self.get_render_id(r as i32, c as i32, None);
+                        let num = self.get_render_id(r, c, None);
                         let info = self.get_sprite_info(num, assets);
 
                         let (x, y) = self.coords_to_px(c, r);
@@ -97,7 +97,7 @@ pub trait RenderableGrid {
                         });
                         ec.insert(FieldRenderTag {});
                         ec.insert(Name::new(format!("grid {}:{}", r, c)));
-                        self.adapt_render_entities(&mut ec, r as i32, c as i32);
+                        self.adapt_render_entities(&mut ec, r, c);
 
                         if self.spawn_origin() && r == 0 && c == 0 {
                             cb.spawn(SpriteBundle {
@@ -118,7 +118,7 @@ pub trait RenderableGrid {
                         }
 
                         let (pc, pr) = self.pivot();
-                        if r == pr as i32 && c == pc as i32 && self.spawn_pivot() {
+                        if r == pr && c == pc && self.spawn_pivot() {
                             cb.spawn(SpriteBundle {
                                 sprite: Sprite {
                                     color: Color::RED,

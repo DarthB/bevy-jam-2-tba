@@ -87,7 +87,7 @@ pub fn move_factory_blobs_by_events(
                     do_move = handle_move(
                         &mut body,
                         ev.delta,
-                        &field,
+                        field,
                         &query_tool,
                         &mut blob,
                         &mut block_query,
@@ -111,6 +111,7 @@ pub fn move_factory_blobs_by_events(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_move(
     body: &mut GridBody,
     delta: IVec2,
