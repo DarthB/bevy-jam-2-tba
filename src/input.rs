@@ -33,7 +33,7 @@ impl Plugin for InputMappingPlugin {
 }
 
 pub fn add_tetris_control(commands: &mut EntityCommands) {
-    commands.insert_bundle(InputManagerBundle::<TetrisActionsWASD> {
+    commands.insert(InputManagerBundle::<TetrisActionsWASD> {
         // Stores "which actions are currently pressed"
         action_state: ActionState::default(),
         // Describes how to convert from player inputs into those actions
@@ -49,7 +49,7 @@ pub fn add_tetris_control(commands: &mut EntityCommands) {
 }
 
 pub fn add_wasd_control(commands: &mut EntityCommands) {
-    commands.insert_bundle(InputManagerBundle::<WASDActions> {
+    commands.insert(InputManagerBundle::<WASDActions> {
         // Stores "which actions are currently pressed"
         action_state: ActionState::default(),
         // Describes how to convert from player inputs into those actions
@@ -64,7 +64,7 @@ pub fn add_wasd_control(commands: &mut EntityCommands) {
 }
 
 pub fn add_arrow_control(commands: &mut EntityCommands) {
-    commands.insert_bundle(InputManagerBundle::<WASDActions> {
+    commands.insert(InputManagerBundle::<WASDActions> {
         // Stores "which actions are currently pressed"
         action_state: ActionState::default(),
         // Describes how to convert from player inputs into those actions

@@ -10,7 +10,10 @@ use crate::{game_assets::GameAssets, prelude::*};
 pub struct Field {
     pub movable_size: (usize, usize),
 
-    pub allow_overlap: UiRect<usize>,
+    pub overlap_left: u32,
+    pub overlap_right: u32,
+    pub overlap_top: u32,
+    pub overlap_bottom: u32,
 
     #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub movable_area_image: Handle<Image>,
@@ -40,12 +43,10 @@ impl Field {
     pub fn as_factory(assets: &GameAssets) -> Self {
         Field {
             movable_size: (10, 24),
-            allow_overlap: UiRect {
-                left: 4,
-                right: 4,
-                top: 4,
-                bottom: 0,
-            },
+            overlap_left: 4,
+            overlap_right: 4,
+            overlap_top: 4,
+            overlap_bottom: 0,
             movable_area_image: assets.block_factory_floor.clone(),
             brick_image: assets.block_blob.clone(),
             ..Default::default()
@@ -54,12 +55,11 @@ impl Field {
 
     pub fn as_production_field(assets: &GameAssets) -> Self {
         Field {
-            allow_overlap: UiRect {
-                left: 0,
-                right: 0,
-                top: 10,
-                bottom: 0,
-            },
+            overlap_left: 0,
+            overlap_right: 0,
+            overlap_top: 10,
+            overlap_bottom: 0,
+
             movable_area_image: assets.block_tetris_floor.clone(),
             brick_image: assets.block_blob.clone(),
             ..Default::default()
@@ -68,13 +68,10 @@ impl Field {
 
     pub fn bounds(&self) -> (IVec2, IVec2) {
         (
+            IVec2::new(-(self.overlap_left as i32), -(self.overlap_top as i32)),
             IVec2::new(
-                -(self.allow_overlap.left as i32),
-                -(self.allow_overlap.top as i32),
-            ),
-            IVec2::new(
-                (self.mov_size().0 + self.allow_overlap.right) as i32,
-                (self.mov_size().1 + self.allow_overlap.bottom) as i32,
+                self.mov_size().0 as i32 + self.overlap_right as i32,
+                self.mov_size().1 as i32 + self.overlap_bottom as i32,
             ),
         )
     }
@@ -176,17 +173,6 @@ impl Field {
         self.movable_size
     }
 
-    /// returns a rect that gives defines the limits of the corrdinates by respecting
-    /// the allow_overlap property
-    pub fn coordinate_limits(&self) -> UiRect<i32> {
-        UiRect {
-            left: -(self.allow_overlap.left as i32),
-            right: (self.movable_size.0 + self.allow_overlap.right) as i32,
-            top: -(self.allow_overlap.top as i32),
-            bottom: (self.movable_size.1 + self.allow_overlap.bottom) as i32,
-        }
-    }
-
     pub fn remove_all_tools(
         &mut self,
         commands: &mut Commands,
@@ -223,12 +209,11 @@ impl Default for Field {
     fn default() -> Self {
         Self {
             movable_size: (10, 18),
-            allow_overlap: UiRect {
-                left: 0,
-                right: 0,
-                top: 5,
-                bottom: 0,
-            },
+            overlap_left: 0,
+            overlap_right: 0,
+            overlap_top: 5,
+            overlap_bottom: 0,
+
             movable_area_image: DEFAULT_IMAGE_HANDLE.typed(),
             brick_image: DEFAULT_IMAGE_HANDLE.typed(),
             field_state: FieldState::default(),
@@ -260,7 +245,7 @@ pub fn spawn_field(
     trans: Vec3,
     adapter: &dyn Fn(&mut EntityCommands),
 ) -> Entity {
-    let mut ec = commands.spawn_bundle(SpatialBundle {
+    let mut ec = commands.spawn(SpatialBundle {
         transform: Transform {
             translation: trans,
             ..Default::default()

@@ -26,10 +26,7 @@ pub fn spawn_hud(mut commands: Commands, assets: Res<GameAssets>) {
     let ysize = PX_PER_ICON * 7.0 + 4.0 * 8.0;
 
     commands
-        .spawn_bundle(NodeBundle {
-            node: Node {
-                size: Vec2::new(PX_PER_ICON, ysize),
-            },
+        .spawn(NodeBundle {
             style: Style {
                 size: Size::new(Val::Px(PX_PER_ICON), Val::Px(ysize)),
                 // center button
@@ -43,7 +40,7 @@ pub fn spawn_hud(mut commands: Commands, assets: Res<GameAssets>) {
                 ..default()
             },
             focus_policy: FocusPolicy::Pass,
-            color: Color::WHITE.into(),
+            background_color: Color::WHITE.into(),
             ..Default::default()
         })
         .insert(Name::new("Toolbar"))
@@ -59,7 +56,7 @@ pub fn spawn_hud(mut commands: Commands, assets: Res<GameAssets>) {
 }
 
 fn spawn_tool_button(cb: &mut ChildBuilder, tool: player_state::Tool, assets: &GameAssets) {
-    cb.spawn_bundle(ButtonBundle {
+    cb.spawn(ButtonBundle {
         style: Style {
             size: Size::new(Val::Px(PX_PER_ICON), Val::Px(PX_PER_ICON)),
             // center button
@@ -77,7 +74,7 @@ fn spawn_tool_button(cb: &mut ChildBuilder, tool: player_state::Tool, assets: &G
     .insert(UITagImage { tool_status: tool })
     .with_children(|parent| {
         parent
-            .spawn_bundle(
+            .spawn(
                 TextBundle::from_section(
                     "INF",
                     TextStyle {
@@ -95,7 +92,7 @@ fn spawn_tool_button(cb: &mut ChildBuilder, tool: player_state::Tool, assets: &G
             .insert(UITagInventory { tool_status: tool })
             .with_children(|parent| {
                 parent
-                    .spawn_bundle(NodeBundle {
+                    .spawn(NodeBundle {
                         style: Style {
                             size: Size::new(Val::Px(PX_PER_ICON), Val::Px(PX_PER_ICON)),
                             // center button
@@ -106,7 +103,7 @@ fn spawn_tool_button(cb: &mut ChildBuilder, tool: player_state::Tool, assets: &G
                             align_items: AlignItems::Center,
                             ..default()
                         },
-                        color: assets.normal_button_color.into(),
+                        background_color: assets.normal_button_color.into(),
                         focus_policy: FocusPolicy::Pass,
                         ..default()
                     })
@@ -152,7 +149,7 @@ pub fn update_toolbar_inventory(
 }
 
 pub fn update_toolbar_overlays(
-    mut query_overlay: Query<(&mut UiColor, &mut UITagHover)>,
+    mut query_overlay: Query<(&mut BackgroundColor, &mut UITagHover)>,
     player_state: Res<PlayerState>,
     assets: Res<GameAssets>,
 ) {
@@ -170,7 +167,7 @@ pub fn update_toolbar_overlays(
         let num_inv = player_state.num_in_inventory(tag.tool_status);
 
         // Select the overlay color
-        let color: UiColor = if let Some(selected_tool) = player_state.selected_tool {
+        let color: BackgroundColor = if let Some(selected_tool) = player_state.selected_tool {
             if selected_tool == tag.tool_status {
                 if num_inv == 0 {
                     assets.selected_but_unavailable_button_color.into()
@@ -203,7 +200,7 @@ pub fn toolbar_button_system(
     mut interaction_query: Query<(&Interaction, &UITagImage), Changed<Interaction>>,
     query_tool: Query<&Tool, With<GridBody>>,
     query_body: Query<&GridBody>,
-    mut hover_query: Query<(&mut UiColor, &mut UITagHover)>,
+    mut hover_query: Query<(&mut BackgroundColor, &mut UITagHover)>,
     assets: Res<GameAssets>,
     mut player_state: ResMut<PlayerState>,
     mut turn: ResMut<Turn>,
@@ -255,10 +252,10 @@ pub fn spawn_text(
     commands: &mut Commands,
     assets: &GameAssets,
     text: &str,
-    pos: UiRect<Val>,
+    pos: UiRect,
     adapter: &dyn Fn(&mut EntityCommands),
 ) {
-    let mut ec = commands.spawn_bundle(
+    let mut ec = commands.spawn(
         TextBundle::from_section(
             text,
             TextStyle {

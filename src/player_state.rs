@@ -4,7 +4,7 @@ use bevy::{prelude::*, utils::HashMap};
 use std::fmt::Display;
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, FromReflect)]
 pub enum MoveDirection {
     #[default]
     Up = 1,
@@ -60,7 +60,7 @@ impl From<MoveDirection> for IVec2 {
 }
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, FromReflect)]
 pub enum RotateDirection {
     #[default]
     Left = 1,
@@ -175,7 +175,7 @@ impl Display for Tool {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Component)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Component, Resource)]
 pub struct PlayerState {
     pub selected_tool: Option<Tool>,
 

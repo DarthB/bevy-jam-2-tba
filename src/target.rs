@@ -17,7 +17,7 @@ pub struct Target {
 }
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Copy, Reflect)]
+#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Copy, Reflect, FromReflect)]
 pub struct Coordinate {
     pub r: i32,
     pub c: i32,
@@ -96,7 +96,7 @@ pub fn spawn_target(
         texture: texture.clone(),
     };
 
-    let mut ec = commands.spawn_bundle(SpatialBundle {
+    let mut ec = commands.spawn(SpatialBundle {
         transform: Transform::from_translation(Vec3::new(344.0, -192.0, 0.0)),
         ..Default::default()
     });

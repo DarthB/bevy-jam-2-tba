@@ -42,7 +42,7 @@ impl Block {
             }
             //~
 
-            let mut ec = commands.spawn();
+            let mut ec = commands.spawn_empty();
             if v == IVec2::ZERO {
                 ec.insert(PivotTag {});
             }
