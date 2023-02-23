@@ -138,7 +138,7 @@ pub fn check_win(
     let coords = target.occupied_coordinates();
     let transformed_coords = coords
         .iter()
-        .map(|(c, r)| IVec2::new(*c, *r + 12)) // as the factory field 12 tiles larger in y direction
+        .map(|(c, r)| IVec2::new(*c, *r)) // as the factory field 12 tiles larger in y direction
         .collect();
 
     let cond = field_state.are_all_coordinates(

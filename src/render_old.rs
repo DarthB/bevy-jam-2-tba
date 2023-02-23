@@ -187,46 +187,6 @@ impl RenderableGrid for Field {
         (IVec2::new(-left, -top), IVec2::new(right, bottom))
     }
 
-    fn get_sprite_info(&self, num: i32, assets: &GameAssets) -> SpriteInfo {
-        match num {
-            -1 => SpriteInfo {
-                color: Color::BLACK,
-                z: Z_FIELD,
-                image: DEFAULT_IMAGE_HANDLE.typed(),
-            },
-            1 => SpriteInfo {
-                color: Color::WHITE,
-                z: Z_FIELD,
-                image: self.brick_image.clone(),
-            },
-            2 => SpriteInfo {
-                image: DEFAULT_IMAGE_HANDLE.typed(),
-                color: Color::GRAY,
-                z: Z_FIELD,
-            },
-            3 => SpriteInfo {
-                image: DEFAULT_IMAGE_HANDLE.typed(),
-                color: Color::NAVY,
-                z: Z_FIELD,
-            },
-            _ => {
-                if let Ok(tool) = TryInto::<Tool>::try_into(num) {
-                    SpriteInfo {
-                        color: Color::WHITE,
-                        z: Z_FIELD,
-                        image: assets.get_tool_image(tool).clone(),
-                    }
-                } else {
-                    SpriteInfo {
-                        color: Color::WHITE,
-                        z: Z_FIELD,
-                        image: self.movable_area_image.clone(),
-                    }
-                }
-            }
-        }
-    }
-
     fn coords_to_px(&self, x: i32, y: i32) -> (f32, f32) {
         let woo = coords_to_px(x, y, self.movable_size.1, self.movable_size.0);
         (woo.0, woo.1)
@@ -241,6 +201,7 @@ impl RenderableGrid for Field {
         let state = self.get_field_state();
         if let Some(element) = state.get_element(IVec2::new(c, r)) {
             match element.kind {
+                FieldElementKind::Empty if element.is_target => 3,
                 FieldElementKind::Empty => 0,
                 FieldElementKind::OutOfMovableRegion => 2,
                 FieldElementKind::OutOfValidRegion => -1, // nothing rendered outside of the valid region
@@ -270,6 +231,46 @@ impl RenderableGrid for Field {
 
     fn spawn_additional_debug(&self) -> bool {
         false
+    }
+
+    fn get_sprite_info(&self, num: i32, assets: &GameAssets) -> SpriteInfo {
+        match num {
+            -1 => SpriteInfo {
+                color: Color::BLACK,
+                z: Z_FIELD,
+                image: DEFAULT_IMAGE_HANDLE.typed(),
+            },
+            1 => SpriteInfo {
+                color: Color::WHITE,
+                z: Z_FIELD,
+                image: self.brick_image.clone(),
+            },
+            2 => SpriteInfo {
+                image: DEFAULT_IMAGE_HANDLE.typed(),
+                color: Color::GRAY,
+                z: Z_FIELD,
+            },
+            3 => SpriteInfo {
+                image: DEFAULT_IMAGE_HANDLE.typed(),
+                color: Color::RED,
+                z: Z_FIELD,
+            },
+            _ => {
+                if let Ok(tool) = TryInto::<Tool>::try_into(num) {
+                    SpriteInfo {
+                        color: Color::WHITE,
+                        z: Z_FIELD,
+                        image: assets.get_tool_image(tool).clone(),
+                    }
+                } else {
+                    SpriteInfo {
+                        color: Color::WHITE,
+                        z: Z_FIELD,
+                        image: self.movable_area_image.clone(),
+                    }
+                }
+            }
+        }
     }
 
     fn adapt_render_entities(&self, cb: &mut EntityCommands, r: i32, c: i32) {

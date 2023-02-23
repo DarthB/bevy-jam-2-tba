@@ -27,7 +27,7 @@ impl Level {
             ),
             target_figure: (
                 prototype::gen_target_body(1).expect("Couldn't generate target figure"),
-                (10, 12),
+                (0, 12),
             ),
             applicable_tools,
         }

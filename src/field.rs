@@ -91,32 +91,56 @@ impl Field {
         block_iter: impl Iterator<Item = (Entity, &'a Block)>,
         tool_query: &Query<&Tool>,
         blob_query: &Query<&Blob>,
+        target_query: &Query<&Target>,
     ) -> &FieldState {
         let old_fieldstate = self.field_state.clone();
         self.field_state = FieldState::new(self.bounds());
 
+        let target = target_query.single();
+
         for x in self.bounds().0.x..self.bounds().1.x {
             for y in self.bounds().0.y..self.bounds().1.y {
+                let pos = IVec2::new(x, y);
+
                 if x < 0 || y < 0 || x >= self.mov_size().0 as i32 || y >= self.mov_size().1 as i32
                 {
-                    let pos = IVec2::new(x, y);
                     self.field_state.set_element(
                         pos,
                         FieldElement {
+                            is_target: false,
                             entity: None,
                             kind: FieldElementKind::OutOfMovableRegion,
                             position: pos,
                         },
                     );
+                } else {
+                    let is_target = target.occupied_coordinates().contains(&(x, y));
+                    if is_target {
+                        self.field_state.set_element(
+                            pos,
+                            FieldElement {
+                                is_target: true,
+                                entity: None,
+                                kind: FieldElementKind::Empty,
+                                position: pos,
+                            },
+                        );
+                    }
                 }
             }
         }
 
         for (entity, block) in block_iter {
+            let is_target = old_fieldstate
+                .get_element(block.position)
+                .as_ref()
+                .map_or(false, |e| e.is_target);
+
             let new_el = if let Some(group) = block.group {
                 // 1. case group of blob
                 if let Ok(_blob) = blob_query.get(group) {
                     FieldElement {
+                        is_target,
                         entity: Some(entity),
                         kind: FieldElementKind::Block(Some(group)),
                         position: block.position,
@@ -124,6 +148,7 @@ impl Field {
                 // 2. cae group of a tool
                 } else if let Ok(_tool) = tool_query.get(group) {
                     FieldElement {
+                        is_target,
                         entity: Some(entity),
                         kind: FieldElementKind::Tool(group),
                         position: block.position,
@@ -135,6 +160,7 @@ impl Field {
                 }
             } else {
                 FieldElement {
+                    is_target,
                     entity: Some(entity),
                     kind: FieldElementKind::Block(None),
                     position: block.position,
@@ -214,6 +240,7 @@ pub fn generate_field_states(
     query_state: Query<(Entity, &mut Block)>,
     query_blob: Query<&Blob>,
     query_tool: Query<&Tool>,
+    query_target: Query<&Target>,
     mut query_field: Query<(Entity, &mut Field)>,
 ) {
     for (field_id, mut field) in query_field.iter_mut() {
@@ -221,7 +248,7 @@ pub fn generate_field_states(
             .iter()
             .filter(|(_, block)| block.field == field_id);
         //log::info!("Blocks on Field {:?} = {}", field_id, iter.count());
-        field.generate_field_state(iter, &query_tool, &query_blob);
+        field.generate_field_state(iter, &query_tool, &query_blob, &query_target);
     }
 }
 

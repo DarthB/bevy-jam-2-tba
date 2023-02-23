@@ -56,11 +56,13 @@ impl Target {
     /// parent (coordinate property)
     pub fn occupied_coordinates(&self) -> Vec<(i32, i32)> {
         let mut reval = Vec::new();
-        if self.coordinate.is_some() {
+        if let Some(coordinate) = self.coordinate {
             for r in 0..Target::dimensions().1 {
                 for c in 0..Target::dimensions().0 {
                     if self.body[Target::coords_to_idx(r, c)] != 0 {
-                        reval.push((c as i32, r as i32));
+                        let c = c as i32 + coordinate.c;
+                        let r = r as i32 + coordinate.r;
+                        reval.push((c, r));
                     }
                 }
             }

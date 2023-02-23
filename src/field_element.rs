@@ -22,6 +22,8 @@ pub enum FieldElementKind {
 /// a element that descirbes a coordinate in the FieldState
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
 pub struct FieldElement {
+    pub is_target: bool,
+
     /// "most" relating entity, if a tool and a blob occupy the space this contains the tool
     pub entity: Option<Entity>,
 
@@ -152,6 +154,7 @@ impl FieldState {
                 entity: None,
                 kind: FieldElementKind::OutOfValidRegion,
                 position: coord,
+                is_target: false,
             };
             predicate(&el)
         }
