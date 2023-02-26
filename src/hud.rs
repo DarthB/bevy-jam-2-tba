@@ -3,9 +3,10 @@
 //! done when the HUD is clicked the UITag* components are used.
 
 use bevy::{ecs::system::EntityCommands, prelude::*, ui::FocusPolicy};
+use field::prelude::GridBody;
 use player_state::{MoveDirection, PlayerState, RotateDirection, Tool};
 
-use crate::prelude::*;
+use crate::{field::FactoryFieldTag, prelude::*};
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Component)]
@@ -120,7 +121,7 @@ fn spawn_tool_button(cb: &mut ChildBuilder, tool: player_state::Tool, assets: &G
     });
 }
 
-pub fn update_toolbar_images(
+pub fn toolbar_images_system(
     mut query_images: Query<(&mut UiImage, &mut UITagImage)>,
     player_state: Res<PlayerState>,
     assets: Res<GameAssets>,
@@ -141,7 +142,7 @@ pub fn update_toolbar_images(
     }
 }
 
-pub fn update_toolbar_inventory(
+pub fn toolbar_inventory_system(
     mut query_text: Query<(&mut Text, &UITagInventory)>,
     player_state: Res<PlayerState>,
 ) {
@@ -152,7 +153,7 @@ pub fn update_toolbar_inventory(
     }
 }
 
-pub fn update_toolbar_overlays(
+pub fn toolbar_overlays_system(
     mut query_overlay: Query<(&mut BackgroundColor, &mut UITagHover)>,
     player_state: Res<PlayerState>,
     assets: Res<GameAssets>,

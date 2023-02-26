@@ -1,6 +1,9 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 
+use super::{bodies::BodyDefinition, prelude::*, Field};
+
+/// This bundle is used to
 #[derive(Bundle, Clone)]
 pub struct ToolBundle {
     /// the kind of tool represented by this entity

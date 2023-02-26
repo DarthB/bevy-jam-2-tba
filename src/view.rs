@@ -10,11 +10,7 @@ use std::{
 };
 
 use crate::{
-    blob::Blob,
-    game_assets::GameAssets,
-    input::TetrisActionsWASD,
-    prelude::{Block, GridBody},
-    PX_PER_TILE, Z_SOLID,
+    field::prelude::*, game_assets::GameAssets, input::TetrisActionsWASD, PX_PER_TILE, Z_SOLID,
 };
 use bevy::{
     ecs::{schedule::StateData, system::EntityCommands},

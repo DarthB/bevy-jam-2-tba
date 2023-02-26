@@ -1,7 +1,11 @@
 use std::time::Duration;
 
-use crate::{blob::*, field::spawn_field, game_assets::GameAssets, prelude::*, target::*};
+use crate::field::FactoryFieldTag;
+use crate::{field::spawn_field, game_assets::GameAssets, prelude::*};
 use bevy::{log, prelude::*};
+
+use field::blob::spawn_blob_from_body_definition;
+use field::target::spawn_target;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum GameState {
@@ -119,7 +123,7 @@ pub fn contiously_spawn_tetris_at_end(
     }
 }
 
-pub fn check_win(
+pub fn win_condition_system(
     mut commands: Commands,
     assets: Res<GameAssets>,
     query_target: Query<&Target>,

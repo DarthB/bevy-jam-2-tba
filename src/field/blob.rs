@@ -1,11 +1,22 @@
+//! The blob module consists of the main struct [`Blob`] that is used to control a solid blob,
+//! e.g. a tetris stone on the field.
+//!
+//!
 use bevy::{ecs::system::EntityCommands, log, prelude::*};
 use leafwing_input_manager::prelude::*;
 
-use crate::prelude::*;
+use crate::{
+    bodies::BodyDefinition,
+    input::TetrisActionsWASD,
+    prelude::{move_blob, rotate_coord, Rotation, ViewUpdate},
+    turn::Turn,
+};
+
+use super::prelude::*;
 
 /// A component that represents a body on the grid. It supports rotation along it pivot
 /// and provides a cutout function that can be used to cutout a [`Blob`] from anther [`Blob`].
-/// Beside the definition of [`Blob`] it also gives [`Tool`] a shape on the [`Field`]
+/// Beside the definition of [`Blob`] it also gives [`super::Tool`] a shape on the [`Field`]
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct GridBody {
@@ -19,56 +30,6 @@ pub struct GridBody {
     // todo move this flag somewhere else
     /// a flag indicting of the body has already been teleported to the production field
     pub transferred: bool,
-}
-
-/// A blob is a connection of blocks that together form a movable stone
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
-pub struct Blob {
-    /// the movement direction that can be changed by tools
-    pub movement: IVec2,
-
-    /// information if the blob is active (receives movement updates, or not) (for pause after cutting)
-    pub active: bool,
-}
-
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Debug, Default, PartialEq, Eq, Clone, Reflect)]
-pub struct BodyDefinition {
-    pub block_positions: Vec<i32>,
-
-    pub size: (usize, usize),
-
-    pub pivot: (usize, usize),
-}
-
-impl BodyDefinition {
-    pub fn as_blob(positions: Vec<i32>) -> Self {
-        BodyDefinition {
-            block_positions: positions,
-            size: (9, 9),
-            pivot: (4, 4),
-        }
-    }
-
-    pub fn get_relative_positions(&self) -> Vec<IVec2> {
-        let mut reval = vec![];
-
-        for idx in 0..self.block_positions.len() {
-            let num = self.block_positions[idx];
-            if num == 0 {
-                continue;
-            }
-            //~
-
-            let x = (idx as i32 % self.size.0 as i32) - self.pivot.0 as i32;
-            let y = (idx as i32 / self.size.1 as i32) - self.pivot.1 as i32;
-
-            reval.push(IVec2 { x, y });
-        }
-
-        reval
-    }
 }
 
 impl GridBody {
@@ -120,7 +81,7 @@ impl GridBody {
     }
 
     pub fn coords_to_idx(r: usize, c: usize) -> usize {
-        coords_to_idx(r, c, GridBody::size())
+        r * GridBody::size() + c
     }
 
     /// Rotates the blob left (counter-clock wise)
@@ -151,6 +112,7 @@ impl GridBody {
         ev_view.send(ViewUpdate::BlobRotated(id, Rotation::Left))
     }
 
+    /// Rotates the blob right (clock wise)
     pub fn rotate_right<'a>(
         &mut self,
         block_iter: impl Iterator<Item = Mut<'a, Block>>,
@@ -166,6 +128,17 @@ impl GridBody {
     }
 }
 
+/// A blob is a connection of blocks that together form a movable stone
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
+pub struct Blob {
+    /// the movement direction that can be changed by tools
+    pub movement: IVec2,
+
+    /// information if the blob is active (receives movement updates, or not) (for pause after cutting)
+    pub active: bool,
+}
+
 impl Blob {
     pub fn new() -> Self {
         Blob {
@@ -173,10 +146,6 @@ impl Blob {
             active: true,
         }
     }
-}
-
-pub fn coords_to_idx(r: usize, c: usize, cs: usize) -> usize {
-    r * cs + c
 }
 
 pub fn spawn_blob_from_cutout(

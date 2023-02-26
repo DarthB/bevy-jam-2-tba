@@ -1,4 +1,10 @@
-use crate::prelude::*;
+use crate::{
+    field::{
+        tool::{despawn_tool, spawn_tool},
+        FactoryFieldTag, FieldRenderTag,
+    },
+    prelude::*,
+};
 use bevy::{ecs::system::EntityCommands, input::mouse::MouseWheel, log, prelude::*};
 use leafwing_input_manager::prelude::*;
 
@@ -78,7 +84,7 @@ pub fn add_arrow_control(commands: &mut EntityCommands) {
     });
 }
 
-pub fn tool_switch_on_mouse_wheel(
+pub fn tool_switch_via_mouse_wheel_system(
     mut mouse_wheel_events: EventReader<MouseWheel>,
     mut player_state: ResMut<PlayerState>,
 ) {
@@ -129,7 +135,7 @@ pub fn tool_switch_on_mouse_wheel(
     }
 }
 
-pub fn mouse_for_field_selection(
+pub fn field_selection_via_mouse_system(
     windows: Res<Windows>,
     mut cursor_moved_events: EventReader<CursorMoved>,
     // @todo remove sprites asap rendering is working
@@ -169,7 +175,7 @@ pub fn mouse_for_field_selection(
     }
 }
 
-pub fn mouse_for_tool_creation(
+pub fn tool_creation_via_mouse_system(
     mut commands: Commands,
     mut field_query: Query<(Entity, &mut Field), With<FactoryFieldTag>>,
     query_on_tool_clicked: Query<&Tool>,

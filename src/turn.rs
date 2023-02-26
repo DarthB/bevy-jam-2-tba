@@ -62,6 +62,6 @@ impl Turn {
     }
 }
 
-pub fn progress_turn(mut turn_info: ResMut<Turn>, time: ResMut<Time>) {
+pub fn progress_turn_system(mut turn_info: ResMut<Turn>, time: ResMut<Time>) {
     turn_info.apply_time(time.delta_seconds());
 }

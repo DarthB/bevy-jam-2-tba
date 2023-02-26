@@ -45,7 +45,7 @@ impl Target {
     }
 
     pub fn coords_to_idx(r: usize, c: usize) -> usize {
-        coords_to_idx(r, c, Target::dimensions().0)
+        r * Target::dimensions().0 + c
     }
 
     pub fn dimensions() -> (usize, usize) {
@@ -69,10 +69,6 @@ impl Target {
         }
         reval
     }
-}
-
-pub fn coords_to_idx(r: usize, c: usize, cs: usize) -> usize {
-    r * cs + c
 }
 
 pub fn coords_to_px(x: i32, y: i32, rs: usize, cs: usize) -> (f32, f32) {

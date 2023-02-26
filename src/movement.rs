@@ -1,4 +1,7 @@
-use crate::prelude::*;
+use crate::{
+    field::{FactoryFieldTag, ProductionFieldTag},
+    prelude::*,
+};
 use bevy::{log, prelude::*};
 
 pub struct BlobMoveEvent {
@@ -11,7 +14,7 @@ pub struct BlobTeleportEvent {
     entity: Entity,
 }
 
-pub fn generate_move_events_by_gravity(
+pub fn move_events_by_gravity_system(
     query_collector: Query<(Entity, &GridBody)>,
     mut query: Query<(Entity, &Blob)>,
     turn: Res<Turn>,
@@ -39,7 +42,7 @@ pub fn generate_move_events_by_gravity(
     }
 }
 
-pub fn move_factory_blobs_by_events(
+pub fn move_blobs_by_events_system(
     mut commands: Commands,
     mut query: Query<(Entity, &mut Blob, &mut GridBody)>,
     query_tool: Query<&Tool, Without<Blob>>,
@@ -232,7 +235,7 @@ pub fn teleport_blob<'a>(
     }
 }
 
-pub fn handle_teleport_event(
+pub fn teleport_event_system(
     query_prod: Query<Entity, With<ProductionFieldTag>>,
     mut query_blob: Query<(Entity, &mut GridBody)>,
     mut query_block: Query<(Entity, &mut Block)>,

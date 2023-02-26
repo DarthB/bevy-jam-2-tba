@@ -1,5 +1,6 @@
-use crate::prelude::*;
+use crate::{field::FieldRenderTag, prelude::*};
 use bevy::{ecs::system::EntityCommands, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
+use field::{OriginTag, PivotTag};
 
 pub struct SpriteInfo {
     pub image: Handle<Image>,
@@ -286,7 +287,7 @@ type RenderGridTuple<'w> = (
     Option<&'w PivotTag>,
 );
 
-pub fn grid_update_render_entities<T: Component + RenderableGrid>(
+pub fn old_render_entities_system<T: Component + RenderableGrid>(
     query_top: Query<(&Children, &T)>,
     query_1st_children_layer: Query<(&Children, &Name)>,
     query_tool: Query<&Tool>,
@@ -322,7 +323,7 @@ pub fn grid_update_render_entities<T: Component + RenderableGrid>(
     }
 }
 
-pub fn update_field_debug(
+pub fn show_block_with_debug_tag_system(
     query: Query<&Field>,
     mut query_sprite: Query<(&mut Sprite, &Coordinate), With<DebugOccupiedTag>>,
 ) {

@@ -4,7 +4,7 @@
 //! # Refactoring of modules
 //! @todo Overwork the modules
 //!
-//! * [ ] The modules [`blob`], [`block`], [`tool`] and [`target`], are used to describe entites that are on the field  
+//! * [x] The modules [`field::blob`], [`field::Block`], [`field::tool`] and [`field::target`], are used to describe entites that are on the field  
 //! Suggestion: Merge them in the module [`field`] but allow qualification without sub module name
 //! * [ ]Also move [`field_element`] into the [`field`] module and clarify that it is Cache of the current field
 //! * [ ] The modules [`bodies`], [`level`] and [`game_assets`] contain data that is serializable, e.g. levels that may
@@ -16,8 +16,6 @@
 
 use rand::Rng;
 
-pub mod blob;
-pub mod block;
 pub mod bodies;
 pub mod field;
 pub mod field_element;
@@ -29,8 +27,6 @@ pub mod level;
 pub mod movement;
 pub mod player_state;
 pub mod render_old;
-pub mod target;
-pub mod tool;
 pub mod turn;
 pub mod view;
 
@@ -58,10 +54,8 @@ pub const Z_SOLID: f32 = 20.0;
 pub const Z_OVERLAY: f32 = 30.0;
 
 pub mod prelude {
-    pub use crate::blob::*;
-    pub use crate::block::*;
     pub use crate::bodies::*;
-    pub use crate::field::*;
+    pub use crate::field::prelude::*;
     pub use crate::field_element::*;
     pub use crate::game::*;
     pub use crate::game_assets::*;
@@ -71,8 +65,6 @@ pub mod prelude {
     pub use crate::movement::*;
     pub use crate::player_state::*;
     pub use crate::render_old::*;
-    pub use crate::target::*;
-    pub use crate::tool::*;
     pub use crate::turn::*;
     pub use crate::view::*;
 

@@ -1,9 +1,51 @@
 //! The bodies are represented by a RxC (row cross column) i32 vector. Hereby the first R elements represent the top row of the body.
 //! At time of writing only 0 and 1 are used to indicate if the given position is solid or not.
-//! The tetris stones and [`blob::Blob`] objects use 9x9 vectors. The target shape is a 12x10 vector.
+//! The tetris stones and [`super::field::blob::Blob`] objects use 9x9 vectors. The target shape is a 12x10 vector.
 
-use bevy::reflect::{FromReflect, Reflect};
+use bevy::{
+    prelude::IVec2,
+    reflect::{FromReflect, Reflect},
+};
 use rand::Rng;
+
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Reflect)]
+pub struct BodyDefinition {
+    pub block_positions: Vec<i32>,
+
+    pub size: (usize, usize),
+
+    pub pivot: (usize, usize),
+}
+
+impl BodyDefinition {
+    pub fn as_blob(positions: Vec<i32>) -> Self {
+        BodyDefinition {
+            block_positions: positions,
+            size: (9, 9),
+            pivot: (4, 4),
+        }
+    }
+
+    pub fn get_relative_positions(&self) -> Vec<IVec2> {
+        let mut reval = vec![];
+
+        for idx in 0..self.block_positions.len() {
+            let num = self.block_positions[idx];
+            if num == 0 {
+                continue;
+            }
+            //~
+
+            let x = (idx as i32 % self.size.0 as i32) - self.pivot.0 as i32;
+            let y = (idx as i32 / self.size.1 as i32) - self.pivot.1 as i32;
+
+            reval.push(IVec2 { x, y });
+        }
+
+        reval
+    }
+}
 
 /// Describes the 7 default tetris bricks
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]

@@ -2,7 +2,21 @@
 //! Most of its functionality and therefore the documentation relies in the [`::bevy_jam_2_disastris_lib`].
 
 use bevy::{prelude::*, window::WindowMode};
-use bevy_jam_2_disastris_lib::prelude::*;
+use bevy_jam_2_disastris_lib::{
+    field::{blob::move_blob_by_player, field_states_generation_system, tool::apply_cutter_tool},
+    prelude::{
+        field_selection_via_mouse_system, move_blobs_by_events_system,
+        move_events_by_gravity_system, spawn_hud, spawn_world, teleport_event_system,
+        tool_creation_via_mouse_system, tool_switch_via_mouse_wheel_system, toolbar_button_system,
+        toolbar_images_system, toolbar_inventory_system, toolbar_overlays_system,
+        win_condition_system, BlobMoveEvent, BlobTeleportEvent, Field, GameAssets, GameState,
+        InputMappingPlugin, Level, PlayerState,
+    },
+    render_old::{old_render_entities_system, show_block_with_debug_tag_system},
+    turn::{progress_turn_system, Turn},
+    view::{animate_rendered_blob_system, handle_view_update_system, register_animation_demo},
+    SECONDS_PER_ROUND,
+};
 use bevy_tweening::TweeningPlugin;
 
 #[cfg(feature = "debug")]
@@ -67,56 +81,56 @@ fn main() {
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
-                .with_system(progress_turn)
+                .with_system(progress_turn_system)
                 //                .with_system(contiously_spawn_tetris_at_end)
                 //.with_system(remove_field_lines)
-                .with_system(crate::view::animate_rendered_blob_system)
-                .with_system(crate::view::handle_view_update_system)
+                .with_system(animate_rendered_blob_system)
+                .with_system(handle_view_update_system)
                 .label(MySystems::EventHandling),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
                 .with_system(move_blob_by_player)
                 .with_system(toolbar_button_system)
-                .with_system(tool_switch_on_mouse_wheel)
+                .with_system(tool_switch_via_mouse_wheel_system)
                 .label(MySystems::Input)
                 .after(MySystems::EventHandling),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
-                .with_system(generate_field_states)
-                .with_system(generate_move_events_by_gravity)
+                .with_system(field_states_generation_system)
+                .with_system(move_events_by_gravity_system)
                 .label(MySystems::PreGameUpdates)
                 .after(MySystems::Input),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
-                .with_system(move_factory_blobs_by_events)
-                .with_system(mouse_for_field_selection)
+                .with_system(move_blobs_by_events_system)
+                .with_system(field_selection_via_mouse_system)
                 .label(MySystems::GameUpdates)
                 .after(MySystems::PreGameUpdates),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
-                .with_system(handle_teleport_event)
-                .with_system(generate_field_states)
-                .with_system(mouse_for_tool_creation)
+                .with_system(teleport_event_system)
+                .with_system(field_states_generation_system)
+                .with_system(tool_creation_via_mouse_system)
                 .with_system(apply_cutter_tool)
                 .label(MySystems::PostGameUpdates)
                 .after(MySystems::GameUpdates),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
-                .with_system(check_win)
-                .with_system(grid_update_render_entities::<Field>)
-                .with_system(update_toolbar_images)
-                .with_system(update_toolbar_inventory)
-                .with_system(update_toolbar_overlays)
-                .with_system(update_field_debug)
+                .with_system(win_condition_system)
+                .with_system(old_render_entities_system::<Field>)
+                .with_system(toolbar_images_system)
+                .with_system(toolbar_inventory_system)
+                .with_system(toolbar_overlays_system)
+                .with_system(show_block_with_debug_tag_system)
                 .label(MySystems::RenderUpdates)
                 .after(MySystems::PostGameUpdates),
         )
-        .add_system_set(SystemSet::on_exit(GameState::Ingame).with_system(clean_all));
+        .add_system_set(SystemSet::on_exit(GameState::Ingame).with_system(clean_all_system));
 
     // Add an ingame inspector window
     #[cfg(feature = "debug")]
@@ -136,7 +150,7 @@ fn main() {
         .register_type::<Interaction>();
 
     // Setup animation demo
-    crate::view::register_animation_demo(&mut app, GameState::AnimationTest);
+    register_animation_demo(&mut app, GameState::AnimationTest);
 
     app.run();
 }
@@ -168,7 +182,7 @@ fn setup(
     app_state.overwrite_set(GameState::Ingame).unwrap();
 }
 
-pub fn clean_all(mut commands: Commands, query: Query<Entity>) {
+pub fn clean_all_system(mut commands: Commands, query: Query<Entity>) {
     for e in query.iter() {
         commands.entity(e).despawn();
     }

@@ -1,9 +1,34 @@
+//! The field module represents the root element of the entity object tree which has thevia the [`Field`] struct.
+//!
+//! On the field the [`Target`] marks the shape that has to be filled by the player. Beside that [`Tool`]s and
+//! [`Blob`]s which consists of [`Block`]s may inhabit a field.
+
 use std::fmt::Debug;
 
-use bevy::{ecs::system::EntityCommands, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
+use bevy::{ecs::system::EntityCommands, log, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
 use itertools::Itertools;
 
-use crate::{game_assets::GameAssets, prelude::*};
+pub mod blob;
+pub mod target;
+pub mod tool;
+
+pub mod prelude {
+    pub use super::blob::Blob;
+    pub use super::blob::GridBody;
+
+    pub use super::target::Coordinate;
+    pub use super::target::Target;
+
+    pub use super::Block;
+    pub use super::Field;
+}
+use self::{prelude::*, tool::despawn_tool};
+use super::prelude::*;
+
+use crate::game_assets::GameAssets;
+
+//----------------------------------------------------------------------
+// Field Component, Tags and implementation
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, PartialEq, Clone)]
@@ -224,7 +249,7 @@ impl Default for Field {
     }
 }
 
-pub fn generate_field_states(
+pub fn field_states_generation_system(
     query_state: Query<(Entity, &mut Block)>,
     query_blob: Query<&Blob>,
     query_tool: Query<&Tool>,
@@ -266,4 +291,78 @@ pub fn spawn_field(
     adapter(&mut ec);
 
     id
+}
+
+//----------------------------------------------------------------------
+// Block component and implementation
+
+/// is used to mark that rect in a grid that shall be used as a pivot
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
+pub struct PivotTag {}
+
+/// is used to mark the 0,0 coordinate in grid based coordinate systems
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
+pub struct OriginTag {}
+
+/// Reperesents a block that occupies a coordinate in the field
+///
+/// In a parent/child tree of entities the block entity marks a leaf node. It
+/// can either be part of:
+///
+/// * A [`self::Blob`] that is a collection of blocks that form shapes like the tetris stones
+/// * A [`self::Tool`] that is spawned on the filed and mutates the behavior of [`self::Blob`]s that touch it.
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
+pub struct Block {
+    /// the position of the block in the coordinate system of the field
+    pub position: IVec2,
+
+    /// the relative position of the block in respect to the parent grid body (if parent is [`self::Blob`])
+    pub relative_position: Option<IVec2>,
+
+    /// the group management entity of this block, (e.g. [`self::Blob`] or [`self::Tool`]), if any
+    #[cfg_attr(feature = "debug", inspectable(ignore))]
+    pub group: Option<Entity>,
+
+    /// Reference to the parent field of this block
+    pub field: Entity,
+}
+
+impl Block {
+    pub fn spawn_blocks_of_blob(
+        commands: &mut Commands,
+        body_def: &BodyDefinition,
+        pivot: IVec2,
+        group_id: Entity,
+        field: Entity,
+        handle_zero_position: bool,
+    ) -> Vec<Entity> {
+        let mut reval = vec![];
+        for v in body_def.get_relative_positions() {
+            if v == IVec2::ZERO && !handle_zero_position {
+                continue;
+            }
+            //~
+
+            let mut ec = commands.spawn_empty();
+            if v == IVec2::ZERO {
+                ec.insert(PivotTag {});
+            }
+            let id = ec
+                .insert(Block {
+                    position: pivot + v,
+                    group: Some(group_id),
+                    relative_position: Some(v),
+                    field,
+                })
+                .insert(Name::new(format!("Block {},{}", v.x, v.y)))
+                .id();
+
+            log::info!("Spawn block {:?} at {v} with field {:?}", id, field);
+            reval.push(id);
+        }
+        reval
+    }
 }
