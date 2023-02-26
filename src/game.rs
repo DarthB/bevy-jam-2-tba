@@ -27,7 +27,7 @@ pub fn spawn_world(
     mut player_state: ResMut<PlayerState>,
     mut evt: EventWriter<ViewUpdate>,
 ) {
-    player_state.applicable_tools = level.applicable_tools.clone();
+    player_state.set_inventory(level.applicable_tools.clone());
 
     let factory_field_struct = Field::as_factory(&assets);
     let root_factory_field = Vec3::new(-200.0, -70.0, 0.0);

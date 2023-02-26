@@ -1,28 +1,37 @@
 use crate::prelude::*;
 use bevy::{log, prelude::*};
 
+/// is used to mark that rect in a grid that shall be used as a pivot
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct PivotTag {}
 
+/// is used to mark the 0,0 coordinate in grid based coordinate systems
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct OriginTag {}
 
+/// Reperesents a block that occupies a coordinate in the field
+///
+/// In a parent/child tree of entities the block entity marks a leaf node. It
+/// can either be part of:
+///
+/// * A [`Blob`] that is a collection of blocks that form shapes like the tetris stones
+/// * A [`Tool`] that is spawned on the filed and mutates the behavior of [`Blob`]s that touch it.
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
 pub struct Block {
     /// the position of the block in the coordinate system of the field
     pub position: IVec2,
 
-    /// the relative position of the block from the parent grid body
+    /// the relative position of the block in respect to the parent grid body (if parent is [`Blob`])
     pub relative_position: Option<IVec2>,
 
-    /// the group management entity of this block, if any, ignore in inspector, due to cycle
+    /// the group management entity of this block, (e.g. [`Blob`] or [`Tool`]), if any
     #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub group: Option<Entity>,
 
-    /// the parent field of this block
+    /// Reference to the parent field of this block
     pub field: Entity,
 }
 

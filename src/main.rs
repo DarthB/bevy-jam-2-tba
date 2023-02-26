@@ -1,3 +1,6 @@
+//! This crate defines the Disastris binaries. Disastris is a contribution to bevy-jam-2.
+//! Most of its functionality and therefore the documentation relies in the [`::bevy_jam_2_disastris_lib`].
+
 use bevy::{prelude::*, window::WindowMode};
 use bevy_jam_2_disastris_lib::prelude::*;
 use bevy_tweening::TweeningPlugin;
@@ -16,6 +19,7 @@ use {
     bevy_jam_2_disastris_lib::target::{Coordinate, Target},
 };
 
+/// An enumeration of different Systems that are ordered
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SystemLabel)]
 enum MySystems {
     EventHandling,
@@ -26,6 +30,7 @@ enum MySystems {
     RenderUpdates,
 }
 
+/// Setups a bevy app object and adds the default plugins, systems and events
 fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -136,6 +141,7 @@ fn main() {
     app.run();
 }
 
+/// setups global information like the asset structure and the current level
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,

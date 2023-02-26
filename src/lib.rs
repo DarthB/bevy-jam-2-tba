@@ -1,3 +1,19 @@
+//! Disastris is a game for bevy-jam-2. Here a short overview of the organization of the source code with some
+//! ideas for a refactoring is given
+//!
+//! # Refactoring of modules
+//! @todo Overwork the modules
+//!
+//! * [ ] The modules [`blob`], [`block`], [`tool`] and [`target`], are used to describe entites that are on the field  
+//! Suggestion: Merge them in the module [`field`] but allow qualification without sub module name
+//! * [ ]Also move [`field_element`] into the [`field`] module and clarify that it is Cache of the current field
+//! * [ ] The modules [`bodies`], [`level`] and [`game_assets`] contain data that is serializable, e.g. levels that may
+//! be stored on the hard drive or bodies that describe different shapes, e.g for tetris stones.
+//! Suggestion: Add a *data* module and summarize the elements there.
+//! * [ ] The modules [`player_state`] and [`turn`] contain elements of the game state.
+//! Suggestion: Move them into a module *state* and also move [`game::GameState`] there.
+//!
+
 use rand::Rng;
 
 pub mod blob;

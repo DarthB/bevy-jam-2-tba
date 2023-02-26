@@ -1,3 +1,7 @@
+//! Contains all the HUD (human user display) related components. The spawn_* methods are used to initialize
+//! the HUD. The update_* methods keep the HUD visuals in-sync with the player state. To identify what has to be
+//! done when the HUD is clicked the UITag* components are used.
+
 use bevy::{ecs::system::EntityCommands, prelude::*, ui::FocusPolicy};
 use player_state::{MoveDirection, PlayerState, RotateDirection, Tool};
 
@@ -142,7 +146,7 @@ pub fn update_toolbar_inventory(
     player_state: Res<PlayerState>,
 ) {
     for (mut text, tag) in query_text.iter_mut() {
-        if let Some(inv_num) = player_state.applicable_tools.get(&tag.tool_status) {
+        if let Some(inv_num) = player_state.num_in_inventory(tag.tool_status) {
             text.sections[0].value = inv_num.to_string();
         }
     }
@@ -164,7 +168,10 @@ pub fn update_toolbar_overlays(
             }
         }
 
-        let num_inv = player_state.num_in_inventory(tag.tool_status);
+        // we use the number of tools in the player inventory but for simulation/reset/etc we use usize::MAX
+        let num_inv = player_state
+            .num_in_inventory(tag.tool_status)
+            .unwrap_or(usize::MAX);
 
         // Select the overlay color
         let color: BackgroundColor = if let Some(selected_tool) = player_state.selected_tool {

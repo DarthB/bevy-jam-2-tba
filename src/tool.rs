@@ -52,11 +52,11 @@ pub fn apply_cutter_tool(
                 if blocks_of_blob.len() == tool_positions.len() {
                     // apply the cutout on the blob body
                     body.cutout(
+                        &blocks_of_blob,
+                        tool_body.pivot,
                         &mut commands,
                         &mut ev_view,
-                        &blocks_of_blob,
                         &mut block_query,
-                        tool_body.pivot,
                     );
                 }
             }

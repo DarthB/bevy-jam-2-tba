@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+/// Enumeration that differentiates between the kinds of field elements
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
 pub enum FieldElementKind {
     /// the area is empty
@@ -12,7 +13,7 @@ pub enum FieldElementKind {
     /// the area is complety outside the valid region,
     OutOfValidRegion,
 
-    /// the area is blocked the parent blob of the block entities may be given here
+    /// the area is blocked by a block and the parent blob of the block entity may be given here
     Block(Option<Entity>),
 
     /// the area is occupied by a tool, if that is true it may be at the same time occupied by a block
@@ -22,6 +23,7 @@ pub enum FieldElementKind {
 /// a element that descirbes a coordinate in the FieldState
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
 pub struct FieldElement {
+    /// flag indicating if that field element is a target for the level
     pub is_target: bool,
 
     /// "most" relating entity, if a tool and a blob occupy the space this contains the tool

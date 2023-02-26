@@ -3,6 +3,9 @@ use leafwing_input_manager::prelude::*;
 
 use crate::prelude::*;
 
+/// A component that represents a body on the grid. It supports rotation along it pivot
+/// and provides a cutout function that can be used to cutout a [`Blob`] from anther [`Blob`].
+/// Beside the definition of [`Blob`] it also gives [`Tool`] a shape on the [`Field`]
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct GridBody {
@@ -69,6 +72,7 @@ impl BodyDefinition {
 }
 
 impl GridBody {
+    /// Generates a new GridBody at the specified position
     pub fn new(position: IVec2) -> Self {
         GridBody {
             pivot: position,
@@ -77,20 +81,29 @@ impl GridBody {
         }
     }
 
+    /// Performs a Cutout operations by forming a second blob from the given entities.
+    ///
+    /// # Arguments
+    /// * `cutout_blocks` - A vector containing all the entity-ids of the [`Block`]s that form the second blob via cutout
+    /// * `new_pivot` - The field space coordinate of pivot of the second blob.
+    ///
+    /// The remaining arguments are bevy internals to send spawn, send events and query for individual [`Block`] components
     pub fn cutout(
         &mut self,
+        cutout_blocks: &Vec<Entity>,
+        new_pivot: IVec2,
         commands: &mut Commands,
         ev_view: &mut EventWriter<ViewUpdate>,
-        entities: &Vec<Entity>,
         block_query: &mut Query<&mut Block>,
-        new_pivot: IVec2,
     ) {
+        // todo: what happens when entities argument contains ids that are not part of self.blocks?
+
         // remove blocks from self and spawn new blob
-        self.blocks.retain(|el| !entities.contains(el));
-        let new_blob_id = spawn_blob_from_cutout(commands, new_pivot, entities);
+        self.blocks.retain(|el| !cutout_blocks.contains(el));
+        let new_blob_id = spawn_blob_from_cutout(commands, new_pivot, cutout_blocks);
 
         // calculate new relative position for blocks
-        for block_id in entities {
+        for block_id in cutout_blocks {
             if let Ok(mut block) = block_query.get_mut(*block_id) {
                 block.group = Some(new_blob_id);
                 block.relative_position = Some(block.position - new_pivot);
@@ -101,6 +114,7 @@ impl GridBody {
         ev_view.send(ViewUpdate::BlobCutout(new_blob_id));
     }
 
+    /// the size is 9x9 fields - we decided for that magic number in one of the early meetings
     pub fn size() -> usize {
         9
     }
@@ -109,6 +123,7 @@ impl GridBody {
         coords_to_idx(r, c, GridBody::size())
     }
 
+    /// Rotates the blob left (counter-clock wise)
     pub fn rotate_left<'a>(
         &mut self,
         block_iter: &mut impl Iterator<Item = Mut<'a, Block>>,

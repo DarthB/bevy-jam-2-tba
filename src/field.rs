@@ -101,6 +101,8 @@ impl Field {
 
                 if x < 0 || y < 0 || x >= self.mov_size().0 as i32 || y >= self.mov_size().1 as i32
                 {
+                    // elements that are out of the actual playing field and are used for visual overlaps
+                    // over the playfield border
                     self.field_state.set_element(
                         pos,
                         FieldElement {
@@ -111,6 +113,7 @@ impl Field {
                         },
                     );
                 } else {
+                    // elements that are part of the actual playing field
                     let is_target = target.occupied_coordinates().contains(&(x, y));
                     if is_target {
                         self.field_state.set_element(

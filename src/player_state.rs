@@ -3,6 +3,7 @@ use bevy::{prelude::*, utils::HashMap};
 
 use std::fmt::Display;
 
+// The direction for movement of an element in respect to a field
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, FromReflect)]
 pub enum MoveDirection {
@@ -89,16 +90,24 @@ impl RotateDirection {
     }
 }
 
+/// An enumeration that describes the different tools/commands that can be used in the game.
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, Component)]
 pub enum Tool {
+    /// A move tool that also stores in which direction it moves its subject
     Move(MoveDirection),
+    /// A rotation tool that also stores the rotation direction for its subject
     Rotate(RotateDirection),
+    /// A cutter tool can be one of the 7 tetris bricks
     Cutter(TetrisBricks),
+    /// The simulate command is the default tool
     #[default]
     Simulate,
+    /// The reset command stops a simulation but does not change the state of the field
     Reset,
+    /// The eraser tool can be used to erase tools that are placed on the field
     Eraser,
+    /// The erase All tool cleans up the field, such that everything can be build from scratch
     EraseAll,
 }
 
@@ -175,14 +184,19 @@ impl Display for Tool {
     }
 }
 
+/// Contains the current state of the player, e.g. its selected tool and a tool inventory
 #[derive(Debug, Clone, Default, PartialEq, Eq, Component, Resource)]
 pub struct PlayerState {
+    /// the currently selected tool
     pub selected_tool: Option<Tool>,
 
-    pub applicable_tools: HashMap<Tool, usize>,
+    /// the number of applicable tools, i.e. the inventory of tools
+    applicable_tools: HashMap<Tool, usize>,
 
+    /// A coordinate that stores where a tool shall be placed. Not yet used.
     pub tool_placement_coordinate: Option<IVec2>,
 
+    /// A flag indicating of the player has won the level
     pub won: bool,
 }
 
@@ -198,15 +212,15 @@ impl PlayerState {
         }
     }
 
-    pub fn num_in_inventory(&self, tool: Tool) -> usize {
+    pub fn set_inventory(&mut self, new_inventory: HashMap<Tool, usize>) {
+        self.applicable_tools = new_inventory;
+    }
+
+    ///
+    pub fn num_in_inventory(&self, tool: Tool) -> Option<usize> {
         // ensure default variants are used
         let tool = tool.as_default_variant();
-
-        if let Some(num) = self.applicable_tools.get(&tool) {
-            *num
-        } else {
-            usize::MAX
-        }
+        self.applicable_tools.get(&tool).copied()
     }
 
     pub fn add_to_inventory(&mut self, tool: Tool, change: i32) -> bool {

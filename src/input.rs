@@ -197,7 +197,9 @@ pub fn mouse_for_tool_creation(
                         | FieldElementKind::Block(_)
                 );
 
-                if valid_place && placeable_tool_selected && player_state.num_in_inventory(tool) > 0
+                if valid_place
+                    && placeable_tool_selected
+                    && player_state.num_in_inventory(tool).unwrap_or(0) > 0
                 {
                     player_state.add_to_inventory(tool, -1);
 
