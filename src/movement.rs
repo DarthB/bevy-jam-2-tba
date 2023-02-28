@@ -1,16 +1,9 @@
-use crate::{
-    field::{FactoryFieldTag, ProductionFieldTag},
-    prelude::*,
-};
+use crate::prelude::*;
 use bevy::{log, prelude::*};
 
 pub struct BlobMoveEvent {
     delta: IVec2,
 
-    entity: Entity,
-}
-
-pub struct BlobTeleportEvent {
     entity: Entity,
 }
 
@@ -44,9 +37,8 @@ pub fn move_events_by_gravity_system(
 
 pub fn move_blobs_by_events_system(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut Blob, &mut GridBody)>,
-    query_tool: Query<&Tool, Without<Blob>>,
-    field_query: Query<(Entity, &Field), With<FactoryFieldTag>>,
+    mut query: Query<(Entity, &Blob, &mut GridBody)>,
+    field_query: Query<(Entity, &Field)>,
     mut block_query: Query<(Entity, &mut Block)>,
     mut ev_move: EventReader<BlobMoveEvent>,
     mut ev_view: EventWriter<ViewUpdate>,
@@ -54,7 +46,7 @@ pub fn move_blobs_by_events_system(
     let (_field_id, field) = field_query.single();
 
     for ev in ev_move.iter() {
-        if let Ok((blob_id, mut blob, mut body)) = query.get_mut(ev.entity) {
+        if let Ok((blob_id, blob, mut body)) = query.get_mut(ev.entity) {
             if blob.active && !body.transferred {
                 log::info!("Move Factory!");
 
@@ -82,21 +74,19 @@ pub fn move_blobs_by_events_system(
                         | FieldElementKind::Tool(_) => false,
                         FieldElementKind::Block(id) if id.is_some() => false,
                         _ => true,
-                    });
+                    }) || blob.cutout;
+
+                // hack: we don't want the cutout blobs to interfer with the playfield therefore we move them away
+                let delta = if blob.cutout {
+                    IVec2::new(-2, 3 * ev.delta.y)
+                } else {
+                    ev.delta
+                };
 
                 // depending on the state at the target position of the grid decide how the movement happens
                 // here we just check for the pivot position
-                if do_move {
-                    do_move = handle_move(
-                        &mut body,
-                        ev.delta,
-                        field,
-                        &query_tool,
-                        &mut blob,
-                        &mut block_query,
-                        &mut ev_view,
-                        blob_id,
-                    );
+                if !blob.cutout || do_move {
+                    do_move = handle_move(&mut body, delta, field, &mut block_query);
                 }
 
                 // if flag do_move is set perform the actual move
@@ -104,7 +94,7 @@ pub fn move_blobs_by_events_system(
                     .iter_mut()
                     .filter(|(_, block)| block.group == Some(blob_id));
                 if do_move {
-                    move_blob(blob_id, &mut body, ev.delta, block_iter, Some(&mut ev_view));
+                    move_blob(blob_id, &mut body, delta, block_iter, Some(&mut ev_view));
                 } else {
                     log::info!("Full Stop and occupy");
                     dissolve_blob(&mut commands, blob_id, block_iter, Some(&mut ev_view));
@@ -114,60 +104,46 @@ pub fn move_blobs_by_events_system(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn handle_move(
     body: &mut GridBody,
     delta: IVec2,
     field: &Field,
-    query_tool: &Query<&Tool, Without<Blob>>,
-    mut blob: &mut Blob,
     block_query: &mut Query<(Entity, &mut Block)>,
-    ev_view: &mut EventWriter<ViewUpdate>,
-    blob_id: Entity,
 ) -> bool {
     let mut do_move = false;
-    let tv = body.pivot + delta;
-    let state = field.get_field_state();
-    if let Some(element) = state.get_element(tv) {
-        match element.kind {
-            FieldElementKind::Block(by_id) => {
-                do_move = by_id.is_some(); // blobs are allowed to move over each other!
-            }
-            FieldElementKind::Empty => {
-                do_move = true;
-            }
-            FieldElementKind::OutOfMovableRegion => {
-                // only react on outside of x movable region
-                do_move = !(tv.x < 0 || tv.x >= field.mov_size().0 as i32);
-            }
-            FieldElementKind::Tool(tool_entity) => {
-                let tool = query_tool.get(tool_entity).unwrap();
-                do_move = true;
 
-                match *tool {
-                    Tool::Move(d) => {
-                        blob.movement = d.into();
-                    }
-                    Tool::Rotate(d) => {
-                        log::info!("Rotation tool at {},{}", tv.x, tv.y);
-                        let mut block_iter = block_query.iter_mut().map(|(_, block)| block);
-                        match d {
-                            RotateDirection::Left => {
-                                body.rotate_left(&mut block_iter, ev_view, blob_id)
-                            }
-                            RotateDirection::Right => {
-                                body.rotate_right(&mut block_iter, ev_view, blob_id)
-                            }
-                        }
-                    }
-                    _ => {}
+    let state = field.get_field_state();
+    let rel_pos = body.get_relative_positions(block_query);
+    let do_move = rel_pos.iter().all(|pos| {
+        let ap = *pos + body.pivot + delta;
+
+        if let Some(element) = state.get_element(ap) {
+            match element.kind {
+                FieldElementKind::Block(by_id) => {
+                    do_move = by_id.is_some(); // blobs are allowed to move over each other!
+                }
+                FieldElementKind::Empty => {
+                    do_move = true;
+                }
+                FieldElementKind::OutOfMovableRegion => {
+                    // only react on outside of x movable region
+                    log::info!("{} < {}?", ap.y, field.movable_size.1);
+                    do_move = ap.y < field.movable_size.1 as i32;
+                }
+                FieldElementKind::Tool(_) => {
+                    do_move = true;
+                }
+                _ => {
+                    bevy::log::warn!("Do nothing with target: {} but stuck", ap);
                 }
             }
-            _ => {
-                bevy::log::warn!("Do nothing with target: {tv} but stuck");
-            }
+        } else {
+            // we allow to leave the field on the top
+            do_move = ap.y < 0;
         }
-    }
+
+        do_move
+    });
 
     do_move
 }
@@ -207,79 +183,5 @@ pub fn move_blob<'a>(
     // send event to renderer if event writer is present
     if let Some(ev_view) = ev_view {
         ev_view.send(ViewUpdate::BlobMoved(blob_id));
-    }
-}
-
-pub fn teleport_blob<'a>(
-    blob_id: Entity,
-    body: &mut GridBody,
-    field: Entity,
-    block_iter: impl Iterator<Item = (Entity, Mut<'a, Block>)>,
-    ev_view: Option<&mut EventWriter<ViewUpdate>>,
-) {
-    // set the transferred flags for the renderer
-    body.transferred = true;
-
-    // update the field reference in blocks
-    for (_id, mut block) in block_iter {
-        if let Some(blob_of_block) = block.group {
-            if blob_of_block == blob_id {
-                block.field = field;
-            }
-        }
-    }
-
-    // send the event that informs the renderer if event writer is given
-    if let Some(ev_view) = ev_view {
-        ev_view.send(ViewUpdate::BlobTransferred(blob_id));
-    }
-}
-
-pub fn teleport_event_system(
-    query_prod: Query<Entity, With<ProductionFieldTag>>,
-    mut query_blob: Query<(Entity, &mut GridBody)>,
-    mut query_block: Query<(Entity, &mut Block)>,
-    mut ev: EventReader<BlobTeleportEvent>,
-    mut ev_view: EventWriter<ViewUpdate>,
-) {
-    for ev in ev.iter() {
-        if let Ok((blob_id, body)) = &mut query_blob.get_mut(ev.entity) {
-            if body.transferred {
-                log::warn!(
-                    "Blob {:?} is already transfered, aborting teleport event.",
-                    blob_id
-                );
-                continue;
-            }
-            //~
-
-            // collect data
-            let prod_field = query_prod.single();
-            let target = IVec2::new(body.pivot.x, -3);
-            let delta = target - body.pivot;
-
-            // update the grid coordinates
-            {
-                let block_iter_move = query_block
-                    .iter_mut()
-                    .filter(|(_, block)| block.group == Some(*blob_id));
-
-                move_blob(*blob_id, body, delta, block_iter_move, None);
-            }
-
-            // set the correct transfer flags
-            let block_iter_teleport = query_block
-                .iter_mut()
-                .filter(|(_, block)| block.group == Some(*blob_id));
-            teleport_blob(
-                *blob_id,
-                body,
-                prod_field,
-                block_iter_teleport,
-                Some(&mut ev_view),
-            );
-
-            log::info!("Blob teleported!");
-        }
     }
 }

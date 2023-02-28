@@ -1,7 +1,5 @@
 use bevy::{ecs::system::EntityCommands, prelude::*};
 
-use crate::prelude::*;
-
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct Target {
@@ -69,13 +67,6 @@ impl Target {
         }
         reval
     }
-}
-
-pub fn coords_to_px(x: i32, y: i32, rs: usize, cs: usize) -> (f32, f32) {
-    (
-        ((cs as f32 / -2.0) + x as f32) * PX_PER_TILE + PX_PER_TILE / 2.0,
-        ((rs as f32 / 2.0) - y as f32) * PX_PER_TILE - PX_PER_TILE / 2.0,
-    )
 }
 
 pub fn spawn_target(

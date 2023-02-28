@@ -493,6 +493,7 @@ fn spawn_demo_blob(commands: &mut Commands) -> Entity {
         .insert(Blob {
             movement: IVec2::ZERO, //IVec2::new(-1, 4),
             active: true,
+            cutout: false,
         })
         .insert(Name::new("Test Blob"))
         .id()
@@ -676,6 +677,7 @@ fn cutout_triangle_from_blob(
             .insert(Blob {
                 movement: IVec2::ZERO,
                 active: true,
+                cutout: true,
             })
             .id();
         Some(newblob)

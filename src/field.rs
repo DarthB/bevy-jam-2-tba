@@ -5,7 +5,7 @@
 
 use std::fmt::Debug;
 
-use bevy::{ecs::system::EntityCommands, log, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
+use bevy::{log, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
 use itertools::Itertools;
 
 pub mod blob;
@@ -49,14 +49,6 @@ pub struct Field {
     #[cfg_attr(feature = "debug", inspectable(ignore))]
     field_state: FieldState,
 }
-
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
-pub struct FactoryFieldTag {}
-
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
-pub struct ProductionFieldTag {}
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
@@ -271,7 +263,6 @@ pub fn spawn_field(
     field: Field,
     name: &str,
     trans: Vec3,
-    adapter: &dyn Fn(&mut EntityCommands),
 ) -> Entity {
     let mut ec = commands.spawn(SpatialBundle {
         transform: Transform {
@@ -288,7 +279,6 @@ pub fn spawn_field(
     })
     .insert(Name::new(name.to_string()))
     .insert(field);
-    adapter(&mut ec);
 
     id
 }

@@ -58,7 +58,7 @@ pub trait RenderableGrid {
 
     fn spawn_render_entities(&self, _id: Entity, cb: &mut ChildBuilder, assets: &GameAssets) {
         #[cfg(feature = "debug")]
-        cb.spawn_bundle(SpriteBundle {
+        cb.spawn(SpriteBundle {
             sprite: Sprite {
                 color: Color::BLACK,
                 custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),
@@ -142,7 +142,7 @@ pub trait RenderableGrid {
 
         #[cfg(feature = "debug")]
         if self.spawn_additional_debug() {
-            cb.spawn_bundle(SpatialBundle::default())
+            cb.spawn(SpatialBundle::default())
                 .with_children(|cb| {
                     let b = self.bounds();
                     for x in b.0.x..b.1.x {
@@ -152,7 +152,7 @@ pub trait RenderableGrid {
                             }
 
                             let (px, py) = self.coords_to_px(x as i32, y as i32);
-                            cb.spawn_bundle(SpriteBundle {
+                            cb.spawn(SpriteBundle {
                                 sprite: Sprite {
                                     color: Color::WHITE,
                                     custom_size: Some(Vec2::ONE * PX_PER_TILE / 4.0),

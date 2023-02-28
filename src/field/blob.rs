@@ -42,6 +42,20 @@ impl GridBody {
         }
     }
 
+    pub fn get_relative_positions(
+        &self,
+        block_query: &mut Query<(Entity, &mut Block)>,
+    ) -> Vec<IVec2> {
+        let mut reval = Vec::with_capacity(self.blocks.len());
+        // calculate new relative position for blocks
+        for block_id in &self.blocks {
+            if let Ok(block) = block_query.get(*block_id) {
+                reval.push(block.1.relative_position.unwrap());
+            }
+        }
+        reval
+    }
+
     /// Performs a Cutout operations by forming a second blob from the given entities.
     ///
     /// # Arguments
@@ -137,13 +151,25 @@ pub struct Blob {
 
     /// information if the blob is active (receives movement updates, or not) (for pause after cutting)
     pub active: bool,
+
+    /// a cutout blob is not part of the game anymore but only visual, we do want to get rid of it
+    pub cutout: bool,
 }
 
 impl Blob {
-    pub fn new() -> Self {
+    pub fn new_main() -> Self {
         Blob {
             movement: IVec2::new(0, 1),
             active: true,
+            cutout: false,
+        }
+    }
+
+    pub fn new_cutout() -> Self {
+        Blob {
+            movement: IVec2::new(0, 1),
+            active: true,
+            cutout: true,
         }
     }
 }
@@ -160,7 +186,7 @@ pub fn spawn_blob_from_cutout(
             blocks: blocks.to_owned(),
             transferred: false,
         })
-        .insert(Blob::new())
+        .insert(Blob::new_cutout())
         .insert(Name::new("Cutout-Blob"))
         .id()
 }
@@ -189,7 +215,7 @@ pub fn spawn_blob_from_body_definition(
 
     // use commands to adapt the blob entity
     let mut ec = commands.entity(blob_id);
-    ec.insert(Blob::new())
+    ec.insert(Blob::new_main())
         .insert(grid_body)
         .insert(Name::new(name.to_string()));
     adapter(&mut ec);

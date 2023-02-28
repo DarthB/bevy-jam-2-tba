@@ -3,14 +3,17 @@
 
 use bevy::{prelude::*, window::WindowMode};
 use bevy_jam_2_disastris_lib::{
-    field::{blob::move_blob_by_player, field_states_generation_system, tool::apply_cutter_tool},
+    field::{
+        blob::move_blob_by_player,
+        field_states_generation_system,
+        tool::{apply_cutter_tool, apply_movement_tools},
+    },
     prelude::{
-        field_selection_via_mouse_system, move_blobs_by_events_system,
-        move_events_by_gravity_system, spawn_hud, spawn_world, teleport_event_system,
-        tool_creation_via_mouse_system, tool_switch_via_mouse_wheel_system, toolbar_button_system,
-        toolbar_images_system, toolbar_inventory_system, toolbar_overlays_system,
-        win_condition_system, BlobMoveEvent, BlobTeleportEvent, Field, GameAssets, GameState,
-        InputMappingPlugin, Level, PlayerState,
+        grid_coordinate_via_mouse_system, move_blobs_by_events_system,
+        move_events_by_gravity_system, spawn_hud, spawn_world, tool_creation_via_mouse_system,
+        tool_switch_via_mouse_wheel_system, toolbar_button_system, toolbar_images_system,
+        toolbar_inventory_system, toolbar_overlays_system, win_condition_system, BlobMoveEvent,
+        Field, GameAssets, GameState, InputMappingPlugin, Level, PlayerState,
     },
     render_old::{old_render_entities_system, show_block_with_debug_tag_system},
     turn::{progress_turn_system, Turn},
@@ -26,11 +29,8 @@ use {
         //        InspectorPlugin,
         WorldInspectorPlugin,
     },
-    bevy_jam_2_disastris_lib::blob::Blob,
-    bevy_jam_2_disastris_lib::block::Block,
-    bevy_jam_2_disastris_lib::field::Field,
+    bevy_jam_2_disastris_lib::field::{blob::Blob, target::Coordinate, target::Target, Block},
     bevy_jam_2_disastris_lib::hud::{UITagHover, UITagImage, UITagInventory},
-    bevy_jam_2_disastris_lib::target::{Coordinate, Target},
 };
 
 /// An enumeration of different Systems that are ordered
@@ -65,8 +65,7 @@ fn main() {
     .add_plugin(InputMappingPlugin)
     .add_plugin(TweeningPlugin);
 
-    app.add_event::<BlobMoveEvent>()
-        .add_event::<BlobTeleportEvent>();
+    app.add_event::<BlobMoveEvent>();
 
     // Setup the game loop
     app.add_state(GameState::Starting)
@@ -82,10 +81,11 @@ fn main() {
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
                 .with_system(progress_turn_system)
-                //                .with_system(contiously_spawn_tetris_at_end)
+                //.with_system(contiously_spawn_tetris_at_end)
                 //.with_system(remove_field_lines)
                 .with_system(animate_rendered_blob_system)
                 .with_system(handle_view_update_system)
+                .with_system(field_states_generation_system)
                 .label(MySystems::EventHandling),
         )
         .add_system_set(
@@ -93,29 +93,28 @@ fn main() {
                 .with_system(move_blob_by_player)
                 .with_system(toolbar_button_system)
                 .with_system(tool_switch_via_mouse_wheel_system)
+                .with_system(grid_coordinate_via_mouse_system)
                 .label(MySystems::Input)
                 .after(MySystems::EventHandling),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
-                .with_system(field_states_generation_system)
-                .with_system(move_events_by_gravity_system)
+                .with_system(apply_movement_tools)
+                .with_system(apply_cutter_tool)
                 .label(MySystems::PreGameUpdates)
                 .after(MySystems::Input),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
-                .with_system(move_blobs_by_events_system)
-                .with_system(field_selection_via_mouse_system)
+                .with_system(move_events_by_gravity_system)
+                .with_system(field_states_generation_system)
                 .label(MySystems::GameUpdates)
                 .after(MySystems::PreGameUpdates),
         )
         .add_system_set(
             SystemSet::on_update(GameState::Ingame)
-                .with_system(teleport_event_system)
-                .with_system(field_states_generation_system)
+                .with_system(move_blobs_by_events_system)
                 .with_system(tool_creation_via_mouse_system)
-                .with_system(apply_cutter_tool)
                 .label(MySystems::PostGameUpdates)
                 .after(MySystems::GameUpdates),
         )
@@ -138,12 +137,8 @@ fn main() {
         .register_inspectable::<Coordinate>()
         .register_inspectable::<Blob>()
         .register_inspectable::<Block>()
-        .register_inspectable::<Coordinate>()
         .register_inspectable::<Target>()
         .register_inspectable::<Field>()
-        .register_inspectable::<FactoryFieldTag>()
-        .register_inspectable::<ProductionFieldTag>()
-        .register_inspectable::<FieldRenderTag>()
         .register_inspectable::<UITagImage>()
         .register_inspectable::<UITagHover>()
         .register_inspectable::<UITagInventory>()

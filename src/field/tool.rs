@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{log, prelude::*};
 
 use super::{bodies::BodyDefinition, prelude::*, Field};
 
@@ -30,6 +30,7 @@ pub fn apply_cutter_tool(
     if !turn.is_new_turn() {
         return;
     }
+    //~
 
     if let Ok((mut _blob, mut body)) = blob_query.get_single_mut() {
         for (tool, tool_body) in tool_query.iter() {
@@ -65,6 +66,53 @@ pub fn apply_cutter_tool(
             }
         }
     }
+}
+
+pub fn apply_movement_tools(
+    field_query: Query<&Field>,
+    query_tool: Query<&Tool, Without<Blob>>,
+    mut query: Query<(Entity, &mut Blob, &mut GridBody)>,
+    mut block_query: Query<(Entity, &mut Block)>,
+    mut ev_view: EventWriter<ViewUpdate>,
+    turn: Res<Turn>,
+) {
+    if !turn.is_new_turn() {
+        return;
+    }
+    //~
+
+    let field = field_query.single();
+    let state = field.get_field_state();
+
+    // apply tool if a tool is applied over the pivot
+    query
+        .iter_mut()
+        .filter(|e| !e.1.cutout && e.1.active)
+        .for_each(|(blob_id, mut blob, mut body)| {
+            if let Some(element) = state.get_element(body.pivot) {
+                if let FieldElementKind::Tool(tool_entity) = element.kind {
+                    let tool = query_tool.get(tool_entity).unwrap();
+                    match *tool {
+                        Tool::Move(d) => {
+                            blob.movement = d.into();
+                        }
+                        Tool::Rotate(d) => {
+                            log::info!("Rotation tool at {},{}", body.pivot.x, body.pivot.y);
+                            let mut block_iter = block_query.iter_mut().map(|(_, block)| block);
+                            match d {
+                                RotateDirection::Left => {
+                                    body.rotate_left(&mut block_iter, &mut ev_view, blob_id)
+                                }
+                                RotateDirection::Right => {
+                                    body.rotate_right(&mut block_iter, &mut ev_view, blob_id)
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        });
 }
 
 /// spawns a tool into the world such that it can affect Blobs on the factory field

@@ -1,7 +1,7 @@
 use crate::{
     field::{
         tool::{despawn_tool, spawn_tool},
-        FactoryFieldTag, FieldRenderTag,
+        FieldRenderTag,
     },
     prelude::*,
 };
@@ -135,7 +135,7 @@ pub fn tool_switch_via_mouse_wheel_system(
     }
 }
 
-pub fn field_selection_via_mouse_system(
+pub fn grid_coordinate_via_mouse_system(
     windows: Res<Windows>,
     mut cursor_moved_events: EventReader<CursorMoved>,
     // @todo remove sprites asap rendering is working
@@ -177,7 +177,7 @@ pub fn field_selection_via_mouse_system(
 
 pub fn tool_creation_via_mouse_system(
     mut commands: Commands,
-    mut field_query: Query<(Entity, &mut Field), With<FactoryFieldTag>>,
+    mut field_query: Query<(Entity, &mut Field)>,
     query_on_tool_clicked: Query<&Tool>,
     query_body: Query<&GridBody>,
     mouse_button_input: Res<Input<MouseButton>>,

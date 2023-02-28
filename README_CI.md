@@ -4,8 +4,8 @@ This repo show how to setup CI on a github project for Bevy.
 
 It creates two workflows:
 
-* [CI](#CI)
-* [Release](#Release)
+- [CI](#CI)
+- [Release](#Release)
 
 ## CI
 
@@ -15,9 +15,10 @@ This workflow runs on every commit to `main` branch, and on every PR targetting 
 
 It will use rust stable on linux, with cache between different executions, those commands:
 
-* `cargo test`
-* `cargo clippy -- -D warnings`
-* `cargo fmt --all -- --check`
+- `cargo build --features=debug`
+- `cargo test`
+- `cargo clippy -- -D warnings`
+- `cargo fmt --all -- --check`
 
 If you are using anything OS specific or rust nightly, you should update the file [ci.yaml](./.github/workflows/ci.yaml) to use those.
 
@@ -28,9 +29,10 @@ Definition: [.github/workflows/release.yaml](./.github/workflows/release.yaml)
 This workflow runs on every tag.
 
 It will build:
-* For Linux and Windows, a .zip archive containing the executable and the `assets`.
-* For macOS, a dmg image with a .app containing the assets.
-* For wasm, a .zip archive with the wasm binary, the js bindings, an html file loading it, and the assets.
+
+- For Linux and Windows, a .zip archive containing the executable and the `assets`.
+- For macOS, a dmg image with a .app containing the assets.
+- For wasm, a .zip archive with the wasm binary, the js bindings, an html file loading it, and the assets.
 
 If you don't want to target some of those platforms, you can remove the corresponding job from the file [release.yaml](./.github/workflows/release.yaml).
 
@@ -40,7 +42,7 @@ You can follow [Managing releases in a repository](https://docs.github.com/en/re
 
 ### Git Tag from the CLI
 
-Execute the following commands: 
+Execute the following commands:
 
 ```sh
 git tag -a "my-game-1.0" -m "First official release"
@@ -51,5 +53,4 @@ git push --tags
 
 A new release will be available in GitHub, with the archives per platform availble as downloadable assets.
 
-The `git` commands above produced this release: [my-game-1.0](
-https://github.com/bevyengine/bevy_github_ci_template/releases/tag/my-game-1.0).
+The `git` commands above produced this release: [my-game-1.0](https://github.com/bevyengine/bevy_github_ci_template/releases/tag/my-game-1.0).

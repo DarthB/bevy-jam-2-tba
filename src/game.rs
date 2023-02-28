@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use crate::field::FactoryFieldTag;
 use crate::{field::spawn_field, game_assets::GameAssets, prelude::*};
 use bevy::{log, prelude::*};
 
@@ -44,9 +43,6 @@ pub fn spawn_world(
         factory_field_struct,
         "Factory Field",
         root_factory_field,
-        &|ec| {
-            ec.insert(FactoryFieldTag {});
-        },
     );
     turn.fac_id = Some(fac_field_id);
     log::info!("Factory field spawned with id: {:?}", fac_field_id);
@@ -127,7 +123,7 @@ pub fn win_condition_system(
     mut commands: Commands,
     assets: Res<GameAssets>,
     query_target: Query<&Target>,
-    mut query_field: Query<&mut Field, With<FactoryFieldTag>>,
+    mut query_field: Query<&mut Field>,
     mut player_state: ResMut<PlayerState>,
 ) {
     if player_state.won {

@@ -6,7 +6,7 @@ use bevy::{ecs::system::EntityCommands, prelude::*, ui::FocusPolicy};
 use field::prelude::GridBody;
 use player_state::{MoveDirection, PlayerState, RotateDirection, Tool};
 
-use crate::{field::FactoryFieldTag, prelude::*};
+use crate::prelude::*;
 
 #[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Component)]
@@ -204,7 +204,7 @@ pub fn toolbar_overlays_system(
 #[allow(clippy::too_many_arguments)]
 pub fn toolbar_button_system(
     mut commands: Commands,
-    mut field_query: Query<&mut Field, With<FactoryFieldTag>>,
+    mut field_query: Query<&mut Field>,
     mut interaction_query: Query<(&Interaction, &UITagImage), Changed<Interaction>>,
     query_tool: Query<&Tool, With<GridBody>>,
     query_body: Query<&GridBody>,
