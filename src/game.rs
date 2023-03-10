@@ -87,7 +87,7 @@ pub fn spawn_world(
         left: Val::Percent(3.0),
         ..default()
     };
-    spawn_text(&mut commands, &assets, TUTORIAL, pos, &|_| {});
+    spawn_text(&mut commands, &assets, level.get_text(), pos, &|_| {});
 }
 
 pub fn contiously_spawn_tetris_at_end(

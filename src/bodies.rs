@@ -1,5 +1,5 @@
 //! The bodies are represented by a RxC (row cross column) i32 vector. Hereby the first R elements represent the top row of the body.
-//! At time of writing only 0 and 1 are used to indicate if the given position is solid or not.
+//! ATM only 0 and 1 are used to indicate if the given position is solid or not.
 //! The tetris stones and [`super::field::blob::Blob`] objects use 9x9 vectors. The target shape is a 12x10 vector.
 
 use bevy::{
@@ -225,6 +225,17 @@ pub mod prototype {
     pub fn gen_blob_body(level: u32) -> Result<Vec<i32>, String> {
         match level {
             0 => Ok(vec![
+                1, 1, 1, 1, 1, 1, 1, 1, 1, //
+                1, 1, 1, 1, 1, 1, 1, 1, 1, //
+                1, 1, 1, 1, 1, 1, 1, 1, 1, //
+                1, 1, 1, 1, 1, 1, 1, 1, 1, //
+                1, 1, 1, 1, 1, 1, 1, 1, 1, //
+                1, 1, 1, 1, 1, 1, 1, 1, 1, //
+                1, 1, 1, 1, 1, 1, 1, 1, 1, //
+                1, 1, 1, 1, 1, 1, 1, 1, 1, //
+                1, 1, 1, 1, 1, 1, 1, 1, 1, //
+            ]),
+            1 | 2 | 3 => Ok(vec![
                 0, 0, 0, 0, 0, 0, 0, 0, 0, //
                 0, 0, 0, 0, 0, 0, 0, 0, 0, //
                 0, 0, 0, 0, 1, 0, 0, 0, 0, //
@@ -235,7 +246,7 @@ pub mod prototype {
                 0, 0, 0, 0, 0, 0, 0, 0, 0, //
                 0, 0, 0, 0, 0, 0, 0, 0, 0, //
             ]),
-            1 => Ok(vec![
+            4 => Ok(vec![
                 0, 0, 0, 0, 0, 0, 0, 0, 0, //
                 0, 0, 0, 0, 0, 0, 0, 0, 0, //
                 0, 0, 1, 0, 1, 1, 0, 0, 0, //
@@ -253,7 +264,21 @@ pub mod prototype {
     /// generates a 12x10 i32 flag vector that represents the target area
     pub fn gen_target_body(level: u32) -> Result<Vec<i32>, String> {
         match level {
-            0 | 1 => Ok(vec![
+            1 => Ok(vec![
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //coordinates_of
+                0, 0, 0, 0, 1, 0, 0, 0, 0, 0, //
+                0, 0, 0, 1, 1, 0, 0, 0, 0, 0, //
+                0, 0, 1, 1, 1, 0, 0, 0, 0, 0, //
+                0, 1, 1, 1, 1, 0, 0, 0, 0, 0, //
+            ]),
+            2 => Ok(vec![
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
@@ -267,7 +292,21 @@ pub mod prototype {
                 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, //
                 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, //
             ]),
-            100 => Ok(vec![
+            3 => Ok(vec![
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //coordinates_of
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //
+                0, 0, 1, 1, 1, 1, 0, 0, 0, 0, //
+                0, 0, 1, 0, 1, 0, 0, 0, 0, 0, //
+            ]),
+            0 => Ok(vec![
                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, //
                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, //
                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, //

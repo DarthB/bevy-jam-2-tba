@@ -13,15 +13,23 @@ Use the following to run in debug/release mode:
 - `cargo run`
 - `cargo run --release`
 
-The left bird is controlled with WASD and F for powerups.
+You can also select a level via commandline arguments, at the moment only level 1-3 are supported:
 
-The right bird is controlled with arrow keys and RShift for powerups.
+- `cargo run -- -l3`
+
+Find more command line options via:
+
+- `cargo run -- --help`
 
 Use the following to enable a egui based inspector
 
 - `cargo run --features=debug`
 
 ## WASM
+
+Does not work currently since the bevy engine update to 0.9.1
+
+### Worked in previous revisions with bevy 0.8.\*
 
 If not done yet install a wasm target and a server runner by:
 

@@ -1,184 +1,113 @@
 //! This crate defines the Disastris binaries. Disastris is a contribution to bevy-jam-2.
+//!
+//! Here the lib [`::clap`] is used to implement a command line, which acts as possibility to configure the game instance,
+//! atm only the level can be given.
+//!
+//! ## TODOs
+//! - [x] Choose level
+//! - [ ] Use folders
+//! - [ ] Startup in different game states, e.g. mainmenu vs. ingame, etc.
+//!
 //! Most of its functionality and therefore the documentation relies in the [`::bevy_jam_2_disastris_lib`].
 
-use bevy::{prelude::*, window::WindowMode};
-use bevy_jam_2_disastris_lib::{
-    field::{
-        blob::move_blob_by_player,
-        field_states_generation_system,
-        tool::{apply_cutter_tool, apply_movement_tools},
-    },
-    prelude::{
-        grid_coordinate_via_mouse_system, move_blobs_by_events_system,
-        move_events_by_gravity_system, spawn_hud, spawn_world, tool_creation_via_mouse_system,
-        tool_switch_via_mouse_wheel_system, toolbar_button_system, toolbar_images_system,
-        toolbar_inventory_system, toolbar_overlays_system, win_condition_system, BlobMoveEvent,
-        Field, GameAssets, GameState, InputMappingPlugin, Level, PlayerState,
-    },
-    render_old::{old_render_entities_system, show_block_with_debug_tag_system},
-    turn::{progress_turn_system, Turn},
-    view::{animate_rendered_blob_system, handle_view_update_system, register_animation_demo},
-    SECONDS_PER_ROUND,
-};
-use bevy_tweening::TweeningPlugin;
+use std::{env, path::PathBuf};
 
-#[cfg(feature = "debug")]
-use {
-    bevy_inspector_egui::{
-        RegisterInspectable,
-        //        InspectorPlugin,
-        WorldInspectorPlugin,
-    },
-    bevy_jam_2_disastris_lib::field::{blob::Blob, target::Coordinate, target::Target, Block},
-    bevy_jam_2_disastris_lib::hud::{UITagHover, UITagImage, UITagInventory},
-};
+use bevy_jam_2_disastris_lib::start_disastris;
+use clap::{Parser, Subcommand};
 
-/// An enumeration of different Systems that are ordered
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SystemLabel)]
-enum MySystems {
-    EventHandling,
-    Input,
-    PreGameUpdates,
-    GameUpdates,
-    PostGameUpdates,
-    RenderUpdates,
+#[derive(Subcommand, Clone, Copy, Default)]
+pub enum CliCommands {
+    #[default]
+    /// Starts the game, DEFAULT
+    Game,
+
+    /// Runs the level creation code and stores the files as RON
+    DumpLevelsFromCode,
+}
+
+#[derive(Parser)]
+#[command(author="Gereon Bartel, Tim Janus and Philipp Sieweck", version="0.2.0", about="A game for the bevy-jam2", long_about=None)]
+struct Cli {
+    /// the number of the level that should be loaded at game startup
+    #[arg(short, long, value_name = "LVL_NO", default_value_t = 1)]
+    level: u32,
+
+    #[arg(short, long, value_name = "RES_FOLDER")]
+    /// path to the folder containing the resources / assets of the game
+    resource_folder: Option<PathBuf>,
+
+    #[arg(short, long, value_name = "OUTPUT_FOLDER")]
+    /// path that shall be used to generate outputs, e.g. screenshots
+    output_folder: Option<PathBuf>,
+
+    #[command(subcommand)]
+    /// the applied command
+    subcommand: Option<CliCommands>,
+}
+
+impl Cli {
+    /// This function builds parameters out of the input provided via the command line interface.
+    ///
+    /// In short is replaces all options with actual (default) values and makes folders absolute if
+    /// they are given relative.
+    pub fn build_parameters(self) -> CliParameters {
+        // read cli or generate default values
+        let subcommand = self.subcommand.unwrap_or(CliCommands::Game);
+        let rel_res_folder = self.resource_folder.unwrap_or("assets/".into());
+        let rel_out_folder = self.output_folder.unwrap_or("target".into());
+
+        // build absolute folders based on current working directory
+        let cwd = env::current_dir().expect("No current working directory - May crash WASM?");
+
+        // ensure resource folder is absolute
+        let abs_res_folder = if rel_res_folder.is_absolute() {
+            rel_res_folder
+        } else {
+            let mut abs_res_folder = cwd.clone();
+            abs_res_folder.push(rel_res_folder);
+            abs_res_folder
+        };
+
+        // ensure output folder is absolute
+        let abs_out_folder = if rel_out_folder.is_absolute() {
+            rel_out_folder
+        } else {
+            let mut abs_out_folder = cwd;
+            abs_out_folder.push(rel_out_folder);
+            abs_out_folder
+        };
+
+        CliParameters {
+            level_num: self.level,
+            resource_folder: abs_res_folder,
+            output_folder: abs_out_folder,
+            subcommand,
+        }
+    }
+}
+
+struct CliParameters {
+    level_num: u32,
+
+    resource_folder: PathBuf,
+
+    output_folder: PathBuf,
+
+    subcommand: CliCommands,
 }
 
 /// Setups a bevy app object and adds the default plugins, systems and events
 fn main() {
-    let mut app = App::new();
-    app.add_plugins(DefaultPlugins.set(WindowPlugin {
-        window: WindowDescriptor {
-            width: 1600.0,
-            height: 1000.0,
-            position: WindowPosition::Centered,
-            title: "Disastris - A contribution to bevy-jam-2".into(),
-            resizable: true,
-            decorations: true,
-            cursor_visible: true,
-            mode: WindowMode::Windowed,
-            transparent: false,
-            ..default()
-        },
-        ..default()
-    }))
-    .add_plugin(InputMappingPlugin)
-    .add_plugin(TweeningPlugin);
+    let cli = Cli::parse();
+    let cli = cli.build_parameters();
 
-    app.add_event::<BlobMoveEvent>();
-
-    // Setup the game loop
-    app.add_state(GameState::Starting)
-        // a SystemSet allows easier state management but comes with
-        // pitfals for fixed-time run criterias, see:
-        // https://bevy-cheatbook.github.io/programming/states.html
-        .add_system_set(SystemSet::on_enter(GameState::Starting).with_system(setup))
-        .add_system_set(
-            SystemSet::on_enter(GameState::Ingame)
-                .with_system(spawn_world)
-                .with_system(spawn_hud),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::Ingame)
-                .with_system(progress_turn_system)
-                //.with_system(contiously_spawn_tetris_at_end)
-                //.with_system(remove_field_lines)
-                .with_system(animate_rendered_blob_system)
-                .with_system(handle_view_update_system)
-                .with_system(field_states_generation_system)
-                .label(MySystems::EventHandling),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::Ingame)
-                .with_system(move_blob_by_player)
-                .with_system(toolbar_button_system)
-                .with_system(tool_switch_via_mouse_wheel_system)
-                .with_system(grid_coordinate_via_mouse_system)
-                .label(MySystems::Input)
-                .after(MySystems::EventHandling),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::Ingame)
-                .with_system(apply_movement_tools)
-                .with_system(apply_cutter_tool)
-                .label(MySystems::PreGameUpdates)
-                .after(MySystems::Input),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::Ingame)
-                .with_system(move_events_by_gravity_system)
-                .with_system(field_states_generation_system)
-                .label(MySystems::GameUpdates)
-                .after(MySystems::PreGameUpdates),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::Ingame)
-                .with_system(move_blobs_by_events_system)
-                .with_system(tool_creation_via_mouse_system)
-                .label(MySystems::PostGameUpdates)
-                .after(MySystems::GameUpdates),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::Ingame)
-                .with_system(win_condition_system)
-                .with_system(old_render_entities_system::<Field>)
-                .with_system(toolbar_images_system)
-                .with_system(toolbar_inventory_system)
-                .with_system(toolbar_overlays_system)
-                .with_system(show_block_with_debug_tag_system)
-                .label(MySystems::RenderUpdates)
-                .after(MySystems::PostGameUpdates),
-        )
-        .add_system_set(SystemSet::on_exit(GameState::Ingame).with_system(clean_all_system));
-
-    // Add an ingame inspector window
-    #[cfg(feature = "debug")]
-    app.add_plugin(WorldInspectorPlugin::new())
-        .register_inspectable::<Coordinate>()
-        .register_inspectable::<Blob>()
-        .register_inspectable::<Block>()
-        .register_inspectable::<Target>()
-        .register_inspectable::<Field>()
-        .register_inspectable::<UITagImage>()
-        .register_inspectable::<UITagHover>()
-        .register_inspectable::<UITagInventory>()
-        .register_type::<Interaction>();
-
-    // Setup animation demo
-    register_animation_demo(&mut app, GameState::AnimationTest);
-
-    app.run();
-}
-
-/// setups global information like the asset structure and the current level
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut app_state: ResMut<State<GameState>>,
-) {
-    // setup the camera
-    commands.spawn(Camera2dBundle {
-        projection: OrthographicProjection {
-            //    scaling_mode: ScalingMode::FixedVertical(1000.0),
-            ..Default::default()
-        },
-        ..Default::default()
-    });
-
-    //commands.insert_resource(WinitSettings::desktop_app());
-    commands.insert_resource(PlayerState::new());
-    commands.insert_resource(Level::level_01());
-    commands.insert_resource(Turn::new(SECONDS_PER_ROUND));
-
-    let assets = GameAssets::new(&asset_server);
-    commands.insert_resource(assets);
-
-    // Switch state
-    app_state.overwrite_set(GameState::Ingame).unwrap();
-}
-
-pub fn clean_all_system(mut commands: Commands, query: Query<Entity>) {
-    for e in query.iter() {
-        commands.entity(e).despawn();
+    match cli.subcommand {
+        CliCommands::Game => start_disastris(cli.resource_folder, cli.level_num),
+        CliCommands::DumpLevelsFromCode => {
+            println!(
+                "TODO: write output to: {}",
+                cli.output_folder.to_str().unwrap_or("INVALID PATH")
+            );
+        }
     }
 }

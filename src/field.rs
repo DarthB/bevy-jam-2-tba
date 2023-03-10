@@ -13,6 +13,7 @@ pub mod target;
 pub mod tool;
 
 pub mod prelude {
+    pub use super::blob::move_blob_by_player;
     pub use super::blob::Blob;
     pub use super::blob::GridBody;
 
