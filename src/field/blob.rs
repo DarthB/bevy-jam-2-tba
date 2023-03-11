@@ -13,18 +13,19 @@ use crate::{
 };
 
 use super::prelude::*;
+#[cfg(feature = "debug")]
+use bevy_inspector_egui::prelude::*;
 
 /// A component that represents a body on the grid. It supports rotation along it pivot
 /// and provides a cutout function that can be used to cutout a [`Blob`] from anther [`Blob`].
 /// Beside the definition of [`Blob`] it also gives [`super::Tool`] a shape on the [`Field`]
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[cfg_attr(feature = "debug", derive(InspectorOptions))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct GridBody {
     /// the pivot of the blob that defines the center
     pub pivot: IVec2,
 
     /// a list of blocks that belong to this blob
-    #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub blocks: Vec<Entity>,
 
     // todo move this flag somewhere else
@@ -143,7 +144,6 @@ impl GridBody {
 }
 
 /// A blob is a connection of blocks that together form a movable stone
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct Blob {
     /// the movement direction that can be changed by tools
@@ -223,8 +223,9 @@ pub fn spawn_blob_from_body_definition(
     blob_id
 }
 
-/// Example of system that maps actions to movements on a controlled entity:
-pub fn move_blob_by_player(
+/// Debug system to manually move blob - this may occur in a Blob traveling a
+/// father distance than imagined
+pub fn move_blob_by_input(
     mut query: Query<(&ActionState<TetrisActionsWASD>, &mut GridBody, Entity)>,
     mut query_block: Query<(Entity, &mut Block)>,
     mut ev_view: EventWriter<ViewUpdate>,

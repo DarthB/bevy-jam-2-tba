@@ -1,8 +1,10 @@
 use crate::prelude::*;
 use bevy::{prelude::Resource, utils::HashMap};
 
-#[derive(Resource)]
+#[derive(Resource, Reflect)]
 pub struct Level {
+    pub num: u32,
+
     pub start_blob: (Vec<i32>, (i32, i32)),
 
     pub target_figure: (Vec<i32>, (i32, i32)),
@@ -69,6 +71,7 @@ impl Level {
             ),
             applicable_tools,
             level_text: lvl_txt.to_owned(),
+            num,
         }
     }
 }

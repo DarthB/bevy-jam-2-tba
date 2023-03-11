@@ -4,7 +4,6 @@ use bevy::{prelude::*, utils::HashMap};
 use std::fmt::Display;
 
 // The direction for movement of an element in respect to a field
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, FromReflect)]
 pub enum MoveDirection {
     #[default]
@@ -60,7 +59,6 @@ impl From<MoveDirection> for IVec2 {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, FromReflect)]
 pub enum RotateDirection {
     #[default]
@@ -91,8 +89,7 @@ impl RotateDirection {
 }
 
 /// An enumeration that describes the different tools/commands that can be used in the game.
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, Component)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, FromReflect, Default, Component)]
 pub enum Tool {
     /// A move tool that also stores in which direction it moves its subject
     Move(MoveDirection),
@@ -185,7 +182,7 @@ impl Display for Tool {
 }
 
 /// Contains the current state of the player, e.g. its selected tool and a tool inventory
-#[derive(Debug, Clone, Default, PartialEq, Eq, Component, Resource)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Component, Resource, Reflect)]
 pub struct PlayerState {
     /// the currently selected tool
     pub selected_tool: Option<Tool>,

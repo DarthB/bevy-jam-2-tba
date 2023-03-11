@@ -81,7 +81,13 @@ pub fn apply_movement_tools(
     }
     //~
 
-    let field = field_query.single();
+    let field = if let Ok(field) = field_query.get_single() {
+        field
+    } else {
+        return;
+    };
+    //~
+
     let state = field.get_field_state();
 
     // apply tool if a tool is applied over the pivot

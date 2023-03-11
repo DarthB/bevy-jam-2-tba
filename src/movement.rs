@@ -1,6 +1,13 @@
 use crate::prelude::*;
 use bevy::{log, prelude::*};
 
+/// A event that indicates that the Blob shall be moved, can be dispatched by
+/// gravity, input and tools. @TODO - Think about an own schedule for the blob movement
+/// as a movement of a blob may lead to new movement events that need to be processed
+/// immediately (e.g. it collides with a tool)
+///
+/// If both delta and rot_dir is given then first the rotation is applied and then
+/// the blob is moved.
 pub struct BlobMoveEvent {
     delta: IVec2,
 
@@ -24,7 +31,6 @@ pub fn move_events_by_gravity_system(
         for (id, _) in vec {
             if let Ok((e, blob)) = query.get_mut(id) {
                 if blob.active {
-                    // events are afterwards read in order!
                     ev.send(BlobMoveEvent {
                         delta: IVec2::new(blob.movement.x, blob.movement.y),
                         entity: e,
@@ -35,7 +41,7 @@ pub fn move_events_by_gravity_system(
     }
 }
 
-pub fn move_blobs_by_events_system(
+pub fn handle_move_blob_events(
     mut commands: Commands,
     mut query: Query<(Entity, &Blob, &mut GridBody)>,
     field_query: Query<(Entity, &Field)>,
@@ -43,7 +49,12 @@ pub fn move_blobs_by_events_system(
     mut ev_move: EventReader<BlobMoveEvent>,
     mut ev_view: EventWriter<ViewUpdate>,
 ) {
-    let (_field_id, field) = field_query.single();
+    let (_field_id, field) = if let Ok(pair) = field_query.get_single() {
+        pair
+    } else {
+        return;
+    };
+    //~
 
     for ev in ev_move.iter() {
         if let Ok((blob_id, blob, mut body)) = query.get_mut(ev.entity) {

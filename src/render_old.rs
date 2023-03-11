@@ -8,7 +8,6 @@ pub struct SpriteInfo {
     pub z: f32,
 }
 
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
 pub struct DebugOccupiedTag {
     pub parent: Entity,
@@ -244,7 +243,7 @@ impl RenderableGrid for Field {
             1 => SpriteInfo {
                 color: Color::WHITE,
                 z: Z_FIELD,
-                image: self.brick_image.clone(),
+                image: assets.block_blob.clone(),
             },
             2 => SpriteInfo {
                 image: DEFAULT_IMAGE_HANDLE.typed(),
@@ -267,7 +266,7 @@ impl RenderableGrid for Field {
                     SpriteInfo {
                         color: Color::WHITE,
                         z: Z_FIELD,
-                        image: self.movable_area_image.clone(),
+                        image: assets.block_tetris_floor.clone(),
                     }
                 }
             }

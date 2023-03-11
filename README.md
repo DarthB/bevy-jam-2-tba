@@ -13,7 +13,11 @@ Use the following to run in debug/release mode:
 - `cargo run`
 - `cargo run --release`
 
-You can also select a level via commandline arguments, at the moment only level 1-3 are supported:
+You can select a starting application state via commandline arguments:
+
+- - `cargo run -- -sAnimationTest` - 'Mainmenu', 'PlayLevel' and 'AnimationTest'.
+
+You can also select a level for the 'PlayLevel' state via commandline arguments, at the moment only level 1-3 are supported:
 
 - `cargo run -- -l3`
 

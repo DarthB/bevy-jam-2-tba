@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 /// Enumeration that differentiates between the kinds of field elements
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, FromReflect, Default)]
 pub enum FieldElementKind {
     /// the area is empty
     #[default]
@@ -21,7 +21,7 @@ pub enum FieldElementKind {
 }
 
 /// a element that descirbes a coordinate in the FieldState
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, FromReflect, Default)]
 pub struct FieldElement {
     /// flag indicating if that field element is a target for the level
     pub is_target: bool,
@@ -37,7 +37,7 @@ pub struct FieldElement {
 }
 
 /// Encapsules the game state of a game field.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Reflect)]
 pub struct FieldState {
     // gives the start values and end values of coordinates in this field
     bounds: (IVec2, IVec2),

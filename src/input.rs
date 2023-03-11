@@ -5,7 +5,9 @@ use crate::{
     },
     prelude::*,
 };
-use bevy::{ecs::system::EntityCommands, input::mouse::MouseWheel, log, prelude::*};
+use bevy::{
+    ecs::system::EntityCommands, input::mouse::MouseWheel, log, prelude::*, window::PrimaryWindow,
+};
 use leafwing_input_manager::prelude::*;
 
 pub struct InputMappingPlugin;
@@ -136,28 +138,22 @@ pub fn tool_switch_via_mouse_wheel_system(
 }
 
 pub fn grid_coordinate_via_mouse_system(
-    windows: Res<Windows>,
+    primary_query: Query<&Window, With<PrimaryWindow>>,
     mut cursor_moved_events: EventReader<CursorMoved>,
-    // @todo remove sprites asap rendering is working
     mut sprites: Query<(&GlobalTransform, &Coordinate), With<FieldRenderTag>>,
     mut player_state: ResMut<PlayerState>,
 ) {
+    let Ok(primary) = primary_query.get_single() else {
+        return;
+    };
+
     let ev = cursor_moved_events.iter().last();
-    if let (Some(moved), Some(window)) = (ev, windows.get_primary()) {
-        let half_window = Vec2::new(window.width() / 2.0, window.height() / 2.0);
+    if let Some(moved) = ev {
+        let half_window = Vec2::new(primary.width() / 2.0, primary.height() / 2.0);
         let cursor_pos = moved.position - half_window;
         player_state.tool_placement_coordinate = None;
 
         for (trans, coord) in sprites.iter_mut() {
-            // @todo check if factory field is used and not the production field
-            // only continue when hovering a sprite on the factory field
-            /*
-            if field_id != parent.get() {
-                continue;
-            }
-            */
-            //~
-
             let sprite_pos = trans.translation();
             let diff = Vec3::new(
                 sprite_pos.x - cursor_pos.x,
@@ -175,7 +171,7 @@ pub fn grid_coordinate_via_mouse_system(
     }
 }
 
-pub fn tool_creation_via_mouse_system(
+pub fn create_tool_if_valid_clicked(
     mut commands: Commands,
     mut field_query: Query<(Entity, &mut Field)>,
     query_on_tool_clicked: Query<&Tool>,
@@ -184,7 +180,12 @@ pub fn tool_creation_via_mouse_system(
     assets: Res<GameAssets>,
     mut player_state: ResMut<PlayerState>,
 ) {
-    let (field_id, field) = field_query.single_mut();
+    let (field_id, field) = if let Ok(pair) = field_query.get_single_mut() {
+        pair
+    } else {
+        return;
+    };
+    //~
 
     if mouse_button_input.just_pressed(MouseButton::Left) {
         if let (Some(tool), Some(coord)) = (

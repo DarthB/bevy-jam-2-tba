@@ -10,14 +10,10 @@ use std::{
 };
 
 use crate::{
-    field::prelude::*, game_assets::GameAssets, input::TetrisActionsWASD, PX_PER_TILE, Z_SOLID,
+    field::prelude::*, game_assets::GameAssets, input::TetrisActionsWASD, GameSets, GameState,
+    PX_PER_TILE, Z_SOLID,
 };
-use bevy::{
-    ecs::{schedule::StateData, system::EntityCommands},
-    log,
-    prelude::*,
-    render::texture::DEFAULT_IMAGE_HANDLE,
-};
+use bevy::{ecs::system::EntityCommands, log, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
 use bevy_tweening::{lens::SpriteColorLens, Animator, Tween};
 use interpolation::{Ease, EaseFunction};
 use leafwing_input_manager::{
@@ -430,32 +426,11 @@ pub fn handle_view_update_system(
 //----------------------------------------------------------------------
 // Code for demoing the rendering module
 
-#[derive(SystemLabel)]
-enum DemoSystemLabels {
-    EventHandling,
-    GameLogic,
-}
-
 /// Registers the animation demo
-pub fn register_animation_demo(app: &mut App, game_state: impl StateData) {
-    app.add_event::<ViewUpdate>();
-    app.add_system_set(SystemSet::on_enter(game_state.clone()).with_system(setup_demo_system))
-        .add_system_set(
-            SystemSet::on_update(game_state.clone())
-                .with_system(demo_system)
-                .label(DemoSystemLabels::GameLogic),
-        )
-        .add_system_set(
-            SystemSet::on_update(game_state)
-                .with_system(animate_rendered_blob_system)
-                .with_system(handle_view_update_system)
-                .label(DemoSystemLabels::EventHandling)
-                // Run the ViewHandling BEFORE the game logic. The game logic spawnes new entites
-                // with components and publishes events referring these new entities. Because
-                // these `Commands` are only visible in the next cycle, the view handling logic
-                // cannot be executed after the game logic in the same cycle.
-                .before(DemoSystemLabels::GameLogic),
-        );
+/// strongly simplified as we also rely on global app setup in [`crate::start_disastris`]
+pub fn register_animation_demo(app: &mut App) {
+    app.add_system(setup_demo_system.in_schedule(OnEnter(GameState::AnimationTest)));
+    app.add_system(demo_system.after(GameSets::EventHandling));
 }
 
 fn spawn_demo_blob(commands: &mut Commands) -> Entity {

@@ -8,20 +8,17 @@ use player_state::{MoveDirection, PlayerState, RotateDirection, Tool};
 
 use crate::prelude::*;
 
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Component)]
 pub struct UITagImage {
     tool_status: Tool,
 }
 
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Component)]
 pub struct UITagHover {
     tool_status: Tool,
     is_hovered: bool,
 }
 
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Component)]
 pub struct UITagInventory {
     tool_status: Tool,
@@ -88,10 +85,7 @@ fn spawn_tool_button(cb: &mut ChildBuilder, tool: player_state::Tool, assets: &G
                         color: Color::GREEN,
                     },
                 )
-                .with_text_alignment(TextAlignment {
-                    vertical: VerticalAlign::Bottom,
-                    horizontal: HorizontalAlign::Center,
-                }),
+                .with_text_alignment(TextAlignment::Center),
             )
             .insert(Name::new(format!("Inventory {}", tool)))
             .insert(UITagInventory { tool_status: tool })
@@ -212,7 +206,7 @@ pub fn toolbar_button_system(
     assets: Res<GameAssets>,
     mut player_state: ResMut<PlayerState>,
     mut turn: ResMut<Turn>,
-    mut app_state: ResMut<State<GameState>>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     for (mut color, mut tag_hover) in &mut hover_query {
         for (interaction, tag) in &mut interaction_query {
@@ -229,14 +223,15 @@ pub fn toolbar_button_system(
                             turn.pause = false;
                         }
                         Tool::Reset => {
-                            app_state.set(GameState::Starting).unwrap();
+                            next_state.set(GameState::PlayLevel);
                         }
                         Tool::EraseAll => {
-                            let mut field = field_query.single_mut();
-                            let tools =
-                                field.remove_all_tools(&mut commands, &query_tool, &query_body);
-                            for tool in tools {
-                                player_state.add_to_inventory(tool, 1);
+                            if let Ok(mut field) = field_query.get_single_mut() {
+                                let tools =
+                                    field.remove_all_tools(&mut commands, &query_tool, &query_body);
+                                for tool in tools {
+                                    player_state.add_to_inventory(tool, 1);
+                                }
                             }
                         }
                         _ => {}
@@ -272,7 +267,7 @@ pub fn spawn_text(
                 color: Color::BLACK,
             },
         )
-        .with_text_alignment(TextAlignment::CENTER)
+        .with_text_alignment(TextAlignment::Center)
         .with_style(Style {
             align_self: AlignSelf::Center,
             position_type: PositionType::Absolute,

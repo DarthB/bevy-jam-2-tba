@@ -1,20 +1,18 @@
 use bevy::{ecs::system::EntityCommands, prelude::*};
 
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[cfg(feature = "debug")]
+use bevy_inspector_egui::prelude::*;
+
+#[cfg_attr(feature = "debug", derive(InspectorOptions))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct Target {
     /// the body of the target, different values of the i32 represent different colors
-    #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub body: Vec<i32>,
-
-    #[cfg_attr(feature = "debug", inspectable(ignore))]
-    pub texture: Handle<Image>,
 
     /// @todo in respect to what?
     pub coordinate: Option<Coordinate>,
 }
 
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Copy, Reflect, FromReflect)]
 pub struct Coordinate {
     pub r: i32,
@@ -38,7 +36,6 @@ impl Target {
         Target {
             body,
             coordinate: None,
-            texture: Handle::default(),
         }
     }
 
@@ -71,7 +68,6 @@ impl Target {
 
 pub fn spawn_target(
     commands: &mut Commands,
-    texture: &Handle<Image>,
     body: Vec<i32>,
     name: &str,
     coord: Option<Coordinate>,
@@ -80,7 +76,6 @@ pub fn spawn_target(
     let target = Target {
         body,
         coordinate: coord,
-        texture: texture.clone(),
     };
 
     let mut ec = commands.spawn(SpatialBundle {

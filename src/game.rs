@@ -1,24 +1,9 @@
-use std::time::Duration;
-
 use crate::{field::spawn_field, game_assets::GameAssets, prelude::*};
 use bevy::{log, prelude::*};
 
 use field::blob::spawn_blob_from_body_definition;
 use field::target::spawn_target;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub enum GameState {
-    /// The startup for loading stuff etc.
-    Starting,
-
-    /// The ingame state where the actual action happens!
-    Ingame,
-
-    /// Animation test code
-    AnimationTest,
-}
-
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct RealBlob {}
 
@@ -28,14 +13,16 @@ pub fn spawn_world(
     mut turn: ResMut<Turn>,
     level: Res<Level>,
     mut player_state: ResMut<PlayerState>,
+    mut view_config: ResMut<ViewConfig>,
     mut evt: EventWriter<ViewUpdate>,
 ) {
+    info!("Spawn world for level '{}' called.", level.num);
     player_state.set_inventory(level.applicable_tools.clone());
 
-    let factory_field_struct = Field::as_factory(&assets);
+    let factory_field_struct = Field::as_factory();
     let root_factory_field = Vec3::new(-200.0, -70.0, 0.0);
     let (px, py) = factory_field_struct.coords_to_px(0, 0);
-    let origin_factory = Vec3::new(px, py, 0.0) + root_factory_field;
+    view_config.factory_topleft = Vec3::new(px, py, 0.0) + root_factory_field;
 
     let fac_field_id = spawn_field(
         &mut commands,
@@ -61,20 +48,10 @@ pub fn spawn_world(
         },
     );
     evt.send(ViewUpdate::BlobSpawned(start_blob));
-
-    let id = spawn_simple_rendering_entity(&mut commands).id();
-    commands.insert_resource(ViewConfig {
-        renderer_entity: id,
-        factory_topleft: origin_factory,
-        tetris_topleft: Vec3::ZERO,
-        anim_duration: Duration::from_millis(200),
-        brick_image: assets.block_blob.clone(),
-        test_blob: None,
-    });
+    info!("Send ViewUpdate::BlobSpawned for Start Blob!");
 
     let _target_stone = spawn_target(
         &mut commands,
-        &assets.block_target_outline,
         level.target_figure.0.clone(),
         "Target Stone",
         Some(level.target_figure.1.into()),
@@ -119,7 +96,7 @@ pub fn contiously_spawn_tetris_at_end(
     }
 }
 
-pub fn win_condition_system(
+pub fn level_won_system(
     mut commands: Commands,
     assets: Res<GameAssets>,
     query_target: Query<&Target>,
@@ -131,8 +108,19 @@ pub fn win_condition_system(
     }
     //~
 
-    let target = query_target.single();
-    let field = query_field.single_mut();
+    let target = if let Ok(target) = query_target.get_single() {
+        target
+    } else {
+        return;
+    };
+
+    let field = if let Ok(field) = query_field.get_single_mut() {
+        field
+    } else {
+        return;
+    };
+    //~
+
     let field_state = field.get_field_state();
 
     let coords = target.occupied_coordinates();

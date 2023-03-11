@@ -5,7 +5,7 @@
 
 use std::fmt::Debug;
 
-use bevy::{log, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
+use bevy::{log, prelude::*};
 use itertools::Itertools;
 
 pub mod blob;
@@ -13,7 +13,7 @@ pub mod target;
 pub mod tool;
 
 pub mod prelude {
-    pub use super::blob::move_blob_by_player;
+    pub use super::blob::move_blob_by_input;
     pub use super::blob::Blob;
     pub use super::blob::GridBody;
 
@@ -31,8 +31,7 @@ use crate::game_assets::GameAssets;
 //----------------------------------------------------------------------
 // Field Component, Tags and implementation
 
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
-#[derive(Component, Debug, PartialEq, Clone)]
+#[derive(Component, Debug, PartialEq, Clone, Reflect)]
 pub struct Field {
     pub movable_size: (usize, usize),
 
@@ -41,45 +40,32 @@ pub struct Field {
     pub overlap_top: u32,
     pub overlap_bottom: u32,
 
-    #[cfg_attr(feature = "debug", inspectable(ignore))]
-    pub movable_area_image: Handle<Image>,
-
-    #[cfg_attr(feature = "debug", inspectable(ignore))]
-    pub brick_image: Handle<Image>,
-
-    #[cfg_attr(feature = "debug", inspectable(ignore))]
     field_state: FieldState,
 }
 
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
 pub struct FieldRenderTag {}
 
 pub type FieldMutator = dyn Fn(&mut Field, (i32, i32), usize);
 
 impl Field {
-    pub fn as_factory(assets: &GameAssets) -> Self {
+    pub fn as_factory() -> Self {
         Field {
             movable_size: (10, 24),
             overlap_left: 4,
             overlap_right: 4,
             overlap_top: 4,
             overlap_bottom: 0,
-            movable_area_image: assets.block_factory_floor.clone(),
-            brick_image: assets.block_blob.clone(),
             ..Default::default()
         }
     }
 
-    pub fn as_production_field(assets: &GameAssets) -> Self {
+    pub fn as_production_field() -> Self {
         Field {
             overlap_left: 0,
             overlap_right: 0,
             overlap_top: 10,
             overlap_bottom: 0,
-
-            movable_area_image: assets.block_tetris_floor.clone(),
-            brick_image: assets.block_blob.clone(),
             ..Default::default()
         }
     }
@@ -235,8 +221,6 @@ impl Default for Field {
             overlap_top: 5,
             overlap_bottom: 0,
 
-            movable_area_image: DEFAULT_IMAGE_HANDLE.typed(),
-            brick_image: DEFAULT_IMAGE_HANDLE.typed(),
             field_state: FieldState::default(),
         }
     }
@@ -288,12 +272,10 @@ pub fn spawn_field(
 // Block component and implementation
 
 /// is used to mark that rect in a grid that shall be used as a pivot
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct PivotTag {}
 
 /// is used to mark the 0,0 coordinate in grid based coordinate systems
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct OriginTag {}
 
@@ -304,7 +286,7 @@ pub struct OriginTag {}
 ///
 /// * A [`self::Blob`] that is a collection of blocks that form shapes like the tetris stones
 /// * A [`self::Tool`] that is spawned on the filed and mutates the behavior of [`self::Blob`]s that touch it.
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
+#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::InspectorOptions))]
 #[derive(Component, Debug, PartialEq, Eq, Clone, Reflect)]
 pub struct Block {
     /// the position of the block in the coordinate system of the field
@@ -314,7 +296,6 @@ pub struct Block {
     pub relative_position: Option<IVec2>,
 
     /// the group management entity of this block, (e.g. [`self::Blob`] or [`self::Tool`]), if any
-    #[cfg_attr(feature = "debug", inspectable(ignore))]
     pub group: Option<Entity>,
 
     /// Reference to the parent field of this block

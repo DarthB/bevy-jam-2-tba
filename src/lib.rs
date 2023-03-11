@@ -1,11 +1,16 @@
-//! Disastris is a game for bevy-jam-2. Here a short overview of the organization of the source code with some
-//! ideas for a refactoring is given:
+//! Disastris is a game for bevy-jam-2. Here a short overview of the organization of the source code. Besides a list of
+//! important ToDos for the next release in this doc string some ideas for a refactoring are given:
 //!
-//! This file libs.rs provides an entry point for the game with the [`start_disastris`] function. In the function
-//! the bevy scheduler is setup (atm a 0.9.1 version of the scheduler is used)
+//! This file libs.rs provides an entry point for the game with the [`start_disastris`] function. Based
+//! on the [`GameConfig`] struct the start app state and the level can be configured.
 //!
-//! Disastris also supports the feature **Debug** which atm adds a [`::bevy_inspector_egui`] to the game.
+//! Disastris also supports the feature **Debug** which adds a [`::bevy_inspector_egui`] to the game.
 //!
+//! ## TODOs for next Release 0.2.0v
+//! * [x] Update to bevy 0.10.0
+//! * [ ] Fix WASM build
+//! * [ ] Have some transition states between levels
+//! * [ ] Make the levels data driven
 //!
 //! # Refactoring of modules
 //! @todo Overwork the modules
@@ -17,22 +22,24 @@
 //! be stored on the hard drive or bodies that describe different shapes, e.g for tetris stones.
 //! Suggestion: Add a *data* module and summarize the elements there.
 //! * [ ] The modules [`player_state`] and [`turn`] contain elements of the game state.
-//! Suggestion: Move them into a module *state* and also move [`game::GameState`] there.
+//! Suggestion: Move them into a module *state* and also move [`GameState`] there.
 //! * [ ] Update to latest bevy engine version and overwork the scheduler in [`start_disastris`]
 //!
 
-use std::path::PathBuf;
+use std::str::FromStr;
+use std::time::Duration;
 
 use bevy::prelude::*;
+use bevy::window::PresentMode;
 use bevy::DefaultPlugins;
 use bevy_tweening::TweeningPlugin;
-
-#[cfg(feature = "debug")]
-use bevy_inspector_egui::{RegisterInspectable, WorldInspectorPlugin};
 
 use prelude::field::*;
 use prelude::*;
 use rand::Rng;
+
+#[cfg(feature = "debug")]
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 pub mod bodies;
 pub mod field;
@@ -95,148 +102,180 @@ pub mod prelude {
     pub use crate::*;
 }
 
-/// An enumeration of different Systems that are ordered
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SystemLabel)]
-enum MySystems {
+/// An enumeration of different SystemSets that are ordered
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SystemSet)]
+enum GameSets {
     EventHandling,
-    Input,
-    PreGameUpdates,
+    InputAndDispatch,
     GameUpdates,
-    PostGameUpdates,
     RenderUpdates,
 }
 
+#[derive(States, Debug, PartialEq, Eq, Clone, Copy, Hash, Default)]
+pub enum GameState {
+    #[default]
+    /// The state is always the first state
+    InternalStartup,
+
+    /// The main menu of the game
+    Mainmenu,
+
+    /// The ingame state where the actual action happens
+    PlayLevel,
+
+    /// Animation test code
+    AnimationTest,
+}
+
+impl std::fmt::Display for GameState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GameState::InternalStartup => write!(f, "InternalStartup"),
+            GameState::Mainmenu => write!(f, "Mainmenu"),
+            GameState::PlayLevel => write!(f, "PlayLevel"),
+            GameState::AnimationTest => write!(f, "AnimationTest"),
+        }
+    }
+}
+
+impl FromStr for GameState {
+    type Err = ();
+
+    fn from_str(input: &str) -> Result<GameState, Self::Err> {
+        match input.trim().to_lowercase().as_str() {
+            // we do not want to convert a string to InternalStartup
+            "mainmenu" => Ok(GameState::Mainmenu),
+            "playlevel" => Ok(GameState::PlayLevel),
+            "animationtest" => Ok(GameState::AnimationTest),
+            _ => Err(()),
+        }
+    }
+}
+
+/// Represents the current startup configuration
 #[derive(Resource)]
 pub struct GameConfig {
-    start_level: u32,
+    pub start_level: u32,
+
+    pub start_state: String,
 }
 
 /// Acts as an entry point for the game.
-pub fn start_disastris(_resource_folder: PathBuf, level: u32) {
-    let config = GameConfig { start_level: level };
-
+pub fn start_disastris(config: GameConfig) {
     let mut app = App::new();
 
     app.insert_resource(config);
 
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
-        window: WindowDescriptor {
-            width: 1600.0,
-            height: 1000.0,
-            position: WindowPosition::Centered,
-            title: "Disastris - A contribution to bevy-jam-2".into(),
-            resizable: true,
-            decorations: true,
-            cursor_visible: true,
-            mode: WindowMode::Windowed,
-            transparent: false,
+        primary_window: Some(Window {
+            title: "Disastris - A contribution to bevy-jam2".into(),
+            position: WindowPosition::Centered(MonitorSelection::Primary),
+            resolution: (1400., 1000.).into(),
+            present_mode: PresentMode::AutoVsync,
+            // Tells wasm to resize the window according to the available canvas
+            fit_canvas_to_parent: true,
+            // Tells wasm not to override default event handling, like F5, Ctrl+R etc.
+            prevent_default_event_handling: false,
             ..default()
-        },
+        }),
         ..default()
     }))
     .add_plugin(InputMappingPlugin)
     .add_plugin(TweeningPlugin);
 
-    app.add_event::<BlobMoveEvent>();
+    app.add_event::<BlobMoveEvent>().add_event::<ViewUpdate>();
+
+    app.add_state::<GameState>();
+
+    // initial initializiation during startup
+    app.add_startup_system(initial_start_setup);
+
+    // Initialization and cleanup for a disastris level
+    app.add_systems((
+        spawn_world.in_schedule(OnEnter(GameState::PlayLevel)),
+        spawn_hud.in_schedule(OnEnter(GameState::PlayLevel)),
+        clean_all_system.in_schedule(OnExit(GameState::PlayLevel)),
+    ));
+
+    // @TODO initialization and cleanup for other states
+    app.add_systems((
+        spawn_hud.in_schedule(OnEnter(GameState::Mainmenu)),
+        clean_all_system.in_schedule(OnExit(GameState::Mainmenu)),
+    ));
 
     // Setup the game loop
-    app.add_state(GameState::Starting)
-        // a SystemSet allows easier state management but comes with
-        // pitfals for fixed-time run criterias, see:
-        // https://bevy-cheatbook.github.io/programming/states.html
-        .add_system_set(SystemSet::on_enter(GameState::Starting).with_system(setup))
-        .add_system_set(
-            SystemSet::on_enter(GameState::Ingame)
-                .with_system(spawn_world)
-                .with_system(spawn_hud),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::Ingame)
-                .with_system(progress_turn_system)
-                //.with_system(contiously_spawn_tetris_at_end)
-                //.with_system(remove_field_lines)
-                .with_system(animate_rendered_blob_system)
-                .with_system(handle_view_update_system)
-                .with_system(field_states_generation_system)
-                .label(MySystems::EventHandling),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::Ingame)
-                .with_system(move_blob_by_player)
-                .with_system(toolbar_button_system)
-                .with_system(tool_switch_via_mouse_wheel_system)
-                .with_system(grid_coordinate_via_mouse_system)
-                .label(MySystems::Input)
-                .after(MySystems::EventHandling),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::Ingame)
-                .with_system(apply_movement_tools)
-                .with_system(apply_cutter_tool)
-                .label(MySystems::PreGameUpdates)
-                .after(MySystems::Input),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::Ingame)
-                .with_system(move_events_by_gravity_system)
-                .with_system(field_states_generation_system)
-                .label(MySystems::GameUpdates)
-                .after(MySystems::PreGameUpdates),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::Ingame)
-                .with_system(move_blobs_by_events_system)
-                .with_system(tool_creation_via_mouse_system)
-                .label(MySystems::PostGameUpdates)
-                .after(MySystems::GameUpdates),
-        )
-        .add_system_set(
-            SystemSet::on_update(GameState::Ingame)
-                .with_system(win_condition_system)
-                .with_system(old_render_entities_system::<Field>)
-                .with_system(toolbar_images_system)
-                .with_system(toolbar_inventory_system)
-                .with_system(toolbar_overlays_system)
-                .with_system(show_block_with_debug_tag_system)
-                .label(MySystems::RenderUpdates)
-                .after(MySystems::PostGameUpdates),
-        )
-        .add_system_set(SystemSet::on_exit(GameState::Ingame).with_system(clean_all_system));
+    // 1. We start with a fresh field state and updating the turn resource
+    app.add_system(progress_turn_system.before(GameSets::EventHandling));
+    app.add_system(field_states_generation_system.before(GameSets::EventHandling));
+    app.add_system(field_states_generation_system.after(GameSets::EventHandling));
+
+    // we can check for win its not important if we realize it one tick later:
+    app.add_system(level_won_system);
+
+    app.add_systems((
+        //animate_rendered_blob_system.in_set(GameSets::EventHandling),
+        handle_view_update_system.in_set(GameSets::EventHandling),
+        apply_movement_tools.in_set(GameSets::EventHandling),
+        apply_cutter_tool.in_set(GameSets::EventHandling),
+    ));
+
+    app.add_systems((
+        toolbar_button_system.in_set(GameSets::InputAndDispatch),
+        tool_switch_via_mouse_wheel_system.in_set(GameSets::InputAndDispatch),
+        grid_coordinate_via_mouse_system.in_set(GameSets::InputAndDispatch),
+        move_events_by_gravity_system.in_set(GameSets::InputAndDispatch),
+        move_blob_by_input.in_set(GameSets::InputAndDispatch),
+        //contiously_spawn_tetris_at_end,
+    ));
+
+    app.add_systems((
+        handle_move_blob_events.in_set(GameSets::GameUpdates),
+        create_tool_if_valid_clicked.in_set(GameSets::GameUpdates),
+    ));
+
+    app.add_systems((
+        animate_rendered_blob_system.in_set(GameSets::RenderUpdates),
+        toolbar_images_system.in_set(GameSets::RenderUpdates),
+        toolbar_inventory_system.in_set(GameSets::RenderUpdates),
+        toolbar_overlays_system.in_set(GameSets::RenderUpdates),
+        old_render_entities_system::<Field>.in_set(GameSets::RenderUpdates), // still needed to render target blob @todo get rid of it
+        show_block_with_debug_tag_system.in_set(GameSets::RenderUpdates),
+    ));
+
+    app.configure_set(GameSets::EventHandling.before(GameSets::InputAndDispatch));
+    app.configure_set(GameSets::GameUpdates.after(GameSets::InputAndDispatch));
 
     // Add an ingame inspector window
     #[cfg(feature = "debug")]
     app.add_plugin(WorldInspectorPlugin::new())
-        .register_inspectable::<Coordinate>()
-        .register_inspectable::<Blob>()
-        .register_inspectable::<Block>()
-        .register_inspectable::<Target>()
-        .register_inspectable::<Field>()
-        .register_inspectable::<UITagImage>()
-        .register_inspectable::<UITagHover>()
-        .register_inspectable::<UITagInventory>()
-        .register_type::<Interaction>();
+        .register_type::<Coordinate>()
+        .register_type::<Blob>()
+        .register_type::<Block>()
+        .register_type::<Target>()
+        .register_type::<Field>()
+        .register_type::<UITagImage>()
+        .register_type::<UITagHover>()
+        .register_type::<UITagInventory>()
+        .register_type::<Interaction>()
+        .register_type::<Level>()
+        .register_type::<PlayerState>();
 
     // Setup animation demo
-    register_animation_demo(&mut app, GameState::AnimationTest);
+    register_animation_demo(&mut app);
 
     app.run();
 }
 
 /// setups global information like the asset structure and the current level
-fn setup(
+fn initial_start_setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut app_state: ResMut<State<GameState>>,
+    mut next_state: ResMut<NextState<GameState>>,
     config: Res<GameConfig>,
 ) {
+    info!("Create global resources for Assets, Gamestate and ViewConfig");
     // setup the camera
-    commands.spawn(Camera2dBundle {
-        projection: OrthographicProjection {
-            //    scaling_mode: ScalingMode::FixedVertical(1000.0),
-            ..Default::default()
-        },
-        ..Default::default()
-    });
+    commands.spawn(Camera2dBundle::default());
 
     //commands.insert_resource(WinitSettings::desktop_app());
     commands.insert_resource(PlayerState::new());
@@ -244,10 +283,25 @@ fn setup(
     commands.insert_resource(Turn::new(SECONDS_PER_ROUND));
 
     let assets = GameAssets::new(&asset_server);
+    let id = spawn_simple_rendering_entity(&mut commands).id();
+    commands.insert_resource(ViewConfig {
+        renderer_entity: id,
+        factory_topleft: Vec3::ZERO,
+        tetris_topleft: Vec3::ZERO,
+        anim_duration: Duration::from_millis(200),
+        brick_image: assets.block_blob.clone(),
+        test_blob: None,
+    });
     commands.insert_resource(assets);
 
     // Switch state
-    app_state.overwrite_set(GameState::Ingame).unwrap();
+    let state = GameState::from_str(config.start_state.as_str()).unwrap_or(GameState::PlayLevel);
+    next_state.set(state);
+    info!(
+        "Switching state from '{}' --> '{}'",
+        GameState::InternalStartup,
+        state
+    );
 }
 
 pub fn clean_all_system(mut commands: Commands, query: Query<Entity>) {

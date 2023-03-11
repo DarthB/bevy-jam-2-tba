@@ -8,7 +8,6 @@ use bevy::{
 };
 use rand::Rng;
 
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct BodyDefinition {
     pub block_positions: Vec<i32>,
@@ -48,7 +47,6 @@ impl BodyDefinition {
 }
 
 /// Describes the 7 default tetris bricks
-#[cfg_attr(feature = "debug", derive(bevy_inspector_egui::Inspectable))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, FromReflect)]
 pub enum TetrisBricks {
     #[default]

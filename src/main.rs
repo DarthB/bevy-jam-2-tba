@@ -12,7 +12,7 @@
 
 use std::{env, path::PathBuf};
 
-use bevy_jam_2_disastris_lib::start_disastris;
+use bevy_jam_2_disastris_lib::{start_disastris, GameConfig};
 use clap::{Parser, Subcommand};
 
 #[derive(Subcommand, Clone, Copy, Default)]
@@ -31,6 +31,10 @@ struct Cli {
     /// the number of the level that should be loaded at game startup
     #[arg(short, long, value_name = "LVL_NO", default_value_t = 1)]
     level: u32,
+
+    /// The state in that Disastris shall shart, supported are 'Mainmenu', 'PlayLevel' and 'AnimationTest'.
+    #[arg(short, long, value_name = "START_STATE", default_value = "PlayLevel")]
+    start_state: String,
 
     #[arg(short, long, value_name = "RES_FOLDER")]
     /// path to the folder containing the resources / assets of the game
@@ -53,20 +57,10 @@ impl Cli {
     pub fn build_parameters(self) -> CliParameters {
         // read cli or generate default values
         let subcommand = self.subcommand.unwrap_or(CliCommands::Game);
-        let rel_res_folder = self.resource_folder.unwrap_or("assets/".into());
         let rel_out_folder = self.output_folder.unwrap_or("target".into());
 
         // build absolute folders based on current working directory
         let cwd = env::current_dir().expect("No current working directory - May crash WASM?");
-
-        // ensure resource folder is absolute
-        let abs_res_folder = if rel_res_folder.is_absolute() {
-            rel_res_folder
-        } else {
-            let mut abs_res_folder = cwd.clone();
-            abs_res_folder.push(rel_res_folder);
-            abs_res_folder
-        };
 
         // ensure output folder is absolute
         let abs_out_folder = if rel_out_folder.is_absolute() {
@@ -79,8 +73,8 @@ impl Cli {
 
         CliParameters {
             level_num: self.level,
-            resource_folder: abs_res_folder,
             output_folder: abs_out_folder,
+            start_state: self.start_state,
             subcommand,
         }
     }
@@ -89,7 +83,7 @@ impl Cli {
 struct CliParameters {
     level_num: u32,
 
-    resource_folder: PathBuf,
+    start_state: String,
 
     output_folder: PathBuf,
 
@@ -102,7 +96,13 @@ fn main() {
     let cli = cli.build_parameters();
 
     match cli.subcommand {
-        CliCommands::Game => start_disastris(cli.resource_folder, cli.level_num),
+        CliCommands::Game => {
+            let config = GameConfig {
+                start_level: cli.level_num,
+                start_state: cli.start_state,
+            };
+            start_disastris(config);
+        }
         CliCommands::DumpLevelsFromCode => {
             println!(
                 "TODO: write output to: {}",
