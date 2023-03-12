@@ -1,8 +1,16 @@
-use crate::{field::spawn_field, game_assets::GameAssets, prelude::*};
+use crate::data::prelude::*;
+use crate::get_random_quote;
+use crate::input::add_tetris_control;
+use crate::render_old::RenderableGrid;
+use crate::{field::spawn_field, prelude::*};
 use bevy::{log, prelude::*};
 
-use field::blob::spawn_blob_from_body_definition;
-use field::target::spawn_target;
+use crate::view::prelude::*;
+
+use crate::hud::spawn_text;
+
+use crate::field::blob::spawn_blob_from_body_definition;
+use crate::field::target::spawn_target;
 
 #[derive(Component, Debug, Default, PartialEq, Eq, Clone, Reflect)]
 pub struct RealBlob {}
@@ -10,9 +18,8 @@ pub struct RealBlob {}
 pub fn spawn_world(
     mut commands: Commands, // stores commands for entity/component creation / deletion
     assets: Res<GameAssets>, // used to access files stored in the assets folder.
-    mut turn: ResMut<Turn>,
     level: Res<Level>,
-    mut player_state: ResMut<PlayerState>,
+    mut player_state: ResMut<PlayerStateLevel>,
     mut view_config: ResMut<ViewConfig>,
     mut evt: EventWriter<ViewUpdate>,
 ) {
@@ -31,7 +38,6 @@ pub fn spawn_world(
         "Factory Field",
         root_factory_field,
     );
-    turn.fac_id = Some(fac_field_id);
     log::info!("Factory field spawned with id: {:?}", fac_field_id);
 
     let start_blob = spawn_blob_from_body_definition(
@@ -70,16 +76,21 @@ pub fn spawn_world(
 pub fn contiously_spawn_tetris_at_end(
     mut commands: Commands,
     query_active: Query<&Blob>,
-    mut turn: ResMut<Turn>,
+    query_field: Query<Entity, With<Field>>,
+    mut level_state: ResMut<GameStateLevel>,
 ) {
-    if let Some(prod_ent) = turn.prod_id {
-        if turn.is_new_turn() && query_active.iter().filter(|g| g.active).count() == 0 {
+    if let Ok(prod_ent) = query_field.get_single() {
+        if level_state.is_new_turn() && query_active.iter().filter(|g| g.active).count() == 0 {
             let body = gen_random_tetris_body();
 
             let _new_id = spawn_blob_from_body_definition(
                 &mut commands,
                 BodyDefinition::as_blob(body),
-                format!("{}. Additional Tetris Brick", turn.num_additional_bricks).as_str(),
+                format!(
+                    "{}. Additional Tetris Brick",
+                    level_state.num_additional_bricks
+                )
+                .as_str(),
                 prod_ent,
                 IVec2 { x: -3, y: 3 },
                 &|ec| {
@@ -87,12 +98,12 @@ pub fn contiously_spawn_tetris_at_end(
                     ec.insert(RealBlob {});
                 },
             );
-            turn.num_additional_bricks += 1;
+            level_state.num_additional_bricks += 1;
             unimplemented!("continiously spawn tetris at end needs to send events for renderer");
             //commands.entity(prod_ent).push_children(&[new_id]);
         }
     } else {
-        panic!("The programmer forgot to create the production Field...");
+        panic!("The programmer forgot to create a Field and so no spawning of tetris bricks...");
     }
 }
 
@@ -101,7 +112,7 @@ pub fn level_won_system(
     assets: Res<GameAssets>,
     query_target: Query<&Target>,
     mut query_field: Query<&mut Field>,
-    mut player_state: ResMut<PlayerState>,
+    mut player_state: ResMut<PlayerStateLevel>,
 ) {
     if player_state.won {
         return;

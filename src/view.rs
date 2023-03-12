@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::{
-    field::prelude::*, game_assets::GameAssets, input::TetrisActionsWASD, GameSets, GameState,
+    data::assets::GameAssets, field::prelude::*, input::TetrisActionsWASD, GameSets, GameState,
     PX_PER_TILE, Z_SOLID,
 };
 use bevy::{ecs::system::EntityCommands, log, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
@@ -20,6 +20,16 @@ use leafwing_input_manager::{
     prelude::{ActionState, InputMap},
     InputManagerBundle,
 };
+
+//----------------------------------------------------------------------
+
+pub mod prelude {
+    pub use super::Rotation;
+    pub use super::ViewConfig;
+    pub use super::ViewUpdate;
+
+    pub use super::rotate_coord;
+}
 
 //----------------------------------------------------------------------
 
@@ -435,7 +445,7 @@ pub fn register_animation_demo(app: &mut App) {
 
 fn spawn_demo_blob(commands: &mut Commands) -> Entity {
     let field_id = commands.spawn_empty().id();
-    let body = crate::bodies::prototype::gen_blob_body(1).unwrap();
+    let body = crate::data::bodies::gen_blob_body(1).unwrap();
     let mut rel_pos = vec![];
     let mut blocks = Vec::new();
     for r in 0..GridBody::size() {

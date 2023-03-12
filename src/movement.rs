@@ -1,5 +1,100 @@
 use crate::prelude::*;
+use crate::view::prelude::*;
+
+use crate::state::GameStateLevel;
 use bevy::{log, prelude::*};
+
+pub mod prelude {
+    pub use super::BlobMoveEvent;
+    pub use super::MoveDirection;
+    pub use super::RotateDirection;
+}
+
+/// The direction for movement of an element in respect to a [`Field`]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, FromReflect)]
+pub enum MoveDirection {
+    #[default]
+    Up = 1,
+    Right = 2,
+    Down = 3,
+    Left = 4,
+}
+
+impl TryFrom<i32> for MoveDirection {
+    type Error = ();
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            x if x == MoveDirection::Up as i32 => Ok(MoveDirection::Up),
+            x if x == MoveDirection::Down as i32 => Ok(MoveDirection::Down),
+            x if x == MoveDirection::Left as i32 => Ok(MoveDirection::Left),
+            x if x == MoveDirection::Right as i32 => Ok(MoveDirection::Right),
+            _ => Err(()),
+        }
+    }
+}
+
+impl MoveDirection {
+    pub fn min() -> i32 {
+        1
+    }
+
+    pub fn max() -> i32 {
+        4
+    }
+}
+
+impl From<MoveDirection> for (i32, i32) {
+    fn from(d: MoveDirection) -> Self {
+        match d {
+            MoveDirection::Up => (0, -1),
+            MoveDirection::Down => (0, 1),
+            MoveDirection::Left => (-1, 0),
+            MoveDirection::Right => (1, 0),
+        }
+    }
+}
+
+impl From<MoveDirection> for IVec2 {
+    fn from(d: MoveDirection) -> Self {
+        match d {
+            MoveDirection::Up => IVec2 { x: 0, y: -1 },
+            MoveDirection::Right => IVec2 { x: 1, y: 0 },
+            MoveDirection::Down => IVec2 { x: 0, y: 1 },
+            MoveDirection::Left => IVec2 { x: -1, y: 0 },
+        }
+    }
+}
+
+/// The rotation of an element in respect to a [`Field`]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, FromReflect)]
+pub enum RotateDirection {
+    #[default]
+    Left = 1,
+    Right = 2,
+}
+
+impl TryFrom<i32> for RotateDirection {
+    type Error = ();
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            x if x == RotateDirection::Left as i32 => Ok(RotateDirection::Left),
+            x if x == RotateDirection::Right as i32 => Ok(RotateDirection::Right),
+            _ => Err(()),
+        }
+    }
+}
+
+impl RotateDirection {
+    pub fn min() -> i32 {
+        1
+    }
+
+    pub fn max() -> i32 {
+        2
+    }
+}
 
 /// A event that indicates that the Blob shall be moved, can be dispatched by
 /// gravity, input and tools. @TODO - Think about an own schedule for the blob movement
@@ -17,7 +112,7 @@ pub struct BlobMoveEvent {
 pub fn move_events_by_gravity_system(
     query_collector: Query<(Entity, &GridBody)>,
     mut query: Query<(Entity, &Blob)>,
-    turn: Res<Turn>,
+    turn: Res<GameStateLevel>,
     mut ev: EventWriter<BlobMoveEvent>,
 ) {
     if turn.is_new_turn() {

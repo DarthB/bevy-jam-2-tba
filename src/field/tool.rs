@@ -1,7 +1,106 @@
-use crate::prelude::*;
+use crate::game::RealBlob;
+use crate::render_old::RenderableGrid;
+use crate::Z_OVERLAY;
+use crate::{prelude::*, view::prelude::*, PX_PER_TILE};
 use bevy::{log, prelude::*};
+use std::fmt::Display;
 
-use super::{bodies::BodyDefinition, prelude::*, Field};
+use super::prelude::*;
+use crate::movement::prelude::*;
+use crate::state::GameStateLevel;
+
+/// An enumeration that describes the different tools/commands that can be used in the game.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, FromReflect, Default, Component)]
+pub enum Tool {
+    /// A move tool that also stores in which direction it moves its subject
+    Move(MoveDirection),
+    /// A rotation tool that also stores the rotation direction for its subject
+    Rotate(RotateDirection),
+    /// A cutter tool can be one of the 7 tetris bricks
+    Cutter(TetrisBricks),
+    /// The simulate command is the default tool
+    #[default]
+    Simulate,
+    /// The reset command stops a simulation but does not change the state of the field
+    Reset,
+    /// The eraser tool can be used to erase tools that are placed on the field
+    Eraser,
+    /// The erase All tool cleans up the field, such that everything can be build from scratch
+    EraseAll,
+}
+
+impl Tool {
+    pub fn as_default_variant(self) -> Self {
+        match self {
+            Tool::Move(_) => Tool::Move(MoveDirection::default()),
+            Tool::Rotate(_) => Tool::Rotate(RotateDirection::default()),
+            Tool::Cutter(_) => Tool::Cutter(TetrisBricks::default()),
+            _ => self,
+        }
+    }
+}
+
+impl TryFrom<i32> for Tool {
+    type Error = ();
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            101 => Ok(Tool::Move(MoveDirection::Up)),
+            102 => Ok(Tool::Move(MoveDirection::Right)),
+            103 => Ok(Tool::Move(MoveDirection::Down)),
+            104 => Ok(Tool::Move(MoveDirection::Left)),
+
+            201 => Ok(Tool::Rotate(RotateDirection::Left)),
+            202 => Ok(Tool::Rotate(RotateDirection::Right)),
+
+            301 => Ok(Tool::Cutter(TetrisBricks::Square)),
+            302 => Ok(Tool::Cutter(TetrisBricks::Line)),
+            303 => Ok(Tool::Cutter(TetrisBricks::L)),
+            304 => Ok(Tool::Cutter(TetrisBricks::InvL)),
+            305 => Ok(Tool::Cutter(TetrisBricks::StairsL)),
+            306 => Ok(Tool::Cutter(TetrisBricks::StairsR)),
+            307 => Ok(Tool::Cutter(TetrisBricks::SmallT)),
+
+            401 => Ok(Tool::Simulate),
+
+            501 => Ok(Tool::Reset),
+
+            601 => Ok(Tool::Eraser),
+
+            701 => Ok(Tool::EraseAll),
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<Tool> for i32 {
+    fn from(t: Tool) -> Self {
+        match t {
+            Tool::Move(d) => 100 + d as i32,
+            Tool::Rotate(d) => 200 + d as i32,
+            Tool::Cutter(brick) => 300 + brick as i32,
+            Tool::Simulate => 401,
+            Tool::Reset => 501,
+            Tool::Eraser => 601,
+            Tool::EraseAll => 701,
+        }
+    }
+}
+
+impl Display for Tool {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            Tool::Move(_) => "Move",
+            Tool::Rotate(_) => "Rotate",
+            Tool::Cutter(_) => "Cut",
+            Tool::Simulate => "Play",
+            Tool::Reset => "Pause",
+            Tool::Eraser => "Eraser",
+            Tool::EraseAll => "Reset Factory",
+        };
+        write!(f, "{}", name)
+    }
+}
 
 /// This bundle is used to
 #[derive(Bundle, Clone)]
@@ -25,9 +124,9 @@ pub fn apply_cutter_tool(
     mut blob_query: Query<(&mut Blob, &mut GridBody), RealBlobFilter>,
     mut block_query: Query<&mut Block>,
     mut ev_view: EventWriter<ViewUpdate>,
-    turn: Res<Turn>,
+    level_state: Res<GameStateLevel>,
 ) {
-    if !turn.is_new_turn() {
+    if !level_state.is_new_turn() {
         return;
     }
     //~
@@ -74,9 +173,9 @@ pub fn apply_movement_tools(
     mut query: Query<(Entity, &mut Blob, &mut GridBody)>,
     mut block_query: Query<(Entity, &mut Block)>,
     mut ev_view: EventWriter<ViewUpdate>,
-    turn: Res<Turn>,
+    level_state: Res<GameStateLevel>,
 ) {
-    if !turn.is_new_turn() {
+    if !level_state.is_new_turn() {
         return;
     }
     //~

@@ -1,3 +1,5 @@
+use crate::data::prelude::*;
+use crate::PX_PER_TILE;
 use crate::{
     field::{
         tool::{despawn_tool, spawn_tool},
@@ -5,6 +7,9 @@ use crate::{
     },
     prelude::*,
 };
+
+use crate::movement::prelude::*;
+
 use bevy::{
     ecs::system::EntityCommands, input::mouse::MouseWheel, log, prelude::*, window::PrimaryWindow,
 };
@@ -88,7 +93,7 @@ pub fn add_arrow_control(commands: &mut EntityCommands) {
 
 pub fn tool_switch_via_mouse_wheel_system(
     mut mouse_wheel_events: EventReader<MouseWheel>,
-    mut player_state: ResMut<PlayerState>,
+    mut player_state: ResMut<PlayerStateLevel>,
 ) {
     for event in mouse_wheel_events.iter() {
         let y = event.y.signum() as i32;
@@ -141,7 +146,7 @@ pub fn grid_coordinate_via_mouse_system(
     primary_query: Query<&Window, With<PrimaryWindow>>,
     mut cursor_moved_events: EventReader<CursorMoved>,
     mut sprites: Query<(&GlobalTransform, &Coordinate), With<FieldRenderTag>>,
-    mut player_state: ResMut<PlayerState>,
+    mut player_state: ResMut<PlayerStateLevel>,
 ) {
     let Ok(primary) = primary_query.get_single() else {
         return;
@@ -178,7 +183,7 @@ pub fn create_tool_if_valid_clicked(
     query_body: Query<&GridBody>,
     mouse_button_input: Res<Input<MouseButton>>,
     assets: Res<GameAssets>,
-    mut player_state: ResMut<PlayerState>,
+    mut player_state: ResMut<PlayerStateLevel>,
 ) {
     let (field_id, field) = if let Ok(pair) = field_query.get_single_mut() {
         pair

@@ -1,5 +1,10 @@
-use crate::prelude::*;
-use bevy::{prelude::Resource, utils::HashMap};
+use crate::data::bodies::TetrisBricks;
+use crate::field::tool::Tool;
+use crate::movement::prelude::*;
+
+use crate::constants::*;
+
+use bevy::{prelude::Resource, reflect::Reflect, utils::HashMap};
 
 #[derive(Resource, Reflect)]
 pub struct Level {
@@ -62,11 +67,11 @@ impl Level {
 
         Level {
             start_blob: (
-                prototype::gen_blob_body(num).expect("Couldn't generate start blob"),
+                super::bodies::gen_blob_body(num).expect("Couldn't generate start blob"),
                 (3, -4),
             ),
             target_figure: (
-                prototype::gen_target_body(num).expect("Couldn't generate target figure"),
+                super::bodies::gen_target_body(num).expect("Couldn't generate target figure"),
                 (0, 12),
             ),
             applicable_tools,

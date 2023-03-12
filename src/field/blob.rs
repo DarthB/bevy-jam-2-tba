@@ -5,14 +5,10 @@
 use bevy::{ecs::system::EntityCommands, log, prelude::*};
 use leafwing_input_manager::prelude::*;
 
-use crate::{
-    bodies::BodyDefinition,
-    input::TetrisActionsWASD,
-    prelude::{move_blob, rotate_coord, Rotation, ViewUpdate},
-    turn::Turn,
-};
+use crate::{data::bodies::BodyDefinition, input::TetrisActionsWASD, state::GameStateLevel};
 
-use super::prelude::*;
+use crate::prelude::*;
+use crate::view::prelude::*;
 #[cfg(feature = "debug")]
 use bevy_inspector_egui::prelude::*;
 
@@ -229,11 +225,11 @@ pub fn move_blob_by_input(
     mut query: Query<(&ActionState<TetrisActionsWASD>, &mut GridBody, Entity)>,
     mut query_block: Query<(Entity, &mut Block)>,
     mut ev_view: EventWriter<ViewUpdate>,
-    turn: Res<Turn>,
+    level_state: Res<GameStateLevel>,
 ) {
     // continue here
     // check if we are in a turn change...
-    if turn.is_new_turn() {
+    if level_state.is_new_turn() {
         query.for_each_mut(|(s, mut body, blob_id)| {
             let mut delta = IVec2::ZERO;
             if s.pressed(TetrisActionsWASD::Up) {
@@ -269,7 +265,13 @@ pub fn move_blob_by_input(
                 .filter(|(_, block)| block.group == Some(blob_id));
 
             if delta != IVec2::ZERO {
-                move_blob(blob_id, &mut body, delta, block_iter, Some(&mut ev_view));
+                crate::movement::move_blob(
+                    blob_id,
+                    &mut body,
+                    delta,
+                    block_iter,
+                    Some(&mut ev_view),
+                );
             }
         });
     }

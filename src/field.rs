@@ -1,7 +1,10 @@
-//! The field module represents the root element of the entity object tree which has thevia the [`Field`] struct.
+//! The field module represents the root element of the entity object tree which via the [`Field`] struct.
 //!
 //! On the field the [`Target`] marks the shape that has to be filled by the player. Beside that [`Tool`]s and
 //! [`Blob`]s which consists of [`Block`]s may inhabit a field.
+//!
+//! The ingame representation and the data that describes a puzzle is separated. To design a level for Disastris
+//! have a look at the module [`crate::data`] and there speicifially the [`crate::data::level::Level`] structure.
 
 use std::fmt::Debug;
 
@@ -9,6 +12,7 @@ use bevy::{log, prelude::*};
 use itertools::Itertools;
 
 pub mod blob;
+pub mod field_element;
 pub mod target;
 pub mod tool;
 
@@ -20,13 +24,17 @@ pub mod prelude {
     pub use super::target::Coordinate;
     pub use super::target::Target;
 
+    pub use super::tool::Tool;
+
     pub use super::Block;
     pub use super::Field;
+
+    pub use super::field_element::FieldElement;
+    pub use super::field_element::FieldElementKind;
+    pub use super::field_element::FieldState;
 }
 use self::{prelude::*, tool::despawn_tool};
-use super::prelude::*;
-
-use crate::game_assets::GameAssets;
+use crate::{data::prelude::*, render_old::RenderableGrid};
 
 //----------------------------------------------------------------------
 // Field Component, Tags and implementation

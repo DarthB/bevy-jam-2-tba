@@ -2,11 +2,18 @@
 //! the HUD. The update_* methods keep the HUD visuals in-sync with the player state. To identify what has to be
 //! done when the HUD is clicked the UITag* components are used.
 
+use crate::{GameState, PX_PER_ICON};
 use bevy::{ecs::system::EntityCommands, prelude::*, ui::FocusPolicy};
-use field::prelude::GridBody;
-use player_state::{MoveDirection, PlayerState, RotateDirection, Tool};
 
+use crate::field::prelude::*;
+use crate::movement::prelude::*;
 use crate::prelude::*;
+
+pub mod prelude {
+    pub use super::UITagHover;
+    pub use super::UITagImage;
+    pub use super::UITagInventory;
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Component)]
 pub struct UITagImage {
@@ -57,7 +64,7 @@ pub fn spawn_hud(mut commands: Commands, assets: Res<GameAssets>) {
         });
 }
 
-fn spawn_tool_button(cb: &mut ChildBuilder, tool: player_state::Tool, assets: &GameAssets) {
+fn spawn_tool_button(cb: &mut ChildBuilder, tool: Tool, assets: &GameAssets) {
     cb.spawn(ButtonBundle {
         style: Style {
             size: Size::new(Val::Px(PX_PER_ICON), Val::Px(PX_PER_ICON)),
@@ -117,7 +124,7 @@ fn spawn_tool_button(cb: &mut ChildBuilder, tool: player_state::Tool, assets: &G
 
 pub fn toolbar_images_system(
     mut query_images: Query<(&mut UiImage, &mut UITagImage)>,
-    player_state: Res<PlayerState>,
+    player_state: Res<PlayerStateLevel>,
     assets: Res<GameAssets>,
 ) {
     for (mut img, mut tag) in query_images.iter_mut() {
@@ -138,7 +145,7 @@ pub fn toolbar_images_system(
 
 pub fn toolbar_inventory_system(
     mut query_text: Query<(&mut Text, &UITagInventory)>,
-    player_state: Res<PlayerState>,
+    player_state: Res<PlayerStateLevel>,
 ) {
     for (mut text, tag) in query_text.iter_mut() {
         if let Some(inv_num) = player_state.num_in_inventory(tag.tool_status) {
@@ -149,7 +156,7 @@ pub fn toolbar_inventory_system(
 
 pub fn toolbar_overlays_system(
     mut query_overlay: Query<(&mut BackgroundColor, &mut UITagHover)>,
-    player_state: Res<PlayerState>,
+    player_state: Res<PlayerStateLevel>,
     assets: Res<GameAssets>,
 ) {
     for (mut hover, mut tag) in query_overlay.iter_mut() {
@@ -204,8 +211,8 @@ pub fn toolbar_button_system(
     query_body: Query<&GridBody>,
     mut hover_query: Query<(&mut BackgroundColor, &mut UITagHover)>,
     assets: Res<GameAssets>,
-    mut player_state: ResMut<PlayerState>,
-    mut turn: ResMut<Turn>,
+    mut player_state: ResMut<PlayerStateLevel>,
+    mut turn: ResMut<GameStateLevel>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     for (mut color, mut tag_hover) in &mut hover_query {
@@ -220,7 +227,7 @@ pub fn toolbar_button_system(
                     *color = assets.clicked_button_color.into();
                     match tag_hover.tool_status {
                         Tool::Simulate => {
-                            turn.pause = false;
+                            turn.doing_simulation = false;
                         }
                         Tool::Reset => {
                             next_state.set(GameState::PlayLevel);
