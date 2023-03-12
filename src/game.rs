@@ -1,7 +1,8 @@
 use crate::data::prelude::*;
-use crate::get_random_quote;
 use crate::input::add_tetris_control;
 use crate::render_old::RenderableGrid;
+use crate::state::GameState;
+use crate::SECONDS_PER_ROUND;
 use crate::{field::spawn_field, prelude::*};
 use bevy::{log, prelude::*};
 
@@ -18,13 +19,16 @@ pub struct RealBlob {}
 pub fn spawn_world(
     mut commands: Commands, // stores commands for entity/component creation / deletion
     assets: Res<GameAssets>, // used to access files stored in the assets folder.
-    level: Res<Level>,
+    mut gs: ResMut<GameState>,
     mut player_state: ResMut<PlayerStateLevel>,
     mut view_config: ResMut<ViewConfig>,
     mut evt: EventWriter<ViewUpdate>,
 ) {
+    let level = gs.get_lvl();
     info!("Spawn world for level '{}' called.", level.num);
     player_state.set_inventory(level.applicable_tools.clone());
+
+    commands.insert_resource(GameStateLevel::new(SECONDS_PER_ROUND));
 
     let factory_field_struct = Field::as_factory();
     let root_factory_field = Vec3::new(-200.0, -70.0, 0.0);
@@ -70,7 +74,7 @@ pub fn spawn_world(
         left: Val::Percent(3.0),
         ..default()
     };
-    spawn_text(&mut commands, &assets, level.get_text(), pos, &|_| {});
+    spawn_text(&mut commands, &assets, level.get_text(), pos, None);
 }
 
 pub fn contiously_spawn_tetris_at_end(
@@ -154,6 +158,12 @@ pub fn level_won_system(
             right: Val::Percent(3.0),
             ..default()
         };
-        spawn_text(&mut commands, &assets, &get_random_quote(), pos, &|_| {});
+        spawn_text(
+            &mut commands,
+            &assets,
+            "YOU WON!!!\n\nPress <RETURN> to continue!\n\nAnd get a huge wall of text with your random quote as a reward!",
+            pos,
+            None,
+        );
     }
 }

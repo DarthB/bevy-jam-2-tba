@@ -2,8 +2,8 @@
 //! the HUD. The update_* methods keep the HUD visuals in-sync with the player state. To identify what has to be
 //! done when the HUD is clicked the UITag* components are used.
 
-use crate::{GameState, PX_PER_ICON};
-use bevy::{ecs::system::EntityCommands, prelude::*, ui::FocusPolicy};
+use crate::{DisastrisAppState, PX_PER_ICON};
+use bevy::{prelude::*, ui::FocusPolicy};
 
 use crate::field::prelude::*;
 use crate::movement::prelude::*;
@@ -213,7 +213,7 @@ pub fn toolbar_button_system(
     assets: Res<GameAssets>,
     mut player_state: ResMut<PlayerStateLevel>,
     mut turn: ResMut<GameStateLevel>,
-    mut next_state: ResMut<NextState<GameState>>,
+    mut next_state: ResMut<NextState<DisastrisAppState>>,
 ) {
     for (mut color, mut tag_hover) in &mut hover_query {
         for (interaction, tag) in &mut interaction_query {
@@ -227,10 +227,10 @@ pub fn toolbar_button_system(
                     *color = assets.clicked_button_color.into();
                     match tag_hover.tool_status {
                         Tool::Simulate => {
-                            turn.doing_simulation = false;
+                            turn.simulation_running = false;
                         }
                         Tool::Reset => {
-                            next_state.set(GameState::PlayLevel);
+                            next_state.set(DisastrisAppState::PlayLevel);
                         }
                         Tool::EraseAll => {
                             if let Ok(mut field) = field_query.get_single_mut() {
@@ -263,9 +263,18 @@ pub fn spawn_text(
     assets: &GameAssets,
     text: &str,
     pos: UiRect,
-    adapter: &dyn Fn(&mut EntityCommands),
+    max_size: Option<Size>,
 ) {
-    let mut ec = commands.spawn(
+    let max_size = if let Some(max_size) = max_size {
+        max_size
+    } else {
+        Size {
+            width: Val::Px(250.),
+            height: Val::Undefined,
+        }
+    };
+
+    commands.spawn(
         TextBundle::from_section(
             text,
             TextStyle {
@@ -279,13 +288,8 @@ pub fn spawn_text(
             align_self: AlignSelf::Center,
             position_type: PositionType::Absolute,
             position: pos,
-            max_size: Size {
-                width: Val::Px(250.),
-                height: Val::Undefined,
-            },
+            max_size,
             ..default()
         }),
     );
-
-    adapter(&mut ec);
 }

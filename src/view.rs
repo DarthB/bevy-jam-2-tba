@@ -10,8 +10,8 @@ use std::{
 };
 
 use crate::{
-    data::assets::GameAssets, field::prelude::*, input::TetrisActionsWASD, GameSets, GameState,
-    PX_PER_TILE, Z_SOLID,
+    data::assets::GameAssets, field::prelude::*, input::TetrisActionsWASD, DisastrisAppState,
+    GameSets, PX_PER_TILE, Z_SOLID,
 };
 use bevy::{ecs::system::EntityCommands, log, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
 use bevy_tweening::{lens::SpriteColorLens, Animator, Tween};
@@ -439,7 +439,7 @@ pub fn handle_view_update_system(
 /// Registers the animation demo
 /// strongly simplified as we also rely on global app setup in [`crate::start_disastris`]
 pub fn register_animation_demo(app: &mut App) {
-    app.add_system(setup_demo_system.in_schedule(OnEnter(GameState::AnimationTest)));
+    app.add_system(setup_demo_system.in_schedule(OnEnter(DisastrisAppState::AnimationTest)));
     app.add_system(demo_system.after(GameSets::EventHandling));
 }
 

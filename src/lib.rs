@@ -18,15 +18,30 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy::window::PresentMode;
+use bevy::window::{PresentMode, PrimaryWindow};
 use bevy::DefaultPlugins;
 use bevy_tweening::TweeningPlugin;
 
-use prelude::*;
 use rand::Rng;
 
 #[cfg(feature = "debug")]
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+
+#[cfg(feature = "debug")]
+use crate::{
+    data::level::Level,
+    field::blob::{Blob, GridBody},
+    field::target::{Coordinate, Target},
+    field::Block,
+    field::Field,
+    hud::UITagHover,
+    hud::UITagImage,
+    hud::UITagInventory,
+    state::GameState,
+    state::GameStateLevel,
+    state::OverStatePersistenceTag,
+    state::PlayerStateLevel,
+};
 
 pub mod data;
 pub mod field;
@@ -102,7 +117,7 @@ enum GameSets {
 }
 
 #[derive(States, Debug, PartialEq, Eq, Clone, Copy, Hash, Default)]
-pub enum GameState {
+pub enum DisastrisAppState {
     #[default]
     /// The state is always the first state
     InternalStartup,
@@ -113,30 +128,35 @@ pub enum GameState {
     /// The ingame state where the actual action happens
     PlayLevel,
 
+    /// The next level is loaded
+    TransitionLevel,
+
     /// Animation test code
     AnimationTest,
 }
 
-impl std::fmt::Display for GameState {
+impl std::fmt::Display for DisastrisAppState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GameState::InternalStartup => write!(f, "InternalStartup"),
-            GameState::Mainmenu => write!(f, "Mainmenu"),
-            GameState::PlayLevel => write!(f, "PlayLevel"),
-            GameState::AnimationTest => write!(f, "AnimationTest"),
+            DisastrisAppState::InternalStartup => write!(f, "InternalStartup"),
+            DisastrisAppState::Mainmenu => write!(f, "Mainmenu"),
+            DisastrisAppState::PlayLevel => write!(f, "PlayLevel"),
+            DisastrisAppState::TransitionLevel => write!(f, "TransitionLevel"),
+            DisastrisAppState::AnimationTest => write!(f, "AnimationTest"),
         }
     }
 }
 
-impl FromStr for GameState {
+impl FromStr for DisastrisAppState {
     type Err = ();
 
-    fn from_str(input: &str) -> Result<GameState, Self::Err> {
+    fn from_str(input: &str) -> Result<DisastrisAppState, Self::Err> {
         match input.trim().to_lowercase().as_str() {
             // we do not want to convert a string to InternalStartup
-            "mainmenu" => Ok(GameState::Mainmenu),
-            "playlevel" => Ok(GameState::PlayLevel),
-            "animationtest" => Ok(GameState::AnimationTest),
+            "mainmenu" => Ok(DisastrisAppState::Mainmenu),
+            "playlevel" => Ok(DisastrisAppState::PlayLevel),
+            "transitionlevel" => Ok(DisastrisAppState::TransitionLevel),
+            "animationtest" => Ok(DisastrisAppState::AnimationTest),
             _ => Err(()),
         }
     }
@@ -176,22 +196,27 @@ pub fn start_disastris(config: GameConfig) {
     app.add_event::<movement::BlobMoveEvent>()
         .add_event::<view::ViewUpdate>();
 
-    app.add_state::<GameState>();
+    app.add_state::<DisastrisAppState>();
 
     // initial initializiation during startup
     app.add_startup_system(initial_start_setup);
 
     // Initialization and cleanup for a disastris level
     app.add_systems((
-        game::spawn_world.in_schedule(OnEnter(GameState::PlayLevel)),
-        hud::spawn_hud.in_schedule(OnEnter(GameState::PlayLevel)),
-        clean_all_system.in_schedule(OnExit(GameState::PlayLevel)),
+        game::spawn_world.in_schedule(OnEnter(DisastrisAppState::PlayLevel)),
+        hud::spawn_hud.in_schedule(OnEnter(DisastrisAppState::PlayLevel)),
+        state::clean_all_state_entities.in_schedule(OnExit(DisastrisAppState::PlayLevel)),
     ));
 
     // @TODO initialization and cleanup for other states
     app.add_systems((
-        hud::spawn_hud.in_schedule(OnEnter(GameState::Mainmenu)),
-        clean_all_system.in_schedule(OnExit(GameState::Mainmenu)),
+        hud::spawn_hud.in_schedule(OnEnter(DisastrisAppState::Mainmenu)),
+        state::clean_all_state_entities.in_schedule(OnExit(DisastrisAppState::Mainmenu)),
+    ));
+
+    app.add_systems((
+        state::spawn_transition_level.in_schedule(OnEnter(DisastrisAppState::TransitionLevel)),
+        state::clean_all_state_entities.in_schedule(OnExit(DisastrisAppState::TransitionLevel)),
     ));
 
     // Setup the game loop
@@ -208,6 +233,7 @@ pub fn start_disastris(config: GameConfig) {
         view::handle_view_update_system.in_set(GameSets::EventHandling),
         field::tool::apply_movement_tools.in_set(GameSets::EventHandling),
         field::tool::apply_cutter_tool.in_set(GameSets::EventHandling),
+        state::app_state_transition_system.in_set(GameSets::EventHandling),
     ));
 
     app.add_systems((
@@ -251,7 +277,10 @@ pub fn start_disastris(config: GameConfig) {
         .register_type::<Level>()
         .register_type::<GameStateLevel>()
         .register_type::<game::RealBlob>()
-        .register_type::<PlayerStateLevel>();
+        .register_type::<PlayerStateLevel>()
+        .register_type::<GameState>()
+        .register_type::<OverStatePersistenceTag>()
+        .register_type::<GridBody>();
 
     // Setup animation demo
     view::register_animation_demo(&mut app);
@@ -262,17 +291,30 @@ pub fn start_disastris(config: GameConfig) {
 /// setups global information like the asset structure and the current level
 fn initial_start_setup(
     mut commands: Commands,
+    primary_query: Query<Entity, With<PrimaryWindow>>,
     asset_server: Res<AssetServer>,
-    mut next_state: ResMut<NextState<GameState>>,
+    mut next_state: ResMut<NextState<DisastrisAppState>>,
     config: Res<GameConfig>,
 ) {
     info!("Create global resources for Assets, Gamestate and ViewConfig");
     // setup the camera
-    commands.spawn(Camera2dBundle::default());
+    commands
+        .spawn(Camera2dBundle::default())
+        .insert(state::OverStatePersistenceTag {});
+
+    // mark primary window as persistent over states:
+    let primary_entity = primary_query.single();
+    commands
+        .entity(primary_entity)
+        .insert(state::OverStatePersistenceTag {});
 
     //commands.insert_resource(WinitSettings::desktop_app());
     commands.insert_resource(state::PlayerStateLevel::new());
-    commands.insert_resource(data::level::Level::new(config.start_level));
+    let gs = state::GameState {
+        level: None,
+        upcoming_level: Some(data::level::Level::new(config.start_level)),
+    };
+    commands.insert_resource(gs);
     commands.insert_resource(state::GameStateLevel::new(SECONDS_PER_ROUND));
 
     let assets = data::assets::GameAssets::new(&asset_server);
@@ -288,17 +330,12 @@ fn initial_start_setup(
     commands.insert_resource(assets);
 
     // Switch state
-    let state = GameState::from_str(config.start_state.as_str()).unwrap_or(GameState::PlayLevel);
+    let state = DisastrisAppState::from_str(config.start_state.as_str())
+        .unwrap_or(DisastrisAppState::PlayLevel);
     next_state.set(state);
     info!(
         "Switching state from '{}' --> '{}'",
-        GameState::InternalStartup,
+        DisastrisAppState::InternalStartup,
         state
     );
-}
-
-pub fn clean_all_system(mut commands: Commands, query: Query<Entity>) {
-    for e in query.iter() {
-        commands.entity(e).despawn();
-    }
 }

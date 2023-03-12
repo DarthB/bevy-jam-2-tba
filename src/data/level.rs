@@ -4,9 +4,9 @@ use crate::movement::prelude::*;
 
 use crate::constants::*;
 
-use bevy::{prelude::Resource, reflect::Reflect, utils::HashMap};
+use bevy::{prelude::*, reflect::Reflect, utils::HashMap};
 
-#[derive(Resource, Reflect)]
+#[derive(Resource, Reflect, FromReflect)]
 pub struct Level {
     pub num: u32,
 
