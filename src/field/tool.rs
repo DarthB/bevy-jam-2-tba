@@ -10,7 +10,7 @@ use crate::movement::prelude::*;
 use crate::state::GameStateLevel;
 
 /// An enumeration that describes the different tools/commands that can be used in the game.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, FromReflect, Default, Component)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, Component)]
 pub enum Tool {
     /// A move tool that also stores in which direction it moves its subject
     Move(MoveDirection),
@@ -112,7 +112,6 @@ pub struct ToolBundle {
     body: GridBody,
 
     /// the rendering of the tool is at the moment done via the game logic
-    #[bundle]
     sprite: SpriteBundle,
 }
 

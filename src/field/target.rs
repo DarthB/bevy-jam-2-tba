@@ -13,7 +13,7 @@ pub struct Target {
     pub coordinate: Option<Coordinate>,
 }
 
-#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Copy, Reflect, FromReflect)]
+#[derive(Component, Debug, Default, PartialEq, Eq, Clone, Copy, Reflect)]
 pub struct Coordinate {
     pub r: i32,
     pub c: i32,

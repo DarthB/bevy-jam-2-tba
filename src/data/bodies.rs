@@ -2,10 +2,7 @@
 //! ATM only 0 and 1 are used to indicate if the given position is solid or not.
 //! The tetris stones and [`crate::field::blob::Blob`] objects use 9x9 vectors. The target shape is a 12x10 vector.
 
-use bevy::{
-    prelude::IVec2,
-    reflect::{FromReflect, Reflect},
-};
+use bevy::{prelude::IVec2, reflect::Reflect};
 use rand::Rng;
 
 /// Defines a body that is used on a grid. It can describe the body of a [`crate::field::blob::Blob`] or
@@ -49,7 +46,7 @@ impl BodyDefinition {
 }
 
 /// Describes the 7 default tetris bricks
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, FromReflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
 pub enum TetrisBricks {
     #[default]
     Square = 1,

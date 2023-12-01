@@ -11,7 +11,7 @@ pub mod prelude {
 }
 
 /// The direction for movement of an element in respect to a [`Field`]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, FromReflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
 pub enum MoveDirection {
     #[default]
     Up = 1,
@@ -67,7 +67,7 @@ impl From<MoveDirection> for IVec2 {
 }
 
 /// The rotation of an element in respect to a [`Field`]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default, FromReflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
 pub enum RotateDirection {
     #[default]
     Left = 1,
@@ -103,6 +103,7 @@ impl RotateDirection {
 ///
 /// If both delta and rot_dir is given then first the rotation is applied and then
 /// the blob is moved.
+#[derive(Event)]
 pub struct BlobMoveEvent {
     delta: IVec2,
 
@@ -151,7 +152,7 @@ pub fn handle_move_blob_events(
     };
     //~
 
-    for ev in ev_move.iter() {
+    for ev in ev_move.read() {
         if let Ok((blob_id, blob, mut body)) = query.get_mut(ev.entity) {
             if blob.active && !body.transferred {
                 log::info!("Move Factory!");

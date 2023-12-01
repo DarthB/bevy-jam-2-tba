@@ -2,10 +2,10 @@ use crate::constants::*;
 use crate::data::prelude::*;
 use crate::field::{OriginTag, PivotTag};
 use crate::{field::FieldRenderTag, prelude::*};
-use bevy::{ecs::system::EntityCommands, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
+use bevy::{ecs::system::EntityCommands, prelude::*};
 
 pub struct SpriteInfo {
-    pub image: Handle<Image>,
+    pub image: Option<Handle<Image>>,
     pub color: Color,
     pub z: f32,
 }
@@ -94,7 +94,10 @@ pub trait RenderableGrid {
                                 translation: Vec3::new(x, y, info.z),
                                 ..Default::default()
                             },
-                            texture: info.image,
+                            texture: match info.image {
+                                Some(img) => img,
+                                None => Handle::default(),
+                            },
                             ..Default::default()
                         });
                         ec.insert(FieldRenderTag {});
@@ -240,20 +243,20 @@ impl RenderableGrid for Field {
             -1 => SpriteInfo {
                 color: Color::BLACK,
                 z: Z_FIELD,
-                image: DEFAULT_IMAGE_HANDLE.typed(),
+                image: None,
             },
             1 => SpriteInfo {
                 color: Color::WHITE,
                 z: Z_FIELD,
-                image: assets.block_blob.clone(),
+                image: Some(assets.block_blob.clone()),
             },
             2 => SpriteInfo {
-                image: DEFAULT_IMAGE_HANDLE.typed(),
+                image: None,
                 color: Color::GRAY,
                 z: Z_FIELD,
             },
             3 => SpriteInfo {
-                image: DEFAULT_IMAGE_HANDLE.typed(),
+                image: None,
                 color: Color::RED,
                 z: Z_FIELD,
             },
@@ -262,13 +265,13 @@ impl RenderableGrid for Field {
                     SpriteInfo {
                         color: Color::WHITE,
                         z: Z_FIELD,
-                        image: assets.get_tool_image(tool).clone(),
+                        image: Some(assets.get_tool_image(tool).clone()),
                     }
                 } else {
                     SpriteInfo {
                         color: Color::WHITE,
                         z: Z_FIELD,
-                        image: assets.block_tetris_floor.clone(),
+                        image: Some(assets.block_tetris_floor.clone()),
                     }
                 }
             }
@@ -315,7 +318,10 @@ pub fn old_render_entities_system<T: Component + RenderableGrid>(
                         if pivot.is_some() {
                             sprite.color = Color::YELLOW;
                         }
-                        *texture = info.image;
+                        *texture = match info.image {
+                            Some(img) => img,
+                            None => Handle::default(),
+                        };
                         t.translation.z = info.z;
                     }
                 }

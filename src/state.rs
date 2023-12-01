@@ -17,7 +17,7 @@ pub mod prelude {
 #[derive(Debug, Default, Reflect, Clone, Copy, Eq, PartialEq, Hash, Component)]
 pub struct OverStatePersistenceTag {}
 
-#[derive(Default, Resource, Reflect, FromReflect)]
+#[derive(Default, Resource, Reflect)]
 pub struct GameState {
     pub level: Option<Level>,
 
@@ -164,7 +164,7 @@ pub fn app_state_transition_system(
     keyboard_input: Res<Input<KeyCode>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Return) {
-        let did_transition = match cur_state.0 {
+        let did_transition = match cur_state.get() {
             DisastrisAppState::PlayLevel => {
                 if playerstate.won {
                     let next_num = gamestate.level.as_ref().unwrap().num + 1;
@@ -193,7 +193,7 @@ pub fn app_state_transition_system(
             _ => {
                 warn!(
                     "No App State transition from {} yet (triggered by <RETURN>)",
-                    cur_state.0.to_string()
+                    cur_state.get().to_string()
                 );
                 false
             }
@@ -202,8 +202,10 @@ pub fn app_state_transition_system(
         if did_transition {
             info!(
                 "State transition {} --> {}",
-                cur_state.0,
-                next_state.0.as_ref().unwrap()
+                cur_state.get(),
+                "TBD",
+                //@todo
+                //next_state.get().as_ref().unwrap()
             );
         }
     }
@@ -239,10 +241,7 @@ pub fn spawn_transition_level(mut commands: Commands, assets: Res<GameAssets>, g
                 top: Val::Percent(20.),
                 bottom: Val::Percent(50.),
             },
-            Some(Size {
-                width: Val::Px(600.0),
-                height: Val::Undefined,
-            }),
+            Some((Val::Px(600.), Val::Px(0.))),
         );
 
         spawn_text(
@@ -255,10 +254,7 @@ pub fn spawn_transition_level(mut commands: Commands, assets: Res<GameAssets>, g
                 top: Val::Percent(75.),
                 bottom: Val::Percent(100.),
             },
-            Some(Size {
-                width: Val::Px(500.0),
-                height: Val::Undefined,
-            }),
+            Some((Val::Px(500.0), Val::Px(0.))),
         );
     } else {
         spawn_text(
@@ -302,10 +298,7 @@ pub fn spawn_transition_level(mut commands: Commands, assets: Res<GameAssets>, g
                 top: Val::Percent(20.),
                 bottom: Val::Percent(50.),
             },
-            Some(Size {
-                width: Val::Px(600.0),
-                height: Val::Undefined,
-            }),
+            Some((Val::Px(600.0), Val::Px(0.))),
         );
 
         spawn_text(
@@ -332,10 +325,7 @@ pub fn spawn_transition_level(mut commands: Commands, assets: Res<GameAssets>, g
                 top: Val::Percent(75.),
                 bottom: Val::Percent(100.),
             },
-            Some(Size {
-                width: Val::Px(500.0),
-                height: Val::Undefined,
-            }),
+            Some((Val::Px(500.0), Val::Px(0.))),
         );
     } else {
         spawn_text(

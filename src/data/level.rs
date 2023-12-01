@@ -6,7 +6,7 @@ use crate::constants::*;
 
 use bevy::{prelude::*, reflect::Reflect, utils::HashMap};
 
-#[derive(Resource, Reflect, FromReflect)]
+#[derive(Resource, Reflect)]
 pub struct Level {
     pub num: u32,
 

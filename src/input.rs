@@ -18,7 +18,7 @@ use leafwing_input_manager::prelude::*;
 pub struct InputMappingPlugin;
 
 // This is the list of "things in the game I want to be able to do based on input"
-#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug)]
+#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
 pub enum WASDActions {
     Left,
     Right,
@@ -28,7 +28,7 @@ pub enum WASDActions {
 }
 
 /// This is the list of things the player can do in a normal Tetris game
-#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug)]
+#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
 pub enum TetrisActionsWASD {
     Left,
     Right,
@@ -40,8 +40,10 @@ pub enum TetrisActionsWASD {
 
 impl Plugin for InputMappingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(InputManagerPlugin::<WASDActions>::default())
-            .add_plugin(InputManagerPlugin::<TetrisActionsWASD>::default());
+        app.add_plugins((
+            InputManagerPlugin::<WASDActions>::default(),
+            InputManagerPlugin::<TetrisActionsWASD>::default(),
+        ));
     }
 }
 
@@ -86,7 +88,7 @@ pub fn add_arrow_control(commands: &mut EntityCommands) {
             (KeyCode::Down, WASDActions::Down),
             (KeyCode::Left, WASDActions::Left),
             (KeyCode::Right, WASDActions::Right),
-            (KeyCode::RShift, WASDActions::Powerup),
+            (KeyCode::ShiftRight, WASDActions::Powerup),
         ]),
     });
 }
@@ -95,7 +97,7 @@ pub fn tool_switch_via_mouse_wheel_system(
     mut mouse_wheel_events: EventReader<MouseWheel>,
     mut player_state: ResMut<PlayerStateLevel>,
 ) {
-    for event in mouse_wheel_events.iter() {
+    for event in mouse_wheel_events.read() {
         let y = event.y.signum() as i32;
         if let Some(tool) = &mut player_state.selected_tool {
             match tool {
@@ -152,7 +154,7 @@ pub fn grid_coordinate_via_mouse_system(
         return;
     };
 
-    let ev = cursor_moved_events.iter().last();
+    let ev = cursor_moved_events.read().last();
     if let Some(moved) = ev {
         let half_window = Vec2::new(primary.width() / 2.0, primary.height() / 2.0);
         let cursor_pos = moved.position - half_window;

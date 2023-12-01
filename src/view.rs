@@ -11,9 +11,9 @@ use std::{
 
 use crate::{
     data::assets::GameAssets, field::prelude::*, input::TetrisActionsWASD, DisastrisAppState,
-    GameSets, PX_PER_TILE, Z_SOLID,
+    PX_PER_TILE, Z_SOLID,
 };
-use bevy::{ecs::system::EntityCommands, log, prelude::*, render::texture::DEFAULT_IMAGE_HANDLE};
+use bevy::{ecs::system::EntityCommands, log, prelude::*};
 use bevy_tweening::{lens::SpriteColorLens, Animator, Tween};
 use interpolation::{Ease, EaseFunction};
 use leafwing_input_manager::{
@@ -40,6 +40,7 @@ pub enum Rotation {
 }
 
 /// Events for the Renderer
+#[derive(Event)]
 pub enum ViewUpdate {
     /// A new blob has been spawned in the factory
     BlobSpawned(Entity),
@@ -231,7 +232,6 @@ fn handle_blob_spawned(
                     ..Default::default()
                 },
                 transform: Transform::from_xyz(0.0, 0.0, crate::Z_OVERLAY),
-                texture: DEFAULT_IMAGE_HANDLE.typed(),
                 ..Default::default()
             })
             .insert(Name::new("Pivot Debug"));
@@ -409,7 +409,7 @@ pub fn handle_view_update_system(
     mut rendered_blobs: Query<(&GridBody, &mut BlobRenderState)>,
     config: Res<ViewConfig>,
 ) {
-    for ev in ev.iter() {
+    for ev in ev.read() {
         match *ev {
             ViewUpdate::BlobSpawned(blob) => {
                 handle_blob_spawned(&mut commands, blob, &blob_query, &block_query, &config)
@@ -439,8 +439,8 @@ pub fn handle_view_update_system(
 /// Registers the animation demo
 /// strongly simplified as we also rely on global app setup in [`crate::start_disastris`]
 pub fn register_animation_demo(app: &mut App) {
-    app.add_system(setup_demo_system.in_schedule(OnEnter(DisastrisAppState::AnimationTest)));
-    app.add_system(demo_system.after(GameSets::EventHandling));
+    app.add_systems(OnEnter(DisastrisAppState::AnimationTest), setup_demo_system);
+    app.add_systems(Update, demo_system);
 }
 
 fn spawn_demo_blob(commands: &mut Commands) -> Entity {

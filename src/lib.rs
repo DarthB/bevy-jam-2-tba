@@ -107,15 +107,6 @@ pub mod prelude {
     pub use crate::state::prelude::*;
 }
 
-/// An enumeration of different SystemSets that are ordered
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SystemSet)]
-enum GameSets {
-    EventHandling,
-    InputAndDispatch,
-    GameUpdates,
-    RenderUpdates,
-}
-
 #[derive(States, Debug, PartialEq, Eq, Clone, Copy, Hash, Default)]
 pub enum DisastrisAppState {
     #[default]
@@ -190,8 +181,7 @@ pub fn start_disastris(config: GameConfig) {
         }),
         ..default()
     }))
-    .add_plugin(input::InputMappingPlugin)
-    .add_plugin(TweeningPlugin);
+    .add_plugins((input::InputMappingPlugin, TweeningPlugin));
 
     app.add_event::<movement::BlobMoveEvent>()
         .add_event::<view::ViewUpdate>();
@@ -199,72 +189,104 @@ pub fn start_disastris(config: GameConfig) {
     app.add_state::<DisastrisAppState>();
 
     // initial initializiation during startup
-    app.add_startup_system(initial_start_setup);
+    app.add_systems(Startup, initial_start_setup);
+    app.add_systems(
+        OnEnter(DisastrisAppState::PlayLevel),
+        (game::spawn_world, hud::spawn_hud),
+    );
 
     // Initialization and cleanup for a disastris level
-    app.add_systems((
-        game::spawn_world.in_schedule(OnEnter(DisastrisAppState::PlayLevel)),
-        hud::spawn_hud.in_schedule(OnEnter(DisastrisAppState::PlayLevel)),
-        state::clean_all_state_entities.in_schedule(OnExit(DisastrisAppState::PlayLevel)),
-    ));
+    app.add_systems(
+        OnExit(DisastrisAppState::PlayLevel),
+        state::clean_all_state_entities,
+    );
 
     // @TODO initialization and cleanup for other states
-    app.add_systems((
-        hud::spawn_hud.in_schedule(OnEnter(DisastrisAppState::Mainmenu)),
-        state::clean_all_state_entities.in_schedule(OnExit(DisastrisAppState::Mainmenu)),
-    ));
+    app.add_systems(OnEnter(DisastrisAppState::Mainmenu), hud::spawn_hud);
+    app.add_systems(
+        OnExit(DisastrisAppState::Mainmenu),
+        state::clean_all_state_entities,
+    );
 
-    app.add_systems((
-        state::spawn_transition_level.in_schedule(OnEnter(DisastrisAppState::TransitionLevel)),
-        state::clean_all_state_entities.in_schedule(OnExit(DisastrisAppState::TransitionLevel)),
-    ));
+    app.add_systems(
+        OnEnter(DisastrisAppState::TransitionLevel),
+        state::spawn_transition_level,
+    );
+    app.add_systems(
+        OnExit(DisastrisAppState::TransitionLevel),
+        state::clean_all_state_entities,
+    );
 
     // Setup the game loop
     // 1. We start with a fresh field state and updating the turn resource
-    app.add_system(state::progress_level_time_system.before(GameSets::EventHandling));
-    app.add_system(field::field_states_generation_system.before(GameSets::EventHandling));
-    app.add_system(field::field_states_generation_system.after(GameSets::EventHandling));
+    app.add_systems(
+        First,
+        (
+            state::progress_level_time_system,
+            field::field_states_generation_system,
+        ),
+    );
+
+    app.add_systems(
+        PreUpdate,
+        (
+            //animate_rendered_blob_system.in_set(GameSets::EventHandling),
+            view::handle_view_update_system,
+            (
+                field::tool::apply_movement_tools,
+                field::field_states_generation_system,
+                field::tool::apply_cutter_tool,
+                field::field_states_generation_system,
+            )
+                .chain(),
+            state::app_state_transition_system,
+        ),
+    );
+
+    app.add_systems(
+        Update,
+        (
+            hud::toolbar_button_system,
+            input::tool_switch_via_mouse_wheel_system,
+            input::grid_coordinate_via_mouse_system,
+            movement::move_events_by_gravity_system,
+            field::blob::move_blob_by_input,
+        ),
+    );
+
+    app.add_systems(
+        PostUpdate,
+        (
+            movement::handle_move_blob_events,
+            input::create_tool_if_valid_clicked,
+        ),
+    );
+
+    app.add_systems(
+        Last,
+        (
+            view::animate_rendered_blob_system,
+            hud::toolbar_images_system,
+            hud::toolbar_inventory_system,
+            hud::toolbar_overlays_system,
+            render_old::old_render_entities_system::<field::Field>, // still needed to render target blob @todo get rid of it
+            render_old::show_block_with_debug_tag_system,
+        ),
+    );
 
     // we can check for win its not important if we realize it one tick later:
-    app.add_system(game::level_won_system);
-
-    app.add_systems((
-        //animate_rendered_blob_system.in_set(GameSets::EventHandling),
-        view::handle_view_update_system.in_set(GameSets::EventHandling),
-        field::tool::apply_movement_tools.in_set(GameSets::EventHandling),
-        field::tool::apply_cutter_tool.in_set(GameSets::EventHandling),
-        state::app_state_transition_system.in_set(GameSets::EventHandling),
-    ));
-
-    app.add_systems((
-        hud::toolbar_button_system.in_set(GameSets::InputAndDispatch),
-        input::tool_switch_via_mouse_wheel_system.in_set(GameSets::InputAndDispatch),
-        input::grid_coordinate_via_mouse_system.in_set(GameSets::InputAndDispatch),
-        movement::move_events_by_gravity_system.in_set(GameSets::InputAndDispatch),
-        field::blob::move_blob_by_input.in_set(GameSets::InputAndDispatch),
-        //contiously_spawn_tetris_at_end,
-    ));
-
-    app.add_systems((
-        movement::handle_move_blob_events.in_set(GameSets::GameUpdates),
-        input::create_tool_if_valid_clicked.in_set(GameSets::GameUpdates),
-    ));
-
-    app.add_systems((
-        view::animate_rendered_blob_system.in_set(GameSets::RenderUpdates),
-        hud::toolbar_images_system.in_set(GameSets::RenderUpdates),
-        hud::toolbar_inventory_system.in_set(GameSets::RenderUpdates),
-        hud::toolbar_overlays_system.in_set(GameSets::RenderUpdates),
-        render_old::old_render_entities_system::<field::Field>.in_set(GameSets::RenderUpdates), // still needed to render target blob @todo get rid of it
-        render_old::show_block_with_debug_tag_system.in_set(GameSets::RenderUpdates),
-    ));
-
-    app.configure_set(GameSets::EventHandling.before(GameSets::InputAndDispatch));
-    app.configure_set(GameSets::GameUpdates.after(GameSets::InputAndDispatch));
+    app.add_systems(
+        Last,
+        (
+            field::field_states_generation_system,
+            game::level_won_system,
+        )
+            .chain(),
+    );
 
     // Add an ingame inspector window
     #[cfg(feature = "debug")]
-    app.add_plugin(WorldInspectorPlugin::new())
+    app.add_plugins(WorldInspectorPlugin::new())
         .register_type::<Coordinate>()
         .register_type::<Blob>()
         .register_type::<Block>()

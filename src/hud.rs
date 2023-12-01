@@ -37,7 +37,8 @@ pub fn spawn_hud(mut commands: Commands, assets: Res<GameAssets>) {
     commands
         .spawn(NodeBundle {
             style: Style {
-                size: Size::new(Val::Px(PX_PER_ICON), Val::Px(ysize)),
+                width: Val::Px(PX_PER_ICON),
+                height: Val::Px(ysize),
                 // center button
                 margin: UiRect::all(Val::Auto),
                 // horizontally center child text
@@ -67,7 +68,8 @@ pub fn spawn_hud(mut commands: Commands, assets: Res<GameAssets>) {
 fn spawn_tool_button(cb: &mut ChildBuilder, tool: Tool, assets: &GameAssets) {
     cb.spawn(ButtonBundle {
         style: Style {
-            size: Size::new(Val::Px(PX_PER_ICON), Val::Px(PX_PER_ICON)),
+            width: Val::Px(PX_PER_ICON),
+            height: Val::Px(PX_PER_ICON),
             // center button
             margin: UiRect::all(Val::Auto),
             // horizontally center child text
@@ -100,7 +102,8 @@ fn spawn_tool_button(cb: &mut ChildBuilder, tool: Tool, assets: &GameAssets) {
                 parent
                     .spawn(NodeBundle {
                         style: Style {
-                            size: Size::new(Val::Px(PX_PER_ICON), Val::Px(PX_PER_ICON)),
+                            width: Val::Px(PX_PER_ICON),
+                            height: Val::Px(PX_PER_ICON),
                             // center button
                             margin: UiRect::all(Val::Auto),
                             // horizontally center child text
@@ -223,7 +226,7 @@ pub fn toolbar_button_system(
             //~
 
             match *interaction {
-                Interaction::Clicked => {
+                Interaction::Pressed => {
                     *color = assets.clicked_button_color.into();
                     match tag_hover.tool_status {
                         Tool::Simulate => {
@@ -263,15 +266,12 @@ pub fn spawn_text(
     assets: &GameAssets,
     text: &str,
     pos: UiRect,
-    max_size: Option<Size>,
+    max_size: Option<(Val, Val)>,
 ) {
     let max_size = if let Some(max_size) = max_size {
         max_size
     } else {
-        Size {
-            width: Val::Px(250.),
-            height: Val::Undefined,
-        }
+        (Val::Px(250.), Val::Px(0.))
     };
 
     commands.spawn(
@@ -287,8 +287,12 @@ pub fn spawn_text(
         .with_style(Style {
             align_self: AlignSelf::Center,
             position_type: PositionType::Absolute,
-            position: pos,
-            max_size,
+            left: pos.left,
+            right: pos.right,
+            top: pos.top,
+            bottom: pos.bottom,
+            max_width: max_size.0,
+            max_height: max_size.1,
             ..default()
         }),
     );
