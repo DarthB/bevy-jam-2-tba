@@ -2,7 +2,7 @@
 
 # Disastris - A bevy-jam-2 Game
 
-Disastris - A disastrous factory meets tetris and you must fullfil the consumers' wishes! Therefore, disassemble the useless input blob that was delivered and combine the parts to something beautiful! Select tools and place them in the factory. Choose between several tool variants with the mouse wheel and hit the simulate button when you're ready.
+Disastris - A disastrous factory meets tetris and you must fullfil the consumers' wishes! Therefore, disassemble the useless input blob that was delivered and combine the parts to something beautiful! Select tools and place them in the factory. Choose between several tool variants with the mouse wheel and hit the simulate button when you're ready. An somehow older version can be found on [itch.io](https://tjanus.itch.io/disastris)
 
 A contribution to [bevy-jam-2](https://itch.io/jam/bevy-jam-2)
 
