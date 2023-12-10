@@ -1,6 +1,6 @@
 # Bevy GitHub CI Template README
 
-This repo show how to setup CI on a github project for Bevy.
+How to setup CI on a github project for Bevy notes based on [bevy_game_template](https://github.com/NiklasEi/bevy_game_template) 
 
 It creates two workflows:
 
