@@ -769,21 +769,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_jam_2_disastris"
-version = "0.2.0"
-dependencies = [
- "bevy",
- "bevy-inspector-egui",
- "bevy_tweening",
- "clap",
- "embed-resource",
- "interpolation",
- "itertools",
- "leafwing-input-manager",
- "rand",
-]
-
-[[package]]
 name = "bevy_log"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1556,6 +1541,21 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "disastris"
+version = "0.2.0"
+dependencies = [
+ "bevy",
+ "bevy-inspector-egui",
+ "bevy_tweening",
+ "clap",
+ "embed-resource",
+ "interpolation",
+ "itertools",
+ "leafwing-input-manager",
+ "rand",
 ]
 
 [[package]]

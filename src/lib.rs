@@ -185,7 +185,7 @@ pub fn start_disastris(config: GameConfig) {
 
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
         primary_window: Some(Window {
-            title: "Disastris - A contribution to bevy-jam2".into(),
+            title: "Disastris - A game that only sees small progress after Bevy Releases or Game Jams.".into(),
             position: WindowPosition::Centered(MonitorSelection::Primary),
             resolution: (1400., 1000.).into(),
             present_mode: PresentMode::AutoVsync,

@@ -12,8 +12,8 @@
 
 use std::{env, path::PathBuf};
 
-use bevy_jam_2_disastris_lib::{start_disastris, GameConfig};
 use clap::{Parser, Subcommand};
+use disastris_lib::{start_disastris, GameConfig};
 
 #[derive(Subcommand, Clone, Copy, Default)]
 pub enum CliCommands {
@@ -104,7 +104,7 @@ fn main() {
             let config = GameConfig {
                 start_level: cli.level_num,
                 start_state: cli.start_state,
-                state_from_placeholder: bevy_jam_2_disastris_lib::DisastrisAppState::PlayLevel,
+                state_from_placeholder: disastris_lib::DisastrisAppState::PlayLevel,
             };
             start_disastris(config);
         }

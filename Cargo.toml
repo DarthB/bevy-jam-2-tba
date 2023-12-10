@@ -2,7 +2,7 @@
 resolver = "2"
 
 [package]
-name = "bevy_jam_2_disastris"
+name = "disastris"
 version = "0.2.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -10,11 +10,11 @@ description = "Disassemble the useless input blob that was delivered and combine
 authors = ["Gereon Bartel", "Tim Janus", "Philipp Sieweck"]
 
 [lib]
-name = "bevy_jam_2_disastris_lib"
+name = "disastris_lib"
 path = "src/lib.rs"
 
 [[bin]]
-name = "bevy_jam_2_disastris"
+name = "disastris"
 path = "src/main.rs"
 
 # patch for wasm builds described in bevy-jam-2 email
