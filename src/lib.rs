@@ -17,6 +17,7 @@
 use std::str::FromStr;
 use std::time::Duration;
 
+use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow};
 use bevy::DefaultPlugins;
@@ -64,12 +65,12 @@ pub const QUOTE3: &str =
 
 pub const TUTORIAL: &str = "Disassemble the useless input blob that was delivered and combine the parts to something beautiful! Select tools and place them in the factory. Choose between several tool variants with the mouse wheel and hit the simulate button when you're ready.";
 
-pub const TUT1: &str = "Hello disastros engineer, your task is to move the gray BLOB such that it hits the red target area. On the right toolbar you see multiple tools - You have one ROTATOR, place it wisely somewhere in the blue building area. Play starts the simlation.";
+pub const TUT1: &str = "Hello disastros engineer, your task is to move the gray BLOB such that it hits the light red target area. On the right toolbar you see multiple tools - You have one ROTATOR, place it wisely somewhere in the building area (dark read). Play starts the simlation.";
 pub const TUT2: &str = "Well done disastros engineer, your second tasks involves multiple tools. After you selected a tool on the right toolbar you can change its variant via the mouse wheel. Place all tools to the blue building area in a way that the gray BLOB moves into the red target area.";
 pub const TUT3: &str = "Yass, lets get disastros and let us apply the CUTTER tool! There are many variants, remember the mouse wheel to select them. Place the cutter and other tools on the blue building area. Do you have what it needs to fill up the red target area?";
 
 pub fn get_random_quote() -> String {
-    let v = vec![QUOTE1, QUOTE2, QUOTE3];
+    let v = [QUOTE1, QUOTE2, QUOTE3];
 
     let mut rng = rand::thread_rng();
     let idx = rng.gen_range(0..v.len());
@@ -124,6 +125,10 @@ pub enum DisastrisAppState {
 
     /// Animation test code
     AnimationTest,
+
+    /// Just used to implement the reset command which was transition from PlayLevel in PlayLevel
+    /// see [Bevy Issue 9130](https://github.com/bevyengine/bevy/issues/9130)
+    Placeholder,
 }
 
 impl std::fmt::Display for DisastrisAppState {
@@ -134,6 +139,7 @@ impl std::fmt::Display for DisastrisAppState {
             DisastrisAppState::PlayLevel => write!(f, "PlayLevel"),
             DisastrisAppState::TransitionLevel => write!(f, "TransitionLevel"),
             DisastrisAppState::AnimationTest => write!(f, "AnimationTest"),
+            DisastrisAppState::Placeholder => write!(f, "Placeholder"),
         }
     }
 }
@@ -159,13 +165,23 @@ pub struct GameConfig {
     pub start_level: u32,
 
     pub start_state: String,
+
+    pub state_from_placeholder: DisastrisAppState,
+}
+
+pub fn placeholder_on_enter_into_next(
+    mut next_state: ResMut<NextState<DisastrisAppState>>,
+    game_config: Res<GameConfig>,
+) {
+    next_state.0 = Some(game_config.state_from_placeholder);
 }
 
 /// Acts as an entry point for the game.
 pub fn start_disastris(config: GameConfig) {
     let mut app = App::new();
 
-    app.insert_resource(config);
+    app.insert_resource(config)
+        .insert_resource(AssetMetaCheck::Never);
 
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
         primary_window: Some(Window {
@@ -193,6 +209,11 @@ pub fn start_disastris(config: GameConfig) {
     app.add_systems(
         OnEnter(DisastrisAppState::PlayLevel),
         (game::spawn_world, hud::spawn_hud),
+    );
+
+    app.add_systems(
+        OnEnter(DisastrisAppState::Placeholder),
+        placeholder_on_enter_into_next,
     );
 
     // Initialization and cleanup for a disastris level
@@ -231,7 +252,6 @@ pub fn start_disastris(config: GameConfig) {
         PreUpdate,
         (
             //animate_rendered_blob_system.in_set(GameSets::EventHandling),
-            view::handle_view_update_system,
             (
                 field::tool::apply_movement_tools,
                 field::field_states_generation_system,
@@ -265,7 +285,11 @@ pub fn start_disastris(config: GameConfig) {
     app.add_systems(
         Last,
         (
-            view::animate_rendered_blob_system,
+            (
+                view::handle_view_update_system,
+                view::animate_rendered_blob_system,
+            )
+                .chain(),
             hud::toolbar_images_system,
             hud::toolbar_inventory_system,
             hud::toolbar_overlays_system,

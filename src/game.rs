@@ -31,7 +31,7 @@ pub fn spawn_world(
     commands.insert_resource(GameStateLevel::new(SECONDS_PER_ROUND));
 
     let factory_field_struct = Field::as_factory();
-    let root_factory_field = Vec3::new(-200.0, -70.0, 0.0);
+    let root_factory_field = Vec3::new(0., -70., 0.0);
     let (px, py) = factory_field_struct.coords_to_px(0, 0);
     view_config.factory_topleft = Vec3::new(px, py, 0.0) + root_factory_field;
 
@@ -69,12 +69,15 @@ pub fn spawn_world(
     );
     //evt.send(ViewUpdate::BlobSpawned(target_stone));
 
-    let pos = UiRect {
-        top: Val::Percent(3.0),
-        left: Val::Percent(3.0),
-        ..default()
-    };
-    spawn_text(&mut commands, &assets, level.get_text(), pos, None);
+    spawn_text(
+        &mut commands,
+        &assets,
+        level.get_text(),
+        Vec2::new(-492., 188.),
+        Vec2::new(408., 512.),
+        Color::WHITE,
+        Color::rgba(0.0, 0.0, 0.75, 0.75),
+    );
 }
 
 pub fn contiously_spawn_tetris_at_end(
@@ -153,17 +156,15 @@ pub fn level_won_system(
         ;
     if cond {
         player_state.won = true;
-        let pos = UiRect {
-            top: Val::Percent(3.0),
-            right: Val::Percent(3.0),
-            ..default()
-        };
+
         spawn_text(
             &mut commands,
             &assets,
             "YOU WON!!!\n\nPress <RETURN> to continue!\n\nAnd get a huge wall of text with your random quote as a reward!",
-            pos,
-            None,
+            Vec2::new(-450., -300.),
+            Vec2::new(512., 386.),
+            Color::WHITE,
+            Color::BLACK,
         );
     }
 }

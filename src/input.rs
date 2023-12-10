@@ -164,7 +164,7 @@ pub fn grid_coordinate_via_mouse_system(
             let sprite_pos = trans.translation();
             let diff = Vec3::new(
                 sprite_pos.x - cursor_pos.x,
-                sprite_pos.y - cursor_pos.y,
+                sprite_pos.y + cursor_pos.y,
                 0.0,
             );
 

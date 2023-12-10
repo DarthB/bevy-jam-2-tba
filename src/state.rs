@@ -219,13 +219,10 @@ pub fn spawn_transition_level(mut commands: Commands, assets: Res<GameAssets>, g
             &mut commands,
             &assets,
             &format!("Congratulations for finishing level '{}'!", level.num),
-            UiRect {
-                left: Val::Percent(5.),
-                right: Val::Percent(45.),
-                top: Val::Percent(0.),
-                bottom: Val::Percent(10.),
-            },
-            None,
+            Vec2::new(0., 450.),
+            Vec2::new(768., 128.),
+            Color::WHITE,
+            Color::GREEN,
         );
 
         spawn_text(
@@ -235,39 +232,10 @@ pub fn spawn_transition_level(mut commands: Commands, assets: Res<GameAssets>, g
                 "Your reward quote:\n{}\n\nTo start the next level just press return!",
                 get_random_quote(),
             ),
-            UiRect {
-                left: Val::Percent(5.),
-                right: Val::Percent(45.),
-                top: Val::Percent(20.),
-                bottom: Val::Percent(50.),
-            },
-            Some((Val::Px(600.), Val::Px(0.))),
-        );
-
-        spawn_text(
-            &mut commands,
-            &assets,
-            "Some Stats:\nTodo: \nTodo: \nTodo:",
-            UiRect {
-                left: Val::Percent(5.),
-                right: Val::Percent(45.),
-                top: Val::Percent(75.),
-                bottom: Val::Percent(100.),
-            },
-            Some((Val::Px(500.0), Val::Px(0.))),
-        );
-    } else {
-        spawn_text(
-            &mut commands,
-            &assets,
-            "Welcome to the level transition screen, the left side is reserved for things you finished. And as you can see it is quite empty. But there is a lot to come!",
-            UiRect {
-                left: Val::Percent(5.),
-                right: Val::Percent(45.),
-                top: Val::Percent(0.),
-                bottom: Val::Percent(10.),
-            },
-            None,
+            Vec2::new(0., 250.),
+            Vec2::new(768., 256.),
+            Color::WHITE,
+            Color::GREEN,
         );
     }
 
@@ -276,13 +244,10 @@ pub fn spawn_transition_level(mut commands: Commands, assets: Res<GameAssets>, g
             &mut commands,
             &assets,
             &format!("Next level will be {}!", level.num),
-            UiRect {
-                left: Val::Percent(60.),
-                right: Val::Percent(80.),
-                top: Val::Percent(0.),
-                bottom: Val::Percent(10.),
-            },
-            None,
+            Vec2::new(0., 0.),
+            Vec2::new(768., 128.),
+            Color::WHITE,
+            Color::GREEN,
         );
 
         spawn_text(
@@ -292,13 +257,10 @@ pub fn spawn_transition_level(mut commands: Commands, assets: Res<GameAssets>, g
                 "A Hint:\n{}\n\nTo start the next level just press return!",
                 level.get_text()
             ),
-            UiRect {
-                left: Val::Percent(55.),
-                right: Val::Percent(90.),
-                top: Val::Percent(20.),
-                bottom: Val::Percent(50.),
-            },
-            Some((Val::Px(600.0), Val::Px(0.))),
+            Vec2::new(0., -150.),
+            Vec2::new(768., 256.),
+            Color::WHITE,
+            Color::GREEN,
         );
 
         spawn_text(
@@ -319,26 +281,20 @@ pub fn spawn_transition_level(mut commands: Commands, assets: Res<GameAssets>, g
                     .get(&Tool::Cutter(TetrisBricks::default()))
                     .unwrap_or(&0usize),
             ),
-            UiRect {
-                left: Val::Percent(55.),
-                right: Val::Percent(90.),
-                top: Val::Percent(75.),
-                bottom: Val::Percent(100.),
-            },
-            Some((Val::Px(500.0), Val::Px(0.))),
+            Vec2::new(0., -350.),
+            Vec2::new(768., 128.),
+            Color::WHITE,
+            Color::GREEN,
         );
     } else {
         spawn_text(
             &mut commands,
             &assets,
             "There is no next level, you won hell yeah!",
-            UiRect {
-                left: Val::Percent(55.),
-                right: Val::Percent(80.),
-                top: Val::Percent(0.),
-                bottom: Val::Percent(10.),
-            },
-            None,
+            Vec2::new(0., 350.),
+            Vec2::new(768., 128.),
+            Color::WHITE,
+            Color::GREEN,
         );
     }
 }

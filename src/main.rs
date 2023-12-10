@@ -60,15 +60,19 @@ impl Cli {
         let rel_out_folder = self.output_folder.unwrap_or("target".into());
 
         // build absolute folders based on current working directory
-        let cwd = env::current_dir().expect("No current working directory - May crash WASM?");
-
-        // ensure output folder is absolute
-        let abs_out_folder = if rel_out_folder.is_absolute() {
-            rel_out_folder
-        } else {
-            let mut abs_out_folder = cwd;
-            abs_out_folder.push(rel_out_folder);
-            abs_out_folder
+        let cwd = env::current_dir();
+        let abs_out_folder = match cwd {
+            Ok(cwd) => {
+                // ensure output folder is absolute
+                if rel_out_folder.is_absolute() {
+                    rel_out_folder
+                } else {
+                    let mut abs_out_folder = cwd;
+                    abs_out_folder.push(rel_out_folder);
+                    abs_out_folder
+                }
+            }
+            Err(_) => PathBuf::from("."),
         };
 
         CliParameters {
@@ -100,6 +104,7 @@ fn main() {
             let config = GameConfig {
                 start_level: cli.level_num,
                 start_state: cli.start_state,
+                state_from_placeholder: bevy_jam_2_disastris_lib::DisastrisAppState::PlayLevel,
             };
             start_disastris(config);
         }

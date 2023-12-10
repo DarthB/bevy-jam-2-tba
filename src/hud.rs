@@ -3,6 +3,7 @@
 //! done when the HUD is clicked the UITag* components are used.
 
 use crate::{DisastrisAppState, PX_PER_ICON};
+use bevy::text::Text2dBounds;
 use bevy::{prelude::*, ui::FocusPolicy};
 
 use crate::field::prelude::*;
@@ -34,11 +35,15 @@ pub struct UITagInventory {
 pub fn spawn_hud(mut commands: Commands, assets: Res<GameAssets>) {
     let ysize = PX_PER_ICON * 7.0 + 4.0 * 8.0;
 
+    let pos = Vec2::new(240., 0.);
+
     commands
         .spawn(NodeBundle {
             style: Style {
                 width: Val::Px(PX_PER_ICON),
                 height: Val::Px(ysize),
+                left: Val::Px(pos.x),
+                top: Val::Px(pos.y),
                 // center button
                 margin: UiRect::all(Val::Auto),
                 // horizontally center child text
@@ -233,7 +238,8 @@ pub fn toolbar_button_system(
                             turn.simulation_running = false;
                         }
                         Tool::Reset => {
-                            next_state.set(DisastrisAppState::PlayLevel);
+                            // From Placeholder --> PlayLevel
+                            next_state.set(DisastrisAppState::Placeholder);
                         }
                         Tool::EraseAll => {
                             if let Ok(mut field) = field_query.get_single_mut() {
@@ -265,35 +271,37 @@ pub fn spawn_text(
     commands: &mut Commands,
     assets: &GameAssets,
     text: &str,
-    pos: UiRect,
-    max_size: Option<(Val, Val)>,
+    pos: Vec2,
+    size: Vec2,
+    fg_color: Color,
+    bg_color: Color,
 ) {
-    let max_size = if let Some(max_size) = max_size {
-        max_size
-    } else {
-        (Val::Px(250.), Val::Px(0.))
+    let txt_style = TextStyle {
+        font: assets.font.clone(),
+        font_size: 36.0,
+        color: fg_color,
     };
 
-    commands.spawn(
-        TextBundle::from_section(
-            text,
-            TextStyle {
-                font: assets.font.clone(),
-                font_size: 36.0,
-                color: Color::BLACK,
+    commands
+        .spawn(SpriteBundle {
+            sprite: Sprite {
+                color: bg_color,
+                custom_size: Some(size),
+                ..default()
             },
-        )
-        .with_text_alignment(TextAlignment::Center)
-        .with_style(Style {
-            align_self: AlignSelf::Center,
-            position_type: PositionType::Absolute,
-            left: pos.left,
-            right: pos.right,
-            top: pos.top,
-            bottom: pos.bottom,
-            max_width: max_size.0,
-            max_height: max_size.1,
+            transform: Transform::from_translation(pos.extend(0.)),
             ..default()
-        }),
-    );
+        })
+        .with_children(|cb| {
+            cb.spawn(Text2dBundle {
+                text: Text {
+                    sections: vec![TextSection::new(text, txt_style)],
+                    alignment: TextAlignment::Center,
+                    linebreak_behavior: bevy::text::BreakLineOn::WordBoundary,
+                },
+                text_2d_bounds: Text2dBounds { size },
+                transform: Transform::from_translation(Vec3::Z),
+                ..default()
+            });
+        });
 }

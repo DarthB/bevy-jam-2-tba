@@ -14,7 +14,7 @@ use crate::{
     PX_PER_TILE, Z_SOLID,
 };
 use bevy::{ecs::system::EntityCommands, log, prelude::*};
-use bevy_tweening::{lens::SpriteColorLens, Animator, Tween};
+use bevy_tweening::{lens::*, *};
 use interpolation::{Ease, EaseFunction};
 use leafwing_input_manager::{
     prelude::{ActionState, InputMap},
